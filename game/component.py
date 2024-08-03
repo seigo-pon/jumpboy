@@ -1,5 +1,4 @@
-from enum import IntEnum
-from typing import Self
+from typing import Self, TypeVar
 from uuid import uuid4 as uuid
 from game import Coordinate, Image, Size, TileMap
 import pyxel
@@ -8,10 +7,6 @@ import pyxel
 class Scribe:
   def draw(self, transparent_color: int) -> None:
     pass
-
-
-class Motion(IntEnum):
-  pass
 
 
 class Collision:
@@ -43,11 +38,12 @@ class Block:
     self.collision = collision
 
 
+TSprite = TypeVar('TSprite', bound='Sprite')
 class Sprite(Scribe):
   def __init__(self, motions: dict[int, Block]) -> None:
     self.id = str(uuid())
     self.motions = motions
-    self.motion = 0
+    self.motion = list(self.motions.keys())[0]
     self.center = Coordinate(0, 0)
 
   @property
@@ -100,16 +96,12 @@ class Sprite(Scribe):
       transparent_color,
     )
 
-  def hit(self, other: Self.__class__) -> bool:
+  def hit(self, other: TSprite) -> bool:
     return self.block.collision.hit(self.center, other.block.collision, other.center)
 
 
-class Figure(IntEnum):
-  pass
-
-
 class Obstacle:
-  def __init__(self, figure: Figure, collision: Collision) -> None:
+  def __init__(self, figure: int, collision: Collision) -> None:
     self.figure = figure
     self.collision = collision
 

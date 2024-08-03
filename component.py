@@ -1,20 +1,20 @@
+from enum import IntEnum
 from game import (
   Coordinate, Size,
   Asset, Image, TileMap,
-  Motion as BaseMotion, Collision, Block,
+  Collision, Block,
 )
 from core import (
   GamePad,
-  GameLevel as BaseGameLevel, Stage,
   Jumper, Ball, Field
 )
 
 
-class GameLevel(BaseGameLevel):
+class GameLevel(IntEnum):
   BOY = 0
 
 
-class BoyStage(Stage):
+class BoyStage(IntEnum):
   STAGE_1 = 0
 
 
@@ -33,7 +33,7 @@ class BoyStage1Field(Field):
 
 
 class BoyJumper(Jumper):
-  class Motion(BaseMotion):
+  class Motion(IntEnum):
     STOP = 0
     WALK = 1
     JUMP = 2
@@ -111,7 +111,7 @@ class BoyJumper(Jumper):
 
 
 class BoyStage1Ball(Ball):
-  class Motion(BaseMotion):
+  class Motion(IntEnum):
     ANGLE_0 = 0
     ANGLE_90 = 1
     ANGLE_180 = 2

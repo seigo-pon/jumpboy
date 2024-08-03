@@ -1,14 +1,14 @@
 from enum import IntEnum
-from typing import Self
+from typing import Any, Self
 from game import (
   Coordinate,
   TileMap,
   Sprite, Field as BaseField, GamePad as BaseGamePad,
-  Snapshot as BaseSnapshot, Scene as BaseScene,
+  Timer, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
 
-from game.component import Block, Motion, Obstacle
+from game.component import Block, Obstacle
 from game.utils import Size
 
 
@@ -31,15 +31,6 @@ class GamePad(BaseGamePad):
 
   def cancel(self) -> bool:
     return self.press(self.cancel_keys)
-
-
-class GameLevel(IntEnum):
-  pass
-
-
-class Stage(IntEnum):
-  pass
-
 
 class Score:
   def __init__(self) -> None:
@@ -68,12 +59,8 @@ class Field(BaseField):
     return self.ground_top-self.scroll_pos.y
 
 
-class BaseAction(IntEnum):
-  pass
-
-
 class Jumper(Sprite):
-  class Action(BaseAction):
+  class Action(IntEnum):
     STOP = 0
     WALK = 1
     STANDBY = 2
@@ -126,7 +113,7 @@ class Jumper(Sprite):
 
 
 class Ball(Sprite):
-  class Action(BaseAction):
+  class Action(IntEnum):
     STOP = 0
     ROLL = 1
     BREAK = 2
@@ -161,8 +148,8 @@ class Snapshot(BaseSnapshot):
     self,
     game_pad: GamePad,
     score: Score,
-    level :GameLevel,
-    stage: Stage,
+    level :int,
+    stage: int,
     field: Field,
     balls: list[Ball],
     jumper: Jumper,
@@ -175,14 +162,11 @@ class Snapshot(BaseSnapshot):
     self.field = field
     self.balls = balls
     self.jumper = jumper
-    self.playing_timer_id: str | None = None
+    self.playing_timer: Timer | None = None
 
 
 class Scene(BaseScene[Snapshot]):
-  def window_center_origin(self, size: Size) -> Coordinate:
-    return Coordinate(self.profile.window_size.width/2-size.width/2, self.profile.window_size.height/2-size.height/2)
-
-  def update(self) -> Self.__class__:
+  def update(self) -> Self | Any:
     self.stopwatch.update()
 
     for ball in self.snapshot.balls:

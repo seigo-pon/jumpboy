@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Generic, Self, Tuple, TypeVar
+from typing import Any, Generic, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import Size
 import json
@@ -13,81 +13,92 @@ class GameProfile:
     self.window_size = window_size
     self.fps = fps
     self.copyright = copyright
-  
 
-class Stopwatch:
+
+class Stopwatch:      
   def __init__(self, fps: int) -> None:
     self.fps = fps
-    self.count = 0
-    self.timers: dict[str, Tuple[int | None, int, int]] = {}
+    self.frame = 0
 
-  def set_timer(self) -> str:
-    id = str(uuid())
-    self.timers[id] = (self.count, 0, 0)
-    return id
-
-  def set_msec(self, msec: int) -> str:
-    id = str(uuid())
-    self.timers[id] = (self.count, msec, 0)
-    return id
-
-  def set_sec(self, sec: int) -> str:
-    id = str(uuid())
-    self.timers[id] = (self.count, sec*1000, 0)
-    return id
-
-  def remove(self, id: str) -> None:
-    if id in self.timers:
-      del self.timers[id]
-
-  def map_msec(self, count: int) -> int:
-    return int(1/self.fps*count*1000)
+  def calc_msec(self, frame: int) -> int:
+    return int(1/self.fps*frame*1000)
 
   @property
   def msec(self) -> int:
-    return self.map_msec(self.count)
+    return self.calc_msec(self.frame)
 
   @property
   def sec(self) -> int:
     return int(self.msec/1000)
 
-  def elapsed_msec(self, id: str) -> int | None:
-    if id in self.timers:
-      msec = 0
-      first_count = self.timers[id][0]
-      if first_count is not None:
-        msec = self.msec-self.map_msec(first_count)
-      return msec+self.timers[id][2]
+  def update(self) -> None:
+    self.frame += 1
+
+
+class Timer:
+  def __init__(self, stopwatch: Stopwatch) -> None:
+    self.id = str(uuid())
+    self.stopwatch = stopwatch
+    self.start_frame: int | None = None
+    self.limit_msec: int | None = None
+    self.offset_msec = 0
+
+  @classmethod
+  def set_timer(cls, stopwatch: Stopwatch, start: bool = False) -> Self:
+    timer = cls(stopwatch)
+    if start:
+      timer.resume()
+    return timer
+
+  @classmethod
+  def set_msec(cls, stopwatch: Stopwatch, msec: int, start: bool = False) -> Self:
+    timer = cls.set_timer(stopwatch, start)
+    timer.limit_msec = msec
+    if start:
+      timer.resume()
+    return timer
+
+  @classmethod
+  def set_sec(cls, stopwatch: Stopwatch, sec: int, start: bool = False) -> Self:
+    return cls.set_msec(stopwatch, sec*1000, start)
+
+  @property
+  def msec(self) -> int | None:
+    msec = 0
+    if self.start_frame is not None:
+      msec = self.stopwatch.msec-self.stopwatch.calc_msec(self.start_frame)
+    return msec+self.offset_msec
+
+  @property
+  def sec(self) -> int | None:
+    if self.msec is not None:
+      return int(self.msec/1000)
 
     return None
 
-  def elapsed_sec(self, id: str) -> int | None:
-    msec = self.elapsed_msec(id)
-    if msec is not None:
-      return int(msec/1000)
-    return None
-
-  def over(self, id: str) -> bool:
-    if id in self.timers:
-      if self.timers[id][1] > 0:
-        msec = self.elapsed_msec(id)
-        if msec is not None and msec >= self.timers[id][1]:
-          return True
+  def over(self) -> bool:
+    if self.limit_msec is not None and self.limit_msec > 0:
+      if self.msec is not None and self.msec >= self.limit_msec:
+        return True
 
     return False
 
-  def pause(self, id: str) -> None:
-    if id in self.timers:
-      msec = self.elapsed_msec(id)
-      if msec is not None:
-        self.timers[id] = (None, self.timers[id][1], msec)
+  def counting(self) -> bool:
+    return self.start_frame is not None
 
-  def resume(self, id: str) -> None:
-    if id in self.timers:
-      self.timers[id] = (self.count, self.timers[id][1], self.timers[id][2])
+  def pause(self) -> None:
+    if self.msec is not None:
+      self.start_frame = None
+      self.offset_msec += self.msec
 
-  def update(self) -> None:
-    self.count += 1
+  def resume(self) -> None:
+    if self.start_frame is None:
+      self.start_frame = self.stopwatch.frame
+
+  def reset(self) -> None:
+    self.start_frame = self.stopwatch.frame
+    self.offset_msec = 0
+
 
 class Snapshot:
   SAVE_FOLDER = 'snapshot'
@@ -119,15 +130,14 @@ class Snapshot:
         self.from_json(json.load(f))
 
 
-T = TypeVar('T')
-
-class Scene(Generic[T]):
-  def __init__(self, profile: GameProfile, stopwatch: Stopwatch, snapshot: T) -> None:
+TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
+class Scene(Generic[TSnapshot]):
+  def __init__(self, profile: GameProfile, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
     self.profile = profile
     self.stopwatch = stopwatch
     self.snapshot = snapshot
 
-  def update(self) -> Self:
+  def update(self) -> Self | Any:
     raise Exception()
 
   def draw(self, transparent_color: int) -> None:
