@@ -2,7 +2,7 @@ from enum import IntEnum
 from game import Coordinate, Size
 
 
-class Asset:
+class AssetImage:
   class Pose(IntEnum):
     NORMAL = 0
     MIRROR_X = 1
@@ -17,7 +17,7 @@ class Asset:
 
   @classmethod
   def measure_size(cls) -> Size:
-    raise Exception()
+    raise RuntimeError()
 
   @property
   def origin(self) -> Coordinate:
@@ -47,13 +47,25 @@ class Asset:
     return self.size
 
 
-class Image(Asset):
+class Image(AssetImage):
   @classmethod
   def measure_size(cls) -> Size:
     return Size(8, 8)
 
 
-class TileMap(Asset):
+class TileMap(AssetImage):
   @classmethod
   def measure_size(cls) -> Size:
     return Size(64, 64)
+
+
+class AssetSound:
+  pass
+
+
+class Sound(AssetSound):
+  pass
+
+
+class Music(AssetSound):
+  pass

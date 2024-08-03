@@ -30,7 +30,7 @@ class GameEngine:
       pyxel.load(asset_filename)
 
   @classmethod
-  def folder_path(cls, root, folder) -> str:
+  def path(cls, root, folder) -> str:
     root_dir = os.path.abspath(os.path.join(os.path.abspath(root), os.pardir))
     return os.path.join(root_dir, folder)
 

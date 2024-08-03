@@ -4,7 +4,7 @@ from game import (
   Coordinate,
   TileMap,
   Sprite, Field as BaseField, GamePad as BaseGamePad,
-  Timer, Snapshot as BaseSnapshot, Scene as BaseScene,
+  Timer, Snapshot as BaseSnapshot, GameScreen as BaseGameScreen, Scene as BaseScene,
 )
 import pyxel
 
@@ -125,7 +125,7 @@ class Ball(Sprite):
 
   @property
   def rolling_distance_min(self) -> float:
-    raise Exception()
+    raise RuntimeError()
 
   @property
   def rolling_distance(self) -> float:
@@ -140,8 +140,7 @@ class Ball(Sprite):
       self.action = self.Action.ROLL
 
   def update(self, field: Field) -> None:
-      pass
-
+      raise RuntimeError()
 
 class Snapshot(BaseSnapshot):
   def __init__(
@@ -162,10 +161,18 @@ class Snapshot(BaseSnapshot):
     self.field = field
     self.balls = balls
     self.jumper = jumper
-    self.playing_timer: Timer | None = None
+    self.timers: dict[int, Timer] = {}
 
 
-class Scene(BaseScene[Snapshot]):
+class GameScreen(BaseGameScreen[Snapshot]):
+  def window_center_origin(self, size: Size) -> Coordinate:
+    return Coordinate(
+      self.profile.window_size.width/2-size.width/2,
+      self.profile.window_size.height/2-size.height/2,
+    )
+
+
+class Scene(BaseScene[Snapshot, GameScreen]):
   def update(self) -> Self | Any:
     self.stopwatch.update()
 
@@ -175,13 +182,3 @@ class Scene(BaseScene[Snapshot]):
     self.snapshot.jumper.update(self.snapshot.game_pad, self.snapshot.field)
 
     return self
-
-  def draw(self, transparent_color: int) -> None:
-    super().draw(transparent_color)
-
-    self.snapshot.field.draw(transparent_color)
-
-    for ball in self.snapshot.balls:
-      ball.draw(transparent_color)
-
-    self.snapshot.jumper.draw(transparent_color)

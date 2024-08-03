@@ -19,7 +19,7 @@ class App:
       profile=profile,
       quit_key=pyxel.KEY_Q,
       asset_filenames=[
-        os.path.join(GameEngine.folder_path(__file__, self.ASSET_FOLDER), asset_file) for asset_file in self.ASSET_FILES
+        os.path.join(GameEngine.path(__file__, self.ASSET_FOLDER), asset_file) for asset_file in self.ASSET_FILES
       ],
       update=self.update,
       draw=self.draw,

@@ -1,7 +1,7 @@
 from enum import IntEnum
 from game import (
   Coordinate, Size,
-  Asset, Image, TileMap,
+  AssetImage, Image, TileMap,
   Collision, Block,
 )
 from core import (
@@ -22,9 +22,9 @@ class BoyStage1Field(Field):
   def __init__(self, max_size: Size) -> None:
     super().__init__(
       [
-        TileMap(0, Coordinate(0, 0), Size(1, 2), Asset.Pose.NORMAL),
-        TileMap(0, Coordinate(0, 0), Size(1, 2), Asset.Pose.NORMAL),
-        TileMap(0, Coordinate(0, 0), Size(1, 2), Asset.Pose.NORMAL),
+        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL),
+        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL),
+        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL),
       ],
       [],
       max_size,

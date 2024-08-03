@@ -1,12 +1,12 @@
 from typing import Self, TypeVar
 from uuid import uuid4 as uuid
-from game import Coordinate, Image, Size, TileMap
+from game import Coordinate, Image, Size, TileMap, Music
 import pyxel
 
 
 class Scribe:
   def draw(self, transparent_color: int) -> None:
-    pass
+    raise RuntimeError()
 
 
 class Collision:
@@ -39,6 +39,8 @@ class Block:
 
 
 TSprite = TypeVar('TSprite', bound='Sprite')
+
+
 class Sprite(Scribe):
   def __init__(self, motions: dict[int, Block]) -> None:
     self.id = str(uuid())
@@ -185,3 +187,11 @@ class GamePad:
         return True
 
     return False
+
+
+class MusicBox:
+  def __init__(self, music: Music) -> None:
+    self.music = music
+
+  def play(self) -> None:
+    pass

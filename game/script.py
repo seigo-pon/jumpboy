@@ -63,18 +63,15 @@ class Timer:
     return cls.set_msec(stopwatch, sec*1000, start)
 
   @property
-  def msec(self) -> int | None:
+  def msec(self) -> int:
     msec = 0
     if self.start_frame is not None:
       msec = self.stopwatch.msec-self.stopwatch.calc_msec(self.start_frame)
     return msec+self.offset_msec
 
   @property
-  def sec(self) -> int | None:
-    if self.msec is not None:
-      return int(self.msec/1000)
-
-    return None
+  def sec(self) -> int:
+    return int(self.msec/1000)
 
   def over(self) -> bool:
     if self.limit_msec is not None and self.limit_msec > 0:
@@ -83,7 +80,7 @@ class Timer:
 
     return False
 
-  def counting(self) -> bool:
+  def running(self) -> bool:
     return self.start_frame is not None
 
   def pause(self) -> None:
@@ -108,10 +105,10 @@ class Snapshot:
     return os.path.join(self.SAVE_FOLDER)
 
   def to_json(self) -> str:
-    raise Exception()
+    raise RuntimeError()
 
   def from_json(self, data: dict) -> None:
-    pass
+    raise RuntimeError()
 
   def save(self) -> None:
     if not os.path.exists(self.folder):
@@ -131,14 +128,31 @@ class Snapshot:
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
-class Scene(Generic[TSnapshot]):
-  def __init__(self, profile: GameProfile, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
+
+
+class GameScreen(Generic[TSnapshot]):
+  def __init__(self, profile: GameProfile, snapshot: TSnapshot) -> None:
+    self.profile = profile
+    self.snapshot = snapshot
+
+  def draw(self, transparent_color: int) -> None:
+    raise RuntimeError()
+
+
+TGameScreen = TypeVar('TGameScreen', bound='GameScreen')
+
+
+class Scene(Generic[TSnapshot, TGameScreen]):
+  def __init__(self, profile: GameProfile, stopwatch: Stopwatch, snapshot: TSnapshot, screen: TGameScreen) -> None:
     self.profile = profile
     self.stopwatch = stopwatch
     self.snapshot = snapshot
+    self.screen = screen
 
   def update(self) -> Self | Any:
-    raise Exception()
+    raise RuntimeError()
 
   def draw(self, transparent_color: int) -> None:
     pyxel.cls(transparent_color)
+
+    self.screen.draw(transparent_color)
