@@ -47,18 +47,18 @@ class BoyJumper(Jumper):
       {
         self.Motion.STOP: Block(
           Image(0, Coordinate(1, 0), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(8, 8))),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height))),
         self.Motion.WALK: Block(
           Image(0, Coordinate(1, 1), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         ),
         self.Motion.JUMP: Block(
           Image(0, Coordinate(1, 2), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         ),
         self.Motion.DOWN: Block(
           Image(0, Coordinate(1, 3), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         )
       },
     )
@@ -124,19 +124,19 @@ class BoyStage1Ball(Ball):
       {
         self.Motion.ANGLE_0: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         ),
         self.Motion.ANGLE_90: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_Y),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         ),
         self.Motion.ANGLE_180: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_XY),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         ),
         self.Motion.ANGLE_270: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_X),
-          Collision(Coordinate(0, 0), Size(8, 8)),
+          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
         ),
       },
     )
@@ -169,12 +169,12 @@ class BoyStage1Ball(Ball):
         self.rolling_interval = 0
         if self.rolling_direction:
           self.motion += 1
-          if self.motion > self.Motion.ANGLE_270:
-            self.motion = self.Motion.ANGLE_0
+          if self.motion > [e for e in self.Motion][-1]:
+            self.motion = [e for e in self.Motion][0]
         else:
           self.motion -= 1
-          if self.motion < self.Motion.ANGLE_0:
-            self.motion = self.Motion.ANGLE_270
+          if self.motion < [e for e in self.Motion][0]:
+            self.motion = [e for e in self.Motion][-1]
 
     elif self.action == self.Action.BREAK:
       pass

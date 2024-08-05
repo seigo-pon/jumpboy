@@ -15,10 +15,16 @@ class Collision:
     self.size = size
 
   def min(self, center: Coordinate) -> Coordinate:
-    return Coordinate(center.x-self.size.width/2+self.origin.x, center.y-self.size.height/2+self.origin.y)
+    return Coordinate(
+      center.x-self.size.width/2+self.origin.x,
+      center.y-self.size.height/2+self.origin.y,
+    )
 
   def max(self, center: Coordinate) -> Coordinate:
-    return Coordinate(self.min(center).x+self.size.width, self.min(center).y+self.size.height)
+    return Coordinate(
+      self.min(center).x+self.size.width,
+      self.min(center).y+self.size.height,
+    )
 
   def hit(self, center: Coordinate, other: Self, other_center: Coordinate) -> bool:
     if other.min(other_center).x <= self.min(center).x <= other.max(other_center).x:
@@ -61,10 +67,7 @@ class Sprite(Scribe):
 
   @origin.setter
   def origin(self, value: Coordinate) -> None:
-    self.center = Coordinate(
-      value.x+self.size.width/2,
-      value.y+self.size.height/2,
-    )
+    self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   @property
   def size(self) -> Size:
@@ -138,30 +141,41 @@ class Text(Scribe):
   def __init__(self, text: str, text_color: int) -> None:
     self.text = text
     self.text_color = text_color
-    self.origin = Coordinate(0, 0)
+    self.center = Coordinate(0, 0)
 
   @classmethod
-  def text_size(cls) -> int:
+  def word_size(cls) -> int:
     return 4
 
   @property
-  def length(self) -> int:
-    return len(self.text)*self.text_size()
+  def size(self) -> Size:
+    return Size(len(self.text)*Text.word_size(), Text.word_size())
+
+  @property
+  def origin(self) -> Coordinate:
+    return Coordinate(self.center.x-self.size.width/2, self.center.y-self.size.height/2)
+
+  @origin.setter
+  def origin(self, value: Coordinate) -> None:
+    self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self, transparent_color: int) -> None:
-    pyxel.text(
-      self.origin.x,
-      self.origin.y,
-      self.text,
-      self.text_color,
-    )
+    pyxel.text(self.origin.x, self.origin.y, self.text, self.text_color)
 
 
 class Signboard(Scribe):
   def __init__(self, image: Image, texts: list[Text]) -> None:
     self.image = image
-    self.origin = Coordinate(0, 0)
+    self.center = Coordinate(0, 0)
     self.texts = texts
+
+  @property
+  def origin(self) -> Coordinate:
+    return Coordinate(self.center.x-self.image.size.width/2, self.center.y-self.image.size.height/2)
+
+  @origin.setter
+  def origin(self, value: Coordinate) -> None:
+    self.center = Coordinate(value.x+self.image.size.width/2, value.y+self.image.size.height/2)
 
   def draw(self, transparent_color: int) -> None:
     pyxel.blt(

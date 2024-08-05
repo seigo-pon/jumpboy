@@ -4,7 +4,7 @@ from game import (
   Coordinate,
   TileMap,
   Sprite, Field as BaseField, GamePad as BaseGamePad,
-  Timer, Snapshot as BaseSnapshot, GameScreen as BaseGameScreen, Scene as BaseScene,
+  Language, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
 
@@ -27,10 +27,11 @@ class GamePad(BaseGamePad):
     ]
 
   def enter(self) -> bool:
-    return self.press(self.enter_keys)
+    return GamePad.press(self.enter_keys)
 
   def cancel(self) -> bool:
-    return self.press(self.cancel_keys)
+    return GamePad.press(self.cancel_keys)
+
 
 class Score:
   def __init__(self) -> None:
@@ -38,7 +39,13 @@ class Score:
 
 
 class Field(BaseField):
-  def __init__(self, background_tiles: list[TileMap], obstacles: list[Obstacle], max_size: Size, ground_top: int) -> None:
+  def __init__(
+    self,
+    background_tiles: list[TileMap],
+    obstacles: list[Obstacle],
+    max_size: Size,
+    ground_top: int,
+  ) -> None:
     super().__init__(background_tiles, obstacles, max_size)
     self.ground_top = ground_top
 
@@ -142,9 +149,11 @@ class Ball(Sprite):
   def update(self, field: Field) -> None:
       raise RuntimeError()
 
+
 class Snapshot(BaseSnapshot):
   def __init__(
     self,
+    lang: Language,
     game_pad: GamePad,
     score: Score,
     level :int,
@@ -154,6 +163,7 @@ class Snapshot(BaseSnapshot):
     jumper: Jumper,
   ) -> None:
     super().__init__()
+    self.lang = lang
     self.game_pad = game_pad
     self.score = score
     self.level = level
@@ -161,18 +171,26 @@ class Snapshot(BaseSnapshot):
     self.field = field
     self.balls = balls
     self.jumper = jumper
-    self.timers: dict[int, Timer] = {}
+
+  def to_json(self) -> dict:
+    return {
+      'score': {
+        'point': self.score.point,
+      },
+      'level': self.level,
+      'stage': self.stage,
+    }
+
+  def from_json(self, data: dict) -> None:
+    if 'score' in data:
+      self.score.point = data['score']['point']
+    if 'level' in data:
+      self.level = data['level']
+    if 'stage' in data:
+      self.stage = data['stage']
 
 
-class GameScreen(BaseGameScreen[Snapshot]):
-  def window_center_origin(self, size: Size) -> Coordinate:
-    return Coordinate(
-      self.profile.window_size.width/2-size.width/2,
-      self.profile.window_size.height/2-size.height/2,
-    )
-
-
-class Scene(BaseScene[Snapshot, GameScreen]):
+class Scene(BaseScene[Snapshot]):
   def update(self) -> Self | Any:
     self.stopwatch.update()
 
@@ -182,3 +200,13 @@ class Scene(BaseScene[Snapshot, GameScreen]):
     self.snapshot.jumper.update(self.snapshot.game_pad, self.snapshot.field)
 
     return self
+
+  def draw(self, transparent_color: int) -> None:
+    super().draw(transparent_color)
+
+    self.snapshot.field.draw(transparent_color)
+
+    for ball in self.snapshot.balls:
+      ball.draw(transparent_color)
+
+    self.snapshot.jumper.draw(transparent_color)
