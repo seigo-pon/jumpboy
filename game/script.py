@@ -9,29 +9,30 @@ import pyxel
 
 
 class GameProfile:
-  def __init__(self, title: str, window_size: Size, fps: int, copyright: str) -> None:
+  def __init__(self, title: str, window_size: Size, fps: int, copyright: str, release_year: int, debug: bool) -> None:
     self.title = title
     self.window_size = window_size
     self.fps = fps
     self.copyright = copyright
+    self.release_year = release_year
+    self.debug = debug
 
 
 class Language(StrEnum):
   EN = 'en'
 
-class StringResource:
-  STR_FILE = 'string.json'
+
+class StringRes:
+  STRING_FILE = 'string.json'
 
   def __init__(self, file_path: str, folder: str) -> None:
     self.strings: dict[str, dict[str, str]] = {}
-    with open(os.path.join(Path.root(file_path), folder, self.STR_FILE), mode='r') as f:
+    with open(os.path.join(Path.root(file_path), folder, self.STRING_FILE), mode='r') as f:
       self.strings = json.loads(f.read())
 
   def string(self, key: str, language: Language) -> str:
-    if language in self.strings:
-      if key in self.strings[language]:
-        return self.strings[language][key]
-
+    if language in self.strings and key in self.strings[language]:
+      return self.strings[language][key]
     return ''
 
 
@@ -40,12 +41,12 @@ class Stopwatch:
     self.fps = fps
     self.frame = 0
 
-  def elapsed_msec_from_frame(self, frame: int) -> int:
+  def msec_from_frame(self, frame: int) -> int:
     return int(1/self.fps*frame*1000)
 
   @property
   def msec(self) -> int:
-    return self.elapsed_msec_from_frame(self.frame)
+    return self.msec_from_frame(self.frame)
 
   @property
   def sec(self) -> int:
@@ -66,10 +67,8 @@ class Timer:
   @classmethod
   def set_timer(cls, stopwatch: Stopwatch, start: bool = False) -> Self:
     timer = cls(stopwatch)
-
     if start:
       timer.resume()
-
     return timer
 
   @classmethod
@@ -86,7 +85,7 @@ class Timer:
   def msec(self) -> int:
     msec = 0
     if self.start_frame is not None:
-      msec = self.stopwatch.msec-self.stopwatch.elapsed_msec_from_frame(self.start_frame)
+      msec = self.stopwatch.msec-self.stopwatch.msec_from_frame(self.start_frame)
     return msec+self.offset_msec
 
   @property
@@ -97,7 +96,6 @@ class Timer:
     if self.limit_msec is not None and self.limit_msec > 0:
       if self.msec is not None and self.msec >= self.limit_msec:
         return True
-
     return False
 
   def running(self) -> bool:
@@ -105,8 +103,8 @@ class Timer:
 
   def pause(self) -> None:
     if self.msec is not None:
-      self.start_frame = None
       self.offset_msec += self.msec
+      self.start_frame = None
 
   def resume(self) -> None:
     if self.start_frame is None:
@@ -120,9 +118,8 @@ class Timer:
 class Snapshot:
   SAVE_FOLDER = 'snapshot'
 
-  @property
-  def folder(self) -> str:
-    return os.path.join(self.SAVE_FOLDER)
+  def folder(self, file_path: str) -> str:
+    return os.path.join(Path.root(file_path), self.SAVE_FOLDER)
 
   def to_json(self) -> dict:
     raise RuntimeError()
@@ -130,21 +127,20 @@ class Snapshot:
   def from_json(self, data: dict) -> None:
     raise RuntimeError()
 
-  def save(self) -> None:
-    if not os.path.exists(self.folder):
-      os.mkdir(self.folder)
+  def save(self, file_path: str) -> None:
+    if not os.path.exists(self.folder(file_path)):
+      os.mkdir(self.folder(file_path))
 
-    with open(os.path.join(self.folder, '{}.json'.format(datetime.now().timestamp)), mode='w') as f:
+    with open(os.path.join(self.folder(file_path), '{}.json'.format(datetime.now().timestamp())), mode='w') as f:
       json.dump(self.to_json(), f)
 
-  def load(self) -> None:
+  def load(self, file_path: str) -> None:
     files = []
-    if os.path.exists(self.folder):
-      files = os.listdir(self.folder)
-
+    if os.path.exists(self.folder(file_path)):
+      files = os.listdir(self.folder(file_path))
     if len(files) > 0:
       files = sorted(files, reverse=True)
-      with open(os.path.join(self.folder, files[0]), mode='r') as f:
+      with open(os.path.join(self.folder(file_path), files[0]), mode='r') as f:
         self.from_json(json.load(f))
 
 
@@ -155,7 +151,7 @@ class Scene(Generic[TSnapshot]):
   def __init__(
     self,
     profile: GameProfile,
-    string_res: StringResource,
+    string_res: StringRes,
     stopwatch: Stopwatch,
     timers: dict[int, Timer],
     snapshot: TSnapshot,

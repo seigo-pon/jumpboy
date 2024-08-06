@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import IntEnum
 from typing import Any, Self
 from game import (
@@ -34,8 +35,19 @@ class GamePad(BaseGamePad):
 
 
 class Score:
-  def __init__(self) -> None:
+  def __init__(self, created_at: datetime, level: int, stage: int, point: int) -> None:
+    self.created_at = created_at
+    self.level = level
+    self.stage = stage
     self.point = 0
+
+
+class ScoreBoard:
+  def __init__(self) -> None:
+    self.scores: list[Score] = []
+
+  def ranking(self, num: int) -> list[Score]:
+    return sorted(self.scores, key=lambda x: (x.point, x.created_at), reverse=True)[:num]
 
 
 class Field(BaseField):
@@ -44,7 +56,7 @@ class Field(BaseField):
     background_tiles: list[TileMap],
     obstacles: list[Obstacle],
     max_size: Size,
-    ground_top: int,
+    ground_top: float,
   ) -> None:
     super().__init__(background_tiles, obstacles, max_size)
     self.ground_top = ground_top
@@ -80,13 +92,12 @@ class Jumper(Sprite):
     self.walking_x = 0.0
 
   @property
-  def walking_distance_min(self) -> float:
+  def walking_distance_abs(self) -> float:
     return 1
 
   def stop(self) -> None:
-    if self.Action.WALK <= self.action <= self.Action.JUMP:
-      self.action = self.Action.STOP
-      self.walking_x = 0
+    self.action = self.Action.STOP
+    self.walking_x = 0
 
   def walk(self, x: float) -> None:
     if self.action == self.Action.STOP:
@@ -105,7 +116,7 @@ class Jumper(Sprite):
 
   def update(self, game_pad: GamePad, field: Field) -> None:
     if self.action == self.Action.WALK:
-      distance = self.walking_distance_min
+      distance = self.walking_distance_abs
       diff = self.origin.x - self.walking_x
       if abs(diff) < distance:
         distance = diff
@@ -131,12 +142,12 @@ class Ball(Sprite):
     self.rolling_direction = True
 
   @property
-  def rolling_distance_min(self) -> float:
+  def rolling_distance_abs(self) -> float:
     raise RuntimeError()
 
   @property
   def rolling_distance(self) -> float:
-    return self.rolling_distance_min * (1 if self.rolling_direction else -1)
+    return self.rolling_distance_abs * (1 if self.rolling_direction else -1)
 
   def stop(self) -> None:
     if self.action == self.Action.ROLL:
@@ -155,7 +166,7 @@ class Snapshot(BaseSnapshot):
     self,
     lang: Language,
     game_pad: GamePad,
-    score: Score,
+    score_board: ScoreBoard,
     level :int,
     stage: int,
     field: Field,
@@ -165,7 +176,7 @@ class Snapshot(BaseSnapshot):
     super().__init__()
     self.lang = lang
     self.game_pad = game_pad
-    self.score = score
+    self.score_board = score_board
     self.level = level
     self.stage = stage
     self.field = field
@@ -174,16 +185,29 @@ class Snapshot(BaseSnapshot):
 
   def to_json(self) -> dict:
     return {
-      'score': {
-        'point': self.score.point,
-      },
+      'score_board': [{
+        'created_at': score.created_at.timestamp(),
+        'level': score.level,
+        'stage': score.stage,
+        'point': score.point,
+      } for score in self.score_board.scores],
       'level': self.level,
       'stage': self.stage,
     }
 
   def from_json(self, data: dict) -> None:
-    if 'score' in data:
-      self.score.point = data['score']['point']
+    if 'score_board' in data:
+      scores = []
+      for score in data['score_board']:
+        scores.append(
+          Score(
+            datetime.fromtimestamp(score['created_at']),
+            score['level'],
+            score['stage'],
+            score['point'],
+          )
+        )
+      self.score_board.scores = scores
     if 'level' in data:
       self.level = data['level']
     if 'stage' in data:
@@ -191,22 +215,17 @@ class Snapshot(BaseSnapshot):
 
 
 class Scene(BaseScene[Snapshot]):
+  def string(self, key: str) -> str:
+    return self.string_res.string(key, self.snapshot.lang)
+
   def update(self) -> Self | Any:
     self.stopwatch.update()
-
-    for ball in self.snapshot.balls:
-      ball.update(self.snapshot.field)
-
-    self.snapshot.jumper.update(self.snapshot.game_pad, self.snapshot.field)
-
     return self
 
   def draw(self, transparent_color: int) -> None:
     super().draw(transparent_color)
 
     self.snapshot.field.draw(transparent_color)
-
     for ball in self.snapshot.balls:
       ball.draw(transparent_color)
-
     self.snapshot.jumper.draw(transparent_color)

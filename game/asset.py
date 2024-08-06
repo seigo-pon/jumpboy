@@ -16,46 +16,43 @@ class AssetImage:
     self.pose = pose
 
   @classmethod
-  def measure_size(cls) -> Size:
+  def basic_size(cls) -> Size:
     raise RuntimeError()
 
   @property
   def origin(self) -> Coordinate:
     return Coordinate(
-      self.address.x*self.measure_size().width,
-      self.address.y*self.measure_size().height,
+      self.address.x*self.basic_size().width,
+      self.address.y*self.basic_size().height,
     )
 
   @property
   def size(self) -> Size:
     return Size(
-      self.scale.width*self.measure_size().width,
-      self.scale.height*self.measure_size().height,
+      self.scale.width*self.basic_size().width,
+      self.scale.height*self.basic_size().height,
     )
 
   @property
   def copy_vector(self) -> Size:
     if self.pose == self.Pose.MIRROR_X:
       return Size(self.size.width*-1, self.size.height)
-
     elif self.pose == self.Pose.MIRROR_Y:
       return Size(self.size.width, self.size.height*-1)
-
     elif self.pose == self.Pose.MIRROR_XY:
       return Size(self.size.width*-1, self.size.height*-1)
-
     return self.size
 
 
 class Image(AssetImage):
   @classmethod
-  def measure_size(cls) -> Size:
+  def basic_size(cls) -> Size:
     return Size(8, 8)
 
 
 class TileMap(AssetImage):
   @classmethod
-  def measure_size(cls) -> Size:
+  def basic_size(cls) -> Size:
     return Size(64, 64)
 
 

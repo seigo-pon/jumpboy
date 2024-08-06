@@ -28,7 +28,7 @@ class BoyStage1Field(Field):
       ],
       [],
       max_size,
-      112,
+      TileMap.basic_size().height+TileMap.basic_size().height*(3/4),
     )
 
 
@@ -47,18 +47,18 @@ class BoyJumper(Jumper):
       {
         self.Motion.STOP: Block(
           Image(0, Coordinate(1, 0), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height))),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
         self.Motion.WALK: Block(
           Image(0, Coordinate(1, 1), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         self.Motion.JUMP: Block(
           Image(0, Coordinate(1, 2), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         self.Motion.DOWN: Block(
           Image(0, Coordinate(1, 3), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         )
       },
     )
@@ -71,7 +71,6 @@ class BoyJumper(Jumper):
 
     if self.action == self.Action.STOP:
       self.motion = self.Motion.STOP
-
     elif self.action == self.Action.WALK:
       if self.walking_interval < self.WALKING_STEP:
         self.walking_interval += 1
@@ -81,16 +80,13 @@ class BoyJumper(Jumper):
           self.motion = self.Motion.STOP
         else:
           self.motion = self.Motion.WALK
-
     elif self.action == self.Action.STANDBY:
       self.motion = self.Motion.STOP
-
       if game_pad.enter():
         self.action = self.Action.JUMP
         self.motion = self.Motion.JUMP
         self.accel_y = self.ACCEL_MAX
         self.prev_y = self.center.y
-
     elif self.action == self.Action.JUMP:
       if self.bottom < field.bottom or self.accel_y == self.ACCEL_MAX:
         tmp = self.center.y
@@ -102,7 +98,6 @@ class BoyJumper(Jumper):
         self.motion = self.Motion.STOP
         self.accel_y = 0
         self.prev_y = 0
-
     elif self.action == self.Action.DOWN:
       self.motion = self.Motion.DOWN
 
@@ -124,26 +119,26 @@ class BoyStage1Ball(Ball):
       {
         self.Motion.ANGLE_0: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.NORMAL),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         self.Motion.ANGLE_90: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_Y),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         self.Motion.ANGLE_180: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_XY),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         self.Motion.ANGLE_270: Block(
           Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_X),
-          Collision(Coordinate(0, 0), Size(Image.measure_size().width, Image.measure_size().height)),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
       },
     )
     self.rolling_interval = 0
 
   @property
-  def rolling_distance_min(self) -> float:
+  def rolling_distance_abs(self) -> float:
     return 2
 
   def update(self, field: Field) -> None:

@@ -138,18 +138,18 @@ class Field(Scribe):
 
 
 class Text(Scribe):
-  def __init__(self, text: str, text_color: int) -> None:
-    self.text = text
+  def __init__(self, string: str, text_color: int) -> None:
+    self.string = string
     self.text_color = text_color
     self.center = Coordinate(0, 0)
 
   @classmethod
-  def word_size(cls) -> int:
-    return 4
+  def word_size(cls) -> Size:
+    return Size(4, 6)
 
   @property
   def size(self) -> Size:
-    return Size(len(self.text)*Text.word_size(), Text.word_size())
+    return Size(len(self.string)*Text.word_size().width, Text.word_size().height)
 
   @property
   def origin(self) -> Coordinate:
@@ -160,7 +160,7 @@ class Text(Scribe):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self, transparent_color: int) -> None:
-    pyxel.text(self.origin.x, self.origin.y, self.text, self.text_color)
+    pyxel.text(self.origin.x, self.origin.y, self.string, self.text_color)
 
 
 class Signboard(Scribe):
@@ -188,7 +188,6 @@ class Signboard(Scribe):
       self.image.copy_vector.height,
       transparent_color,
     )
-
     for text in self.texts:
       text.draw(transparent_color)
 
@@ -199,7 +198,6 @@ class GamePad:
     for key in keys:
       if pyxel.btnp(key):
         return True
-
     return False
 
 

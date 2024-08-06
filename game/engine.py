@@ -1,5 +1,5 @@
 from typing import Callable
-from game import GameProfile, StringResource
+from game import GameProfile, StringRes
 import pyxel
 
 
@@ -7,9 +7,8 @@ class GameEngine:
   def __init__(
     self,
     profile: GameProfile,
-    string_res: StringResource,
     quit_key: int,
-    asset_filenames: list[str],
+    asset_paths: list[str],
     update: Callable[[], None],
     draw: Callable[[], None],
     transparent_color: int,
@@ -26,8 +25,8 @@ class GameEngine:
       quit_key=quit_key,
     )
 
-    for asset_filename in asset_filenames:
-      pyxel.load(asset_filename)
+    for asset_path in asset_paths:
+      pyxel.load(asset_path)
 
   def run(self) -> None:
     pyxel.run(self.update, self.draw)
