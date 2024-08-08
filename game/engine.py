@@ -18,8 +18,8 @@ class GameEngine:
     self.transparent_color = transparent_color
 
     pyxel.init(
-      profile.window_size.width,
-      profile.window_size.height,
+      int(profile.window_size.width),
+      int(profile.window_size.height),
       title=profile.title,
       fps=profile.fps,
       quit_key=quit_key,

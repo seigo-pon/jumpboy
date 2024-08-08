@@ -139,9 +139,12 @@ class Field(Scribe):
 
 class Text(Scribe):
   def __init__(self, string: str, text_color: int) -> None:
+    if string == '':
+      raise RuntimeError()
     self.string = string
     self.text_color = text_color
     self.center = Coordinate(0, 0)
+    self.moved_center: Coordinate | None = None
 
   @classmethod
   def word_size(cls) -> Size:
@@ -159,37 +162,109 @@ class Text(Scribe):
   def origin(self, value: Coordinate) -> None:
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
+  @property
+  def moving_distance(self) -> int:
+    return 1
+
+  @property
+  def moving(self) -> bool:
+    return self.moved_center is not None
+
+  def move(self, center: Coordinate) -> None:
+    self.moved_center = center
+
+  def update(self) -> None:
+    if self.moved_center is not None:
+      distance_x = self.center.x - self.moved_center.x
+      if distance_x != 0:
+        if abs(distance_x) < self.moving_distance:
+          distance_x = self.moving_distance if distance_x >= 0 else self.moving_distance*-1
+        else:
+          distance_x = self.moving_distance
+      distance_y = self.center.y - self.moved_center.y
+      if distance_y != 0:
+        if abs(distance_y) < self.moving_distance:
+          distance_y = self.moving_distance if distance_y >= 0 else self.moving_distance*-1
+        else:
+          distance_y = self.moving_distance
+      self.center = Coordinate(self.center.x+distance_x, self.center.y+distance_y)
+
+      if self.center.x == self.moved_center.x and self.center.y == self.moved_center.y:
+        self.moved_center = None
+
   def draw(self, transparent_color: int) -> None:
     pyxel.text(self.origin.x, self.origin.y, self.string, self.text_color)
 
 
 class Signboard(Scribe):
-  def __init__(self, image: Image, texts: list[Text]) -> None:
+  def __init__(self, image: Image | None, texts: list[Text]) -> None:
     self.image = image
     self.center = Coordinate(0, 0)
     self.texts = texts
+    self.moved_center: Coordinate | None = None
+
+  @property
+  def size(self) -> Size:
+    return Size(
+      max([text.origin.x+text.size.width for text in self.texts]),
+      max([text.origin.y+text.size.height for text in self.texts]),
+    )
 
   @property
   def origin(self) -> Coordinate:
-    return Coordinate(self.center.x-self.image.size.width/2, self.center.y-self.image.size.height/2)
+    return Coordinate(self.center.x-self.size.width/2, self.center.y-self.size.height/2)
 
   @origin.setter
   def origin(self, value: Coordinate) -> None:
-    self.center = Coordinate(value.x+self.image.size.width/2, value.y+self.image.size.height/2)
+    self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
+
+  @property
+  def moving_distance(self) -> int:
+    return 1
+
+  @property
+  def moving(self) -> bool:
+    return self.moved_center is not None
+
+  def move(self, center: Coordinate) -> None:
+    self.moved_center = center
+
+  def update(self) -> None:
+    if self.moved_center is not None:
+      distance_x = self.center.x - self.moved_center.x
+      if distance_x != 0:
+        if abs(distance_x) < self.moving_distance:
+          distance_x = self.moving_distance if distance_x >= 0 else self.moving_distance*-1
+        else:
+          distance_x = self.moving_distance
+      distance_y = self.center.y - self.moved_center.y
+      if distance_y != 0:
+        if abs(distance_y) < self.moving_distance:
+          distance_y = self.moving_distance if distance_y >= 0 else self.moving_distance*-1
+        else:
+          distance_y = self.moving_distance
+      self.center = Coordinate(self.center.x+distance_x, self.center.y+distance_y)
+
+      if self.center.x == self.moved_center.x and self.center.y == self.moved_center.y:
+        self.moved_center = None
 
   def draw(self, transparent_color: int) -> None:
-    pyxel.blt(
-      self.origin.x,
-      self.origin.y,
-      self.image.id,
-      self.image.origin.x,
-      self.image.origin.y,
-      self.image.copy_vector.width,
-      self.image.copy_vector.height,
-      transparent_color,
-    )
+    if self.image is not None:
+      pyxel.blt(
+        self.origin.x,
+        self.origin.y,
+        self.image.id,
+        self.image.origin.x,
+        self.image.origin.y,
+        self.image.copy_vector.width,
+        self.image.copy_vector.height,
+        transparent_color,
+      )
     for text in self.texts:
+      center = text.center
+      text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
       text.draw(transparent_color)
+      text.center = center
 
 
 class GamePad:

@@ -3,35 +3,39 @@ from game import (
   GameProfile, Language, StringRes,
   GameEngine,
 )
-from script import Strings, OpeningScene
+from script import OpeningScene
 import os
 import pyxel
 
 
 DEBUG = True
 
+GAME_WINDOW_SIZE = Size(160, 120)
+FPS = 30
+COPYRIGHT = 'SEIGO-PON'
+RELEASE_YEAR = 2024
+ASSET_FOLDER = 'assets'
+ASSET_FILES = ['jumpboy.pyxres']
+
 
 class App:
-  GAME_WINDOW_SIZE = Size(160, 120)
-  FPS = 30
-  COPYRIGHT = 'SEIGO-PON'
-  RELEASE_YEAR = 2024
-  ASSET_FOLDER = 'assets'
-  ASSET_FILES = ['jumpboy.pyxres']
-
   def __init__(self) -> None:
-    string_res = StringRes(__file__, self.ASSET_FOLDER)
+    path = Path(__file__)
+    string_res = StringRes(path, ASSET_FOLDER)
+
     profile = GameProfile(
-      string_res.string(Strings.TITLE_BOY, Language.EN),
-      self.GAME_WINDOW_SIZE,
-      self.FPS,
-      self.COPYRIGHT,
-      self.RELEASE_YEAR,
+      path,
+      string_res.string('TITLE_BOY', Language.EN),
+      GAME_WINDOW_SIZE,
+      FPS,
+      COPYRIGHT,
+      RELEASE_YEAR,
       DEBUG,
     )
+
     asset_paths = []
-    for asset_file in self.ASSET_FILES:
-      asset_paths.append(os.path.join(os.path.join(Path.root(__file__), self.ASSET_FOLDER), asset_file))
+    for asset_file in ASSET_FILES:
+      asset_paths.append(os.path.join(os.path.join(profile.path.root, ASSET_FOLDER), asset_file))
 
     self.engine = GameEngine(
       profile=profile,

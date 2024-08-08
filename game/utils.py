@@ -8,7 +8,7 @@ class Coordinate:
 
 
 class Size:
-  def __init__(self, width: int, height: int) -> None:
+  def __init__(self, width: float, height: float) -> None:
     self.width = width
     self.height = height
 
@@ -18,6 +18,9 @@ class Size:
 
 
 class Path:
-  @classmethod
-  def root(cls, file_path: str) -> str:
-    return os.path.abspath(os.path.join(os.path.abspath(file_path), os.pardir))
+  def __init__(self, file_path: str) -> None:
+    self.file_path = file_path
+
+  @property
+  def root(self) -> str:
+    return os.path.abspath(os.path.join(os.path.abspath(self.file_path), os.pardir))

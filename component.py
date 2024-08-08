@@ -2,7 +2,7 @@ from enum import IntEnum
 from game import (
   Coordinate, Size,
   AssetImage, Image, TileMap,
-  Collision, Block,
+  Collision, Block
 )
 from core import (
   GamePad,
@@ -69,9 +69,9 @@ class BoyJumper(Jumper):
   def update(self, game_pad: GamePad, field: Field) -> None:
     super().update(game_pad, field)
 
-    if self.action == self.Action.STOP:
+    if self.stopping:
       self.motion = self.Motion.STOP
-    elif self.action == self.Action.WALK:
+    elif self.walking:
       if self.walking_interval < self.WALKING_STEP:
         self.walking_interval += 1
       else:
@@ -80,14 +80,14 @@ class BoyJumper(Jumper):
           self.motion = self.Motion.STOP
         else:
           self.motion = self.Motion.WALK
-    elif self.action == self.Action.STANDBY:
+    elif self.do_standby:
       self.motion = self.Motion.STOP
       if game_pad.enter():
         self.action = self.Action.JUMP
         self.motion = self.Motion.JUMP
         self.accel_y = self.ACCEL_MAX
         self.prev_y = self.center.y
-    elif self.action == self.Action.JUMP:
+    elif self.jumping:
       if self.bottom < field.bottom or self.accel_y == self.ACCEL_MAX:
         tmp = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
@@ -98,7 +98,7 @@ class BoyJumper(Jumper):
         self.motion = self.Motion.STOP
         self.accel_y = 0
         self.prev_y = 0
-    elif self.action == self.Action.DOWN:
+    elif self.do_down:
       self.motion = self.Motion.DOWN
 
   def draw(self, transparent_color) -> None:
@@ -138,15 +138,15 @@ class BoyStage1Ball(Ball):
     self.rolling_interval = 0
 
   @property
-  def rolling_distance_abs(self) -> float:
+  def rolling_distance(self) -> float:
     return 2
 
   def update(self, field: Field) -> None:
-    if self.action == self.Action.STOP:
+    if self.stopping:
       pass
 
-    elif self.action == self.Action.ROLL:
-      next_x = self.origin.x + self.rolling_distance
+    elif self.rolling:
+      next_x = self.origin.x + self.rolling_distance * (1 if self.rolling_direction else -1)
       if not self.rolling_direction:
         if next_x <= field.left:
           next_x = 0
@@ -171,5 +171,5 @@ class BoyStage1Ball(Ball):
           if self.motion < [e for e in self.Motion][0]:
             self.motion = [e for e in self.Motion][-1]
 
-    elif self.action == self.Action.BREAK:
+    elif self.breaking:
       pass

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Generic, Self, TypeVar
+from typing import Any, Callable, Generic, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import Size, Path
 import json
@@ -9,7 +9,17 @@ import pyxel
 
 
 class GameProfile:
-  def __init__(self, title: str, window_size: Size, fps: int, copyright: str, release_year: int, debug: bool) -> None:
+  def __init__(
+    self,
+    path: Path,
+    title: str,
+    window_size: Size,
+    fps: int,
+    copyright: str,
+    release_year: int,
+    debug: bool,
+  ) -> None:
+    self.path = path
     self.title = title
     self.window_size = window_size
     self.fps = fps
@@ -25,9 +35,9 @@ class Language(StrEnum):
 class StringRes:
   STRING_FILE = 'string.json'
 
-  def __init__(self, file_path: str, folder: str) -> None:
+  def __init__(self, path: Path, folder: str) -> None:
     self.strings: dict[str, dict[str, str]] = {}
-    with open(os.path.join(Path.root(file_path), folder, self.STRING_FILE), mode='r') as f:
+    with open(os.path.join(path.root, folder, self.STRING_FILE), mode='r') as f:
       self.strings = json.loads(f.read())
 
   def string(self, key: str, language: Language) -> str:
@@ -92,12 +102,14 @@ class Timer:
   def sec(self) -> int:
     return int(self.msec/1000)
 
+  @property
   def over(self) -> bool:
     if self.limit_msec is not None and self.limit_msec > 0:
       if self.msec is not None and self.msec >= self.limit_msec:
         return True
     return False
 
+  @property
   def running(self) -> bool:
     return self.start_frame is not None
 
@@ -115,11 +127,46 @@ class Timer:
     self.offset_msec = 0
 
 
+class Seq:
+  def __init__(self, stopwatch: Stopwatch, msec: int, process: Callable[[bool], bool], to_next: Callable[[], Any] | None) -> None:
+    self.timer = Timer.set_msec(stopwatch, msec)
+    self.started = False
+    self.process = process
+    self.to_next = to_next
+    self.ended = False
+
+class TimeSeq:
+  def __init__(self, seqs: list[Seq]) -> None:
+    self.seqs = seqs
+
+  @property
+  def ended(self) -> bool:
+    return len(list(filter(lambda x: not x.ended, self.seqs))) == 0
+
+  def update(self) -> Any | None:
+    for seq in self.seqs:
+      if not seq.ended:
+        seq.timer.resume()
+        if seq.timer.over:
+          res = seq.process(not seq.started)
+          seq.started = True
+          if not res:
+            break
+
+          seq.ended = True
+          if seq.to_next is not None:
+            return seq.to_next()
+        else:
+          break
+
+    return None
+
+
 class Snapshot:
   SAVE_FOLDER = 'snapshot'
 
-  def folder(self, file_path: str) -> str:
-    return os.path.join(Path.root(file_path), self.SAVE_FOLDER)
+  def folder(self, path: Path) -> str:
+    return os.path.join(path.root, self.SAVE_FOLDER)
 
   def to_json(self) -> dict:
     raise RuntimeError()
@@ -127,20 +174,20 @@ class Snapshot:
   def from_json(self, data: dict) -> None:
     raise RuntimeError()
 
-  def save(self, file_path: str) -> None:
-    if not os.path.exists(self.folder(file_path)):
-      os.mkdir(self.folder(file_path))
+  def save(self, path: Path) -> None:
+    if not os.path.exists(self.folder(path)):
+      os.mkdir(self.folder(path))
 
-    with open(os.path.join(self.folder(file_path), '{}.json'.format(datetime.now().timestamp())), mode='w') as f:
+    with open(os.path.join(self.folder(path), '{}.json'.format(datetime.now().timestamp())), mode='w') as f:
       json.dump(self.to_json(), f)
 
-  def load(self, file_path: str) -> None:
+  def load(self, path: Path) -> None:
     files = []
-    if os.path.exists(self.folder(file_path)):
-      files = os.listdir(self.folder(file_path))
+    if os.path.exists(self.folder(path)):
+      files = os.listdir(self.folder(path))
     if len(files) > 0:
       files = sorted(files, reverse=True)
-      with open(os.path.join(self.folder(file_path), files[0]), mode='r') as f:
+      with open(os.path.join(self.folder(path), files[0]), mode='r') as f:
         self.from_json(json.load(f))
 
 
@@ -153,14 +200,13 @@ class Scene(Generic[TSnapshot]):
     profile: GameProfile,
     string_res: StringRes,
     stopwatch: Stopwatch,
-    timers: dict[int, Timer],
     snapshot: TSnapshot,
   ) -> None:
     self.profile = profile
     self.string_res = string_res
     self.stopwatch = stopwatch
-    self.timers = timers
     self.snapshot = snapshot
+    self.time_seq = TimeSeq([])
 
   @property
   def title(self) -> str:
@@ -172,7 +218,13 @@ class Scene(Generic[TSnapshot]):
     pyxel.title(self.profile.title)
 
   def update(self) -> Self | Any:
-    raise RuntimeError()
+    self.stopwatch.update()
+
+    res = self.time_seq.update()
+    if res is not None:
+      return res
+
+    return self
 
   def draw(self, transparent_color: int) -> None:
     pyxel.cls(transparent_color)

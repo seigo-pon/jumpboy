@@ -4,12 +4,13 @@ from typing import Any, Self
 from game import (
   Coordinate,
   TileMap,
-  Sprite, Field as BaseField, GamePad as BaseGamePad,
-  Language, Snapshot as BaseSnapshot, Scene as BaseScene,
+  Sprite, Field as BaseField, Text, GamePad as BaseGamePad,
+  Language, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
 
 from game.component import Block, Obstacle
+from game.script import GameProfile, StringRes
 from game.utils import Size
 
 
@@ -92,31 +93,51 @@ class Jumper(Sprite):
     self.walking_x = 0.0
 
   @property
-  def walking_distance_abs(self) -> float:
+  def walking_distance(self) -> float:
     return 1
+
+  @property
+  def stopping(self) -> bool:
+    return self.action == self.Action.STOP
+
+  @property
+  def walking(self) -> bool:
+    return self.action == self.Action.WALK
+
+  @property
+  def do_standby(self) -> bool:
+    return self.action == self.Action.STANDBY
+
+  @property
+  def jumping(self) -> bool:
+    return self.action == self.Action.JUMP
+
+  @property
+  def do_down(self) -> bool:
+    return self.action == self.Action.DOWN
 
   def stop(self) -> None:
     self.action = self.Action.STOP
     self.walking_x = 0
 
   def walk(self, x: float) -> None:
-    if self.action == self.Action.STOP:
+    if self.stopping:
       self.action = self.Action.WALK
       self.walking_x = x
 
   def standby(self) -> None:
-    if self.action == self.Action.STOP:
+    if self.stopping:
       self.action = self.Action.STANDBY
       self.walking_x = 0
 
   def down(self) -> None:
-    if self.Action.STANDBY <= self.action <= self.Action.JUMP:
+    if self.do_standby or self.jumping:
       self.action = self.Action.DOWN
       self.walking_x = 0
 
   def update(self, game_pad: GamePad, field: Field) -> None:
-    if self.action == self.Action.WALK:
-      distance = self.walking_distance_abs
+    if self.walking:
+      distance = self.walking_distance
       diff = self.origin.x - self.walking_x
       if abs(diff) < distance:
         distance = diff
@@ -142,23 +163,50 @@ class Ball(Sprite):
     self.rolling_direction = True
 
   @property
-  def rolling_distance_abs(self) -> float:
+  def rolling_distance(self) -> float:
     raise RuntimeError()
 
   @property
-  def rolling_distance(self) -> float:
-    return self.rolling_distance_abs * (1 if self.rolling_direction else -1)
+  def stopping(self) -> bool:
+    return self.action == self.Action.STOP
+
+  @property
+  def rolling(self) -> bool:
+    return self.action == self.Action.ROLL
+
+  @property
+  def breaking(self) -> bool:
+    return self.action == self.Action.BREAK
 
   def stop(self) -> None:
-    if self.action == self.Action.ROLL:
+    if self.rolling:
       self.action = self.Action.STOP
 
   def roll(self) -> None:
-    if self.action == self.Action.STOP:
+    if self.stopping:
       self.action = self.Action.ROLL
 
   def update(self, field: Field) -> None:
       raise RuntimeError()
+
+
+class BlinkText(Text):
+  def __init__(self, string: str, text_color: int, stopwatch: Stopwatch, msec: int, show: bool) -> None:
+    super().__init__(string, text_color)
+    self.timer = Timer.set_msec(stopwatch, msec, True)
+    self.show = show
+
+  def set_msec(self, msec: int, show: bool) -> None:
+    self.timer = Timer.set_msec(self.timer.stopwatch, msec, show)
+
+  def update(self) -> None:
+    if self.timer.over:
+      self.show = not self.show
+      self.timer.reset()
+
+  def draw(self, transparent_color: int) -> None:
+    if self.show:
+      super().draw(transparent_color)
 
 
 class Snapshot(BaseSnapshot):
@@ -215,17 +263,34 @@ class Snapshot(BaseSnapshot):
 
 
 class Scene(BaseScene[Snapshot]):
+  def __init__(
+    self,
+    profile: GameProfile,
+    string_res: StringRes,
+    stopwatch: Stopwatch,
+    snapshot: Snapshot,
+  ) -> None:
+    super().__init__(profile, string_res, stopwatch, snapshot)
+
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)
 
+  @property
+  def updating_sprite(self) -> bool:
+    return True
+
   def update(self) -> Self | Any:
-    self.stopwatch.update()
-    return self
+    if self.updating_sprite:
+      for ball in self.snapshot.balls:
+        ball.update(self.snapshot.field)
+      self.snapshot.jumper.update(self.snapshot.game_pad, self.snapshot.field)
+    return super().update()
+
+  @property
+  def scribers(self) -> list[Any]:
+    return []
 
   def draw(self, transparent_color: int) -> None:
     super().draw(transparent_color)
-
-    self.snapshot.field.draw(transparent_color)
-    for ball in self.snapshot.balls:
-      ball.draw(transparent_color)
-    self.snapshot.jumper.draw(transparent_color)
+    for scribe in self.scribers:
+      scribe.draw(transparent_color)
