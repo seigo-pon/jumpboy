@@ -147,17 +147,17 @@ class TimeSeq:
     for seq in self.seqs:
       if not seq.ended:
         seq.timer.resume()
-        if seq.timer.over:
-          res = seq.process(not seq.started)
-          seq.started = True
-          if not res:
-            break
-
-          seq.ended = True
-          if seq.to_next is not None:
-            return seq.to_next()
-        else:
+        if not seq.timer.over:
           break
+
+        res = seq.process(not seq.started)
+        seq.started = True
+        if not res:
+          break
+
+        seq.ended = True
+        if seq.to_next is not None:
+          return seq.to_next()
 
     return None
 

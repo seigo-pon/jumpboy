@@ -2,16 +2,12 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Any, Self
 from game import (
-  Coordinate,
+  Coordinate, Size,
   TileMap,
-  Sprite, Field as BaseField, Text, GamePad as BaseGamePad,
-  Language, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
+  Sprite, Block, Obstacle, Field as BaseField, Text, GamePad as BaseGamePad,
+  GameProfile, Language, StringRes, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
-
-from game.component import Block, Obstacle
-from game.script import GameProfile, StringRes
-from game.utils import Size
 
 
 class GamePad(BaseGamePad):
@@ -83,18 +79,25 @@ class Jumper(Sprite):
   class Action(IntEnum):
     STOP = 0
     WALK = 1
-    STANDBY = 2
+    STAND_BY = 2
     JUMP = 3
-    DOWN = 4
+    FALL_DOWN = 4
+    JOY = 5
 
   def __init__(self, motions: dict[int, Block]) -> None:
     super().__init__(motions)
     self.action = self.Action.STOP
     self.walking_x = 0.0
+    self.accel_y = 0.0
+    self.prev_y = 0.0
 
   @property
   def walking_distance(self) -> float:
     return 1
+
+  @property
+  def max_accel(self) -> int:
+    return -10
 
   @property
   def stopping(self) -> bool:
@@ -105,35 +108,61 @@ class Jumper(Sprite):
     return self.action == self.Action.WALK
 
   @property
-  def do_standby(self) -> bool:
-    return self.action == self.Action.STANDBY
+  def standing_by(self) -> bool:
+    return self.action == self.Action.STAND_BY
 
   @property
   def jumping(self) -> bool:
     return self.action == self.Action.JUMP
 
   @property
-  def do_down(self) -> bool:
-    return self.action == self.Action.DOWN
+  def falling_down(self) -> bool:
+    return self.action == self.Action.FALL_DOWN
+
+  @property
+  def joying(self) -> bool:
+    return self.action == self.Action.JUMP
 
   def stop(self) -> None:
     self.action = self.Action.STOP
     self.walking_x = 0
+    self.accel_y = 0
+    self.prev_y = 0
 
   def walk(self, x: float) -> None:
     if self.stopping:
       self.action = self.Action.WALK
       self.walking_x = x
+      self.accel_y = 0
+      self.prev_y = 0
 
-  def standby(self) -> None:
+  def stand_by(self) -> None:
     if self.stopping:
-      self.action = self.Action.STANDBY
+      self.action = self.Action.STAND_BY
       self.walking_x = 0
+      self.accel_y = 0
+      self.prev_y = 0
 
-  def down(self) -> None:
-    if self.do_standby or self.jumping:
-      self.action = self.Action.DOWN
+  def jump(self) -> None:
+    if self.standing_by:
+      self.action = self.Action.JUMP
       self.walking_x = 0
+      self.accel_y = self.max_accel
+      self.prev_y = self.center.y
+
+  def fall_down(self) -> None:
+    if self.standing_by or self.jumping:
+      self.action = self.Action.FALL_DOWN
+      self.walking_x = 0
+      self.accel_y = 0
+      self.prev_y = 0
+
+  def joy(self) -> None:
+    if self.stopping:
+      self.action = self.Action.JOY
+      self.walking_x = 0
+      self.accel_y = self.max_accel
+      self.prev_y = self.center.y
 
   def update(self, game_pad: GamePad, field: Field) -> None:
     if self.walking:
@@ -149,6 +178,28 @@ class Jumper(Sprite):
       if self.origin.x == self.walking_x:
         self.action = self.Action.STOP
         self.walking_x
+
+    elif self.jumping:
+      if self.bottom < field.bottom or self.accel_y == self.max_accel:
+        center_y = self.center.y
+        self.center.y += (self.center.y - self.prev_y) + self.accel_y
+        self.prev_y = center_y
+        self.accel_y = 1
+      else:
+        self.action = self.Action.STAND_BY
+        self.accel_y = 0
+        self.prev_y = 0
+
+    elif self.joying:
+      if self.bottom < field.bottom or self.accel_y == self.max_accel:
+        center_y = self.center.y
+        self.center.y += (self.center.y - self.prev_y) + self.accel_y
+        self.prev_y = center_y
+        self.accel_y = 1
+      else:
+        self.action = self.Action.STOP
+        self.accel_y = 0
+        self.prev_y = 0
 
 
 class Ball(Sprite):
@@ -197,7 +248,8 @@ class BlinkText(Text):
     self.show = show
 
   def set_msec(self, msec: int, show: bool) -> None:
-    self.timer = Timer.set_msec(self.timer.stopwatch, msec, show)
+    self.timer = Timer.set_msec(self.timer.stopwatch, msec, True)
+    self.show = show
 
   def update(self) -> None:
     if self.timer.over:
@@ -276,21 +328,21 @@ class Scene(BaseScene[Snapshot]):
     return self.string_res.string(key, self.snapshot.lang)
 
   @property
-  def updating_sprite(self) -> bool:
+  def can_update_sprite(self) -> bool:
     return True
 
   def update(self) -> Self | Any:
-    if self.updating_sprite:
+    if self.can_update_sprite:
       for ball in self.snapshot.balls:
         ball.update(self.snapshot.field)
       self.snapshot.jumper.update(self.snapshot.game_pad, self.snapshot.field)
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
+  def drawing_subjects(self) -> list[Any]:
     return []
 
   def draw(self, transparent_color: int) -> None:
     super().draw(transparent_color)
-    for scribe in self.scribers:
-      scribe.draw(transparent_color)
+    for subject in self.drawing_subjects:
+      subject.draw(transparent_color)

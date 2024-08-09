@@ -37,10 +37,13 @@ class AssetImage:
   def copy_vector(self) -> Size:
     if self.pose == self.Pose.MIRROR_X:
       return Size(self.size.width*-1, self.size.height)
+
     elif self.pose == self.Pose.MIRROR_Y:
       return Size(self.size.width, self.size.height*-1)
+
     elif self.pose == self.Pose.MIRROR_XY:
       return Size(self.size.width*-1, self.size.height*-1)
+
     return self.size
 
 

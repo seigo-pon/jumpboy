@@ -26,6 +26,7 @@ GAME_TITLE: dict[int, str] = {
 SCORE: dict[int, str] = {
   GameLevel.BOY: 'SCORE_BOY',
 }
+TEXT_COLOR = pyxel.COLOR_WHITE
 
 
 class BaseScene(Scene):
@@ -73,50 +74,50 @@ class BaseScene(Scene):
       self.snapshot.field.ground_top-Text.word_size().height*2+Text.word_size().height/2,
     )
 
-  def ball_init_origin(self, ball: Ball) -> Coordinate:
+  def ball_start_origin(self, ball: Ball) -> Coordinate:
     return Coordinate(
       self.snapshot.field.left-ball.size.width,
       self.snapshot.field.bottom-ball.size.height,
     )
 
-  def jumper_init_origin(self, jumper: Jumper) -> Coordinate:
+  def jumper_start_origin(self, jumper: Jumper) -> Coordinate:
     return Coordinate(
       self.snapshot.field.right,
       self.snapshot.field.bottom-jumper.size.height,
     )
 
-  def jumper_start_x(self) -> float:
+  def jumper_play_x(self) -> float:
     return self.snapshot.field.right-self.JUMPER_START_X
 
-  def to_text(self, string: str) -> Text:
-    return Text(string, pyxel.COLOR_WHITE)
+  def text(self, string: str) -> Text:
+    return Text(string, TEXT_COLOR)
 
-  def to_blink_text(self, string: str, msec: int, show: bool) -> BlinkText:
-    return BlinkText(string, pyxel.COLOR_WHITE, self.stopwatch, msec, show)
+  def blink_text(self, string: str, msec: int, show: bool) -> BlinkText:
+    return BlinkText(string, TEXT_COLOR, self.stopwatch, msec, show)
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes: list[Any] = [self.snapshot.field]
-    for ball in self.snapshot.balls:
-      scribes.append(ball)
-    scribes.append(self.snapshot.jumper)
+  def drawing_subjects(self) -> list[Any]:
+    subjects: list[Any] = [self.snapshot.field]
+    subjects += self.snapshot.balls
+    subjects.append(self.snapshot.jumper)
 
     if self.profile.debug:
-      stopwatch_text = self.to_text(
+      stopwatch_text = Text(
         '{:02}:{:02}:{:02}:{:03}'.format(
           int(self.stopwatch.sec/60/60),
           int(self.stopwatch.sec/60%60),
           int(self.stopwatch.sec%60),
           self.stopwatch.msec%1000,
-        )
+        ),
+        pyxel.COLOR_BLACK,
       )
       stopwatch_text.origin = Coordinate(
         self.profile.window_size.width-stopwatch_text.size.width,
         self.profile.window_size.height-stopwatch_text.size.height,
       )
-      scribes.append(stopwatch_text)
+      subjects.append(stopwatch_text)
 
-    return scribes
+    return subjects
 
 
 class OpeningScene(BaseScene):
@@ -143,14 +144,14 @@ class OpeningScene(BaseScene):
     self.title = self.string(GAME_TITLE[self.snapshot.level])
 
     for ball in self.snapshot.balls:
-      ball.origin = self.ball_init_origin(ball)
-    self.snapshot.jumper.origin = self.jumper_init_origin(self.snapshot.jumper)
+      ball.origin = self.ball_start_origin(ball)
+    self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
     self.title_text: Text | None = None
 
     def walk_jumper(start: bool) -> bool:
       if start:
-        self.snapshot.jumper.walk(self.jumper_start_x())
+        self.snapshot.jumper.walk(self.jumper_play_x())
       else:
         if not self.snapshot.jumper.walking:
           return True
@@ -158,7 +159,7 @@ class OpeningScene(BaseScene):
 
     def move_title(start: bool) -> bool:
       if self.title_text is None:
-        self.title_text = self.to_text(self.profile.title)
+        self.title_text = self.text(self.profile.title)
         self.title_text.center = Coordinate(self.title_center().x, -Text.word_size().height)
         self.title_text.move(self.title_center())
       else:
@@ -182,13 +183,13 @@ class OpeningScene(BaseScene):
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
     if self.title_text is not None:
-      scribes.append(self.title_text)
+      subjects.append(self.title_text)
 
-    return scribes
+    return subjects
 
 
 class TitleScene(BaseScene):
@@ -196,23 +197,18 @@ class TitleScene(BaseScene):
   SCORE_RANKING_NUM = 3
 
   def __init__(self, scene: Scene) -> None:
-    super().__init__(
-      scene.profile,
-      scene.string_res,
-      scene.stopwatch,
-      scene.snapshot,
-    )
+    super().__init__(scene.profile, scene.string_res, scene.stopwatch, scene.snapshot)
 
     for ball in self.snapshot.balls:
-      ball.origin = self.ball_init_origin(ball)
-    if self.snapshot.jumper.do_down:
+      ball.origin = self.ball_start_origin(ball)
+    if self.snapshot.jumper.falling_down:
       self.snapshot.jumper.stop()
-      self.snapshot.jumper.origin = self.jumper_init_origin(self.snapshot.jumper)
+      self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
-    self.title_text = self.to_text(self.profile.title)
+    self.title_text = self.text(self.profile.title)
     self.title_text.center = self.title_center()
 
-    self.start_text = self.to_blink_text(self.string('GAME_START'), 1000, True)
+    self.start_text = self.blink_text(self.string('GAME_START'), 1000, True)
     self.start_text.center = self.menu_middle_center()
 
     self.show_score = False
@@ -246,17 +242,17 @@ class TitleScene(BaseScene):
   def scoreboard(self) -> Signboard:
     score_texts: list[Text] = []
 
-    text_center = self.menu_middle_top_center(None)
-    score_text = self.to_text(self.string('SCORE_RANKING'))
-    score_text.center = text_center
+    score_center = self.menu_middle_top_center(None)
+    score_text = self.text(self.string('SCORE_RANKING'))
+    score_text.center = score_center
     score_texts.append(score_text)
 
-    text_center.y += Text.word_size().height*2
+    score_center.y += Text.word_size().height*2
     scores = self.snapshot.score_board.ranking(self.SCORE_RANKING_NUM)
     if len(scores) > 0:
       for (index, score) in enumerate(scores):
-        text_center.y += Text.word_size().height
-        score_text = self.to_text(
+        score_center.y += Text.word_size().height
+        score_text = self.text(
           '{}.{}.{:02} {:04} {}'.format(
             index+1,
             self.string(SCORE[score.level]),
@@ -265,12 +261,12 @@ class TitleScene(BaseScene):
             score.created_at.strftime('%Y/%m/%d %H:%M'),
           )
         )
-        score_text.center = text_center
+        score_text.center = score_center
         score_texts.append(score_text)
     else:
-      text_center.y += Text.word_size().height
-      no_score_text = self.to_text(self.string('NO_SCORE'))
-      no_score_text.center = text_center
+      score_center.y += Text.word_size().height
+      no_score_text = self.text(self.string('NO_SCORE'))
+      no_score_text.center = score_center
       score_texts.append(no_score_text)
 
     return Signboard(None, score_texts)
@@ -289,48 +285,50 @@ class TitleScene(BaseScene):
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
     if self.show_score:
-      scribes.append(self.score)
-    scribes.append(self.title_text)
-    scribes.append(self.start_text)
+      subjects.append(self.score)
 
-    copyright_text = self.to_text('(c) {} {}'.format(self.profile.release_year, self.profile.copyright))
+    subjects.append(self.title_text)
+    subjects.append(self.start_text)
+
+    copyright_text = self.text('(c) {} {}'.format(self.profile.release_year, self.profile.copyright))
     copyright_text.center = self.menu_middle_bottom_center()
-    scribes.append(copyright_text)
+    subjects.append(copyright_text)
 
-    return scribes
+    return subjects
 
 
 class BaseStageScene(BaseScene):
   def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(
-      scene.profile,
-      scene.string_res,
-      scene.stopwatch,
-      scene.snapshot,
-    )
+    super().__init__(scene.profile, scene.string_res, scene.stopwatch, scene.snapshot)
+
     self.play_timer: Timer | None = None
     self.point = point
 
   def record_score(self) -> None:
     self.snapshot.score_board.scores.append(
-      Score(datetime.now(), self.snapshot.level, self.snapshot.stage, self.point)
+      Score(
+        datetime.now(),
+        self.snapshot.level,
+        self.snapshot.stage,
+        self.point,
+      )
     )
     self.point = 0
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
-    stage_text = self.to_text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.stage+1))
+    stage_text = self.text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.stage+1))
     stage_text.origin = self.menu_left_top_origin()
-    scribes.append(stage_text)
+    subjects.append(stage_text)
 
     if self.play_timer is not None:
-      play_time_text = self.to_text(
+      play_time_text = self.text(
         '{:02}:{:02}.{:03}'.format(
           int(self.play_timer.sec/60),
           int(self.play_timer.sec%60),
@@ -338,13 +336,13 @@ class BaseStageScene(BaseScene):
         )
       )
       play_time_text.center = self.menu_middle_top_center(None)
-      scribes.append(play_time_text)
+      subjects.append(play_time_text)
 
-    score_text = self.to_text('{}:{:04}'.format(self.string(SCORE[self.snapshot.level]), self.point))
+    score_text = self.text('{}:{:04}'.format(self.string(SCORE[self.snapshot.level]), self.point))
     score_text.origin = self.menu_right_top_origin(score_text)
-    scribes.append(score_text)
+    subjects.append(score_text)
 
-    return scribes
+    return subjects
 
 class ReadyScene(BaseStageScene):
   START_SEC = 3
@@ -354,46 +352,49 @@ class ReadyScene(BaseStageScene):
 
     for ball in self.snapshot.balls:
       ball.stop()
-      ball.origin = self.ball_init_origin(ball)
-    self.snapshot.jumper.walk(self.jumper_start_x())
+      ball.origin = self.ball_start_origin(ball)
+    self.snapshot.jumper.stop()
 
     self.ready_timer: Timer | None = None
 
     def walk_jumper(start: bool) -> bool:
-      if not self.snapshot.jumper.walking:
-        return True
+      if start:
+        self.snapshot.jumper.walk(self.jumper_play_x())
+      else:
+        if not self.snapshot.jumper.walking:
+          return True
       return False
 
     def ready_play(start: bool) -> bool:
       self.ready_timer = Timer.set_sec(self.stopwatch, self.START_SEC, True)
       return True
 
-    self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 1, walk_jumper, None),
-      Seq(self.stopwatch, 1000, ready_play, None),
-    ])
-
-  def update(self) -> Self | Any:
-    if self.ready_timer is not None:
+    def start_play(start: bool) -> bool:
       if self.ready_timer.over:
         for ball in self.snapshot.balls:
           ball.roll()
-        self.snapshot.jumper.standby()
-        return PlayScene(self, self.point)
-    return super().update()
+        self.snapshot.jumper.stand_by()
+        return True
+      return False
+
+    self.time_seq = TimeSeq([
+      Seq(self.stopwatch, 0, walk_jumper, None),
+      Seq(self.stopwatch, 1000, ready_play, None),
+      Seq(self.stopwatch, 0, start_play, lambda: PlayScene(self, self.point)),
+    ])
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
     if self.ready_timer is not None:
       wait_sec = max(self.START_SEC-self.ready_timer.sec, 1)
       wait_sec = min(wait_sec, self.START_SEC)
-      start_wait_time_text = self.to_text(str(wait_sec))
+      start_wait_time_text = self.text(str(wait_sec))
       start_wait_time_text.center = self.subtitle_center()
-      scribes.append(start_wait_time_text)
+      subjects.append(start_wait_time_text)
 
-    return scribes
+    return subjects
 
 
 class PlayScene(BaseStageScene):
@@ -423,16 +424,16 @@ class PlayScene(BaseStageScene):
       for ball in self.snapshot.balls:
         if ball.hit(self.snapshot.jumper):
           self.play_timer.pause()
-          self.snapshot.jumper.down()
           for ball in self.snapshot.balls:
             ball.stop()
+          self.snapshot.jumper.fall_down()
           return GameOverScene(self, self.point)
 
       if self.play_timer.over:
         self.play_timer.pause()
-        self.snapshot.jumper.stop()
         for ball in self.snapshot.balls:
           ball.stop()
+        self.snapshot.jumper.stop()
         return StageClearScene(self, self.point)
 
     return super().update()
@@ -443,11 +444,12 @@ class PauseScene(BaseStageScene):
 
   def __init__(self, scene: Scene, point: int) -> None:
     super().__init__(scene, point)
-    self.restart_text = self.to_blink_text(self.string('PAUSE_RESTART'), 1000, False)
+
+    self.restart_text = self.blink_text(self.string('PAUSE_RESTART'), 1000, False)
     self.restart_text.center = self.menu_middle_center()
 
   @property
-  def updating_sprite(self) -> bool:
+  def can_update_sprite(self) -> bool:
     return False
 
   def update(self) -> Self | Any:
@@ -459,16 +461,16 @@ class PauseScene(BaseStageScene):
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
-    pause_text = self.to_text(self.string('PAUSE'))
+    pause_text = self.text(self.string('PAUSE'))
     pause_text.center = self.subtitle_center()
-    scribes.append(pause_text)
+    subjects.append(pause_text)
 
-    scribes.append(self.restart_text)
+    subjects.append(self.restart_text)
 
-    return scribes
+    return subjects
 
 class GameOverScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int) -> None:
@@ -500,20 +502,20 @@ class GameOverScene(BaseStageScene):
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
     if self.show_game_over:
-      game_over_text = self.to_text(self.string('GAME_OVER'))
+      game_over_text = self.text(self.string('GAME_OVER'))
       game_over_text.center = self.subtitle_center()
-      scribes.append(game_over_text)
+      subjects.append(game_over_text)
 
     if self.show_game_end:
-      end_text = self.to_text(self.string('GAME_END'))
+      end_text = self.text(self.string('GAME_END'))
       end_text.center = self.menu_middle_center()
-      scribes.append(end_text)
+      subjects.append(end_text)
 
-    return scribes
+    return subjects
 
 class StageClearScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int) -> None:
@@ -562,23 +564,25 @@ class StageClearScene(BaseStageScene):
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
     if self.show_clear:
-      clear_text = self.to_text(self.string('STAGE_CLEAR'))
+      clear_text = self.text(self.string('STAGE_CLEAR'))
       clear_text.center = self.subtitle_center()
-      scribes.append(clear_text)
+      subjects.append(clear_text)
 
     if self.show_next:
-      next_text = self.to_text(self.string('STAGE_NEXT'))
+      next_text = self.text(self.string('STAGE_NEXT'))
       next_text.center = self.menu_middle_center()
-      scribes.append(next_text)
+      subjects.append(next_text)
 
-    return scribes
+    return subjects
 
 
 class GameClearScene(BaseStageScene):
+  JOY_MAX = 3
+
   def __init__(self, scene: Scene, point: int) -> None:
     super().__init__(scene, point)
 
@@ -591,11 +595,23 @@ class GameClearScene(BaseStageScene):
       self.cleared = True
 
     self.show_clear = False
+    self.jumper_joy_count = 0
     self.show_thanks = False
 
     def show_clear(start: bool) -> bool:
       self.show_clear = True
+      self.snapshot.jumper.joy()
+      self.jumper_joy_count = 0
       return True
+
+    def joy_jumper(start: bool) -> bool:
+      if not self.snapshot.jumper.joying:
+        self.jumper_joy_count += 1
+        if self.jumper_joy_count > self.JOY_MAX:
+          return True
+        else:
+          self.snapshot.jumper.joy()
+      return False
 
     def show_next(start: bool) -> bool:
       if start:
@@ -608,6 +624,7 @@ class GameClearScene(BaseStageScene):
 
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 1000, show_clear, None),
+      Seq(self.stopwatch, 0, joy_jumper, None),
       Seq(self.stopwatch, 2000, show_next, None),
     ])
 
@@ -620,17 +637,17 @@ class GameClearScene(BaseStageScene):
     return super().update()
 
   @property
-  def scribers(self) -> list[Any]:
-    scribes = super().scribers
+  def drawing_subjects(self) -> list[Any]:
+    subjects = super().drawing_subjects
 
     if self.show_clear:
-      clear_text = self.to_text(self.string('GAME_CLEAR'))
+      clear_text = self.text(self.string('GAME_CLEAR' if not self.cleared else 'GAME_CLEAR_ALL'))
       clear_text.center = self.subtitle_center()
-      scribes.append(clear_text)
+      subjects.append(clear_text)
 
     if self.show_thanks:
-      thanks_text = self.to_text(self.string('GAME_CLEAR_THANKS'))
+      thanks_text = self.text(self.string('GAME_CLEAR_THANKS'))
       thanks_text.center = self.menu_middle_center()
-      scribes.append(thanks_text)
+      subjects.append(thanks_text)
 
-    return scribes
+    return subjects

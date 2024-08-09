@@ -37,10 +37,9 @@ class BoyJumper(Jumper):
     STOP = 0
     WALK = 1
     JUMP = 2
-    DOWN = 3
+    FALL_DOWN = 3
 
   WALKING_STEP = 2
-  ACCEL_MAX = -10
 
   def __init__(self) -> None:
     super().__init__(
@@ -56,21 +55,24 @@ class BoyJumper(Jumper):
           Image(0, Coordinate(1, 2), Size(1, 1), Image.Pose.NORMAL),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
-        self.Motion.DOWN: Block(
+        self.Motion.FALL_DOWN: Block(
           Image(0, Coordinate(1, 3), Size(1, 1), Image.Pose.NORMAL),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         )
       },
     )
     self.walking_interval = 0
-    self.accel_y = 0.0
-    self.prev_y = 0.0
+
+  @property
+  def max_accel(self) -> int:
+    return -10
 
   def update(self, game_pad: GamePad, field: Field) -> None:
     super().update(game_pad, field)
 
     if self.stopping:
       self.motion = self.Motion.STOP
+
     elif self.walking:
       if self.walking_interval < self.WALKING_STEP:
         self.walking_interval += 1
@@ -80,26 +82,21 @@ class BoyJumper(Jumper):
           self.motion = self.Motion.STOP
         else:
           self.motion = self.Motion.WALK
-    elif self.do_standby:
+
+    elif self.standing_by:
       self.motion = self.Motion.STOP
       if game_pad.enter():
-        self.action = self.Action.JUMP
+        self.jump()
         self.motion = self.Motion.JUMP
-        self.accel_y = self.ACCEL_MAX
-        self.prev_y = self.center.y
+
     elif self.jumping:
-      if self.bottom < field.bottom or self.accel_y == self.ACCEL_MAX:
-        tmp = self.center.y
-        self.center.y += (self.center.y - self.prev_y) + self.accel_y
-        self.prev_y = tmp
-        self.accel_y = 1
-      else:
-        self.action = self.Action.STANDBY
-        self.motion = self.Motion.STOP
-        self.accel_y = 0
-        self.prev_y = 0
-    elif self.do_down:
-      self.motion = self.Motion.DOWN
+      pass
+
+    elif self.falling_down:
+      self.motion = self.Motion.FALL_DOWN
+
+    elif self.joying:
+      pass
 
   def draw(self, transparent_color) -> None:
     super().draw(transparent_color)

@@ -4,7 +4,7 @@ from game import Coordinate, Image, Size, TileMap, Music
 import pyxel
 
 
-class Scribe:
+class Subject:
   def draw(self, transparent_color: int) -> None:
     raise RuntimeError()
 
@@ -47,7 +47,7 @@ class Block:
 TSprite = TypeVar('TSprite', bound='Sprite')
 
 
-class Sprite(Scribe):
+class Sprite(Subject):
   def __init__(self, motions: dict[int, Block]) -> None:
     self.id = str(uuid())
     self.motions = motions
@@ -111,7 +111,7 @@ class Obstacle:
     self.collision = collision
 
 
-class Field(Scribe):
+class Field(Subject):
   def __init__(self, background_tiles: list[TileMap], obstacles: list[Obstacle], max_size: Size) -> None:
     self.background_tiles = background_tiles
     self.obstacles = obstacles
@@ -137,7 +137,7 @@ class Field(Scribe):
       distance = Coordinate(distance.x+tile.size.width, distance.y)
 
 
-class Text(Scribe):
+class Text(Subject):
   def __init__(self, string: str, text_color: int) -> None:
     if string == '':
       raise RuntimeError()
@@ -196,7 +196,7 @@ class Text(Scribe):
     pyxel.text(self.origin.x, self.origin.y, self.string, self.text_color)
 
 
-class Signboard(Scribe):
+class Signboard(Subject):
   def __init__(self, image: Image | None, texts: list[Text]) -> None:
     self.image = image
     self.center = Coordinate(0, 0)
