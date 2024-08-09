@@ -581,8 +581,6 @@ class StageClearScene(BaseStageScene):
 
 
 class GameClearScene(BaseStageScene):
-  JOY_MAX = 3
-
   def __init__(self, scene: Scene, point: int) -> None:
     super().__init__(scene, point)
 
@@ -595,22 +593,16 @@ class GameClearScene(BaseStageScene):
       self.cleared = True
 
     self.show_clear = False
-    self.jumper_joy_count = 0
     self.show_thanks = False
 
     def show_clear(start: bool) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
-      self.jumper_joy_count = 0
       return True
 
     def joy_jumper(start: bool) -> bool:
       if not self.snapshot.jumper.joying:
-        self.jumper_joy_count += 1
-        if self.jumper_joy_count > self.JOY_MAX:
-          return True
-        else:
-          self.snapshot.jumper.joy()
+        return True
       return False
 
     def show_next(start: bool) -> bool:

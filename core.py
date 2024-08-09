@@ -84,12 +84,21 @@ class Jumper(Sprite):
     FALL_DOWN = 4
     JOY = 5
 
+  JOY_MAX = 3
+
   def __init__(self, motions: dict[int, Block]) -> None:
     super().__init__(motions)
     self.action = self.Action.STOP
     self.walking_x = 0.0
     self.accel_y = 0.0
     self.prev_y = 0.0
+    self.joying_count = 0
+
+  def reset(self) -> None:
+    self.walking_x = 0.0
+    self.accel_y = 0.0
+    self.prev_y = 0.0
+    self.joying_count = 0
 
   @property
   def walking_distance(self) -> float:
@@ -125,42 +134,34 @@ class Jumper(Sprite):
 
   def stop(self) -> None:
     self.action = self.Action.STOP
-    self.walking_x = 0
-    self.accel_y = 0
-    self.prev_y = 0
+    self.reset()
 
   def walk(self, x: float) -> None:
     if self.stopping:
       self.action = self.Action.WALK
-      self.walking_x = x
-      self.accel_y = 0
-      self.prev_y = 0
+      self.reset()
 
   def stand_by(self) -> None:
     if self.stopping:
       self.action = self.Action.STAND_BY
-      self.walking_x = 0
-      self.accel_y = 0
-      self.prev_y = 0
+      self.reset()
 
   def jump(self) -> None:
     if self.standing_by:
       self.action = self.Action.JUMP
-      self.walking_x = 0
+      self.reset()
       self.accel_y = self.max_accel
       self.prev_y = self.center.y
 
   def fall_down(self) -> None:
     if self.standing_by or self.jumping:
       self.action = self.Action.FALL_DOWN
-      self.walking_x = 0
-      self.accel_y = 0
-      self.prev_y = 0
+      self.reset()
 
   def joy(self) -> None:
     if self.stopping:
       self.action = self.Action.JOY
-      self.walking_x = 0
+      self.reset()
       self.accel_y = self.max_accel
       self.prev_y = self.center.y
 
@@ -177,7 +178,7 @@ class Jumper(Sprite):
 
       if self.origin.x == self.walking_x:
         self.action = self.Action.STOP
-        self.walking_x
+        self.reset()
 
     elif self.jumping:
       if self.bottom < field.bottom or self.accel_y == self.max_accel:
@@ -187,8 +188,7 @@ class Jumper(Sprite):
         self.accel_y = 1
       else:
         self.action = self.Action.STAND_BY
-        self.accel_y = 0
-        self.prev_y = 0
+        self.reset()
 
     elif self.joying:
       if self.bottom < field.bottom or self.accel_y == self.max_accel:
@@ -197,9 +197,13 @@ class Jumper(Sprite):
         self.prev_y = center_y
         self.accel_y = 1
       else:
-        self.action = self.Action.STOP
-        self.accel_y = 0
-        self.prev_y = 0
+        self.joying_count += 1
+        if self.joying_count > self.JOY_MAX:
+          self.action = self.Action.STOP
+          self.reset()
+        else:
+          self.accel_y = self.max_accel
+          self.prev_y = self.center.y
 
 
 class Ball(Sprite):
