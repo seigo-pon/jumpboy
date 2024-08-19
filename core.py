@@ -36,7 +36,7 @@ class Score:
     self.created_at = created_at
     self.level = level
     self.stage = stage
-    self.point = 0
+    self.point = point
 
 
 class ScoreBoard:
@@ -84,29 +84,33 @@ class Jumper(Sprite):
     FALL_DOWN = 4
     JOY = 5
 
+  class Motion(IntEnum):
+    STOP = 0
+    WALK = 1
+    JUMP = 2
+    FALL_DOWN = 3
+
   JOY_MAX = 3
 
-  def __init__(self, motions: dict[int, Block]) -> None:
+  def __init__(self, motions: dict[int, Block], max_accel: int, walking_distance: float, walking_step: int) -> None:
     super().__init__(motions)
+    self.max_accel = max_accel
+    self.walking_distance = walking_distance
+    self.walking_step = walking_step
+
     self.action = self.Action.STOP
     self.walking_x = 0.0
     self.accel_y = 0.0
     self.prev_y = 0.0
     self.joying_count = 0
+    self.walking_interval = 0
 
   def reset(self) -> None:
     self.walking_x = 0.0
     self.accel_y = 0.0
     self.prev_y = 0.0
     self.joying_count = 0
-
-  @property
-  def walking_distance(self) -> float:
-    return 1
-
-  @property
-  def max_accel(self) -> int:
-    return -10
+    self.walking_interval = 0
 
   @property
   def stopping(self) -> bool:
@@ -140,6 +144,7 @@ class Jumper(Sprite):
     if self.stopping:
       self.action = self.Action.WALK
       self.reset()
+      self.walking_x = x
 
   def stand_by(self) -> None:
     if self.stopping:
@@ -166,7 +171,10 @@ class Jumper(Sprite):
       self.prev_y = self.center.y
 
   def update(self, game_pad: GamePad, field: Field) -> None:
-    if self.walking:
+    if self.stopping:
+      self.motion = self.Motion.STOP
+
+    elif self.walking:
       distance = self.walking_distance
       diff = self.origin.x - self.walking_x
       if abs(diff) < distance:
@@ -180,6 +188,21 @@ class Jumper(Sprite):
         self.action = self.Action.STOP
         self.reset()
 
+      if self.walking_interval < self.walking_step:
+        self.walking_interval += 1
+      else:
+        self.walking_interval = 0
+        if self.motion == self.Motion.WALK:
+          self.motion = self.Motion.STOP
+        else:
+          self.motion = self.Motion.WALK
+
+    elif self.standing_by:
+      self.motion = self.Motion.STOP
+      if game_pad.enter():
+        self.jump()
+        self.motion = self.Motion.JUMP
+
     elif self.jumping:
       if self.bottom < field.bottom or self.accel_y == self.max_accel:
         center_y = self.center.y
@@ -189,6 +212,9 @@ class Jumper(Sprite):
       else:
         self.action = self.Action.STAND_BY
         self.reset()
+
+    elif self.falling_down:
+      self.motion = self.Motion.FALL_DOWN
 
     elif self.joying:
       if self.bottom < field.bottom or self.accel_y == self.max_accel:
@@ -212,14 +238,20 @@ class Ball(Sprite):
     ROLL = 1
     BREAK = 2
 
-  def __init__(self, motions: dict[int, Block]) -> None:
+  class Motion(IntEnum):
+    ANGLE_0 = 0
+    ANGLE_90 = 1
+    ANGLE_180 = 2
+    ANGLE_270 = 3
+
+  def __init__(self, motions: dict[int, Block], rolling_distance: float, rolling_step: int) -> None:
     super().__init__(motions)
+    self.rolling_distance = rolling_distance
+    self.rolling_step = rolling_step
+
     self.action = self.Action.STOP
     self.rolling_direction = True
-
-  @property
-  def rolling_distance(self) -> float:
-    raise RuntimeError()
+    self.rolling_interval = 0
 
   @property
   def stopping(self) -> bool:
@@ -242,7 +274,37 @@ class Ball(Sprite):
       self.action = self.Action.ROLL
 
   def update(self, field: Field) -> None:
-      raise RuntimeError()
+    if self.stopping:
+      pass
+
+    elif self.rolling:
+      next_x = self.origin.x + self.rolling_distance * (1 if self.rolling_direction else -1)
+      if not self.rolling_direction:
+        if next_x <= field.left:
+          next_x = 0
+          self.rolling_direction = True
+      else:
+        if next_x+self.size.width >= field.right:
+          next_x = field.right-self.size.width
+          self.rolling_direction = False
+
+      self.origin = Coordinate(next_x, self.origin.y)
+
+      if self.rolling_interval < self.rolling_step:
+        self.rolling_interval += 1
+      else:
+        self.rolling_interval = 0
+        if self.rolling_direction:
+          self.motion += 1
+          if self.motion > [e for e in self.Motion][-1]:
+            self.motion = [e for e in self.Motion][0]
+        else:
+          self.motion -= 1
+          if self.motion < [e for e in self.Motion][0]:
+            self.motion = [e for e in self.Motion][-1]
+
+    elif self.breaking:
+      pass
 
 
 class BlinkText(Text):

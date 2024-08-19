@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from game import (
   Size, Path,
   GameProfile, Language, StringRes,
@@ -8,12 +9,15 @@ import os
 import pyxel
 
 
-DEBUG = True
+load_dotenv()
+
+
+DEBUG = bool(os.getenv('DEBUG') == 'True')
+COPYRIGHT = str(os.getenv('COPYRIGHT'))
+RELEASED_YEAR = int(os.getenv('RELEASED_YEAR') or 2024)
 
 GAME_WINDOW_SIZE = Size(160, 120)
 FPS = 30
-COPYRIGHT = 'SEIGO-PON'
-RELEASE_YEAR = 2024
 ASSET_FOLDER = 'assets'
 ASSET_FILES = ['jumpboy.pyxres']
 
@@ -29,7 +33,7 @@ class App:
       GAME_WINDOW_SIZE,
       FPS,
       COPYRIGHT,
-      RELEASE_YEAR,
+      RELEASED_YEAR,
       DEBUG,
     )
 

@@ -1,7 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Callable, Generic, Self, TypeVar
-from uuid import uuid4 as uuid
 from game import Size, Path
 import json
 import os
@@ -16,7 +15,7 @@ class GameProfile:
     window_size: Size,
     fps: int,
     copyright: str,
-    release_year: int,
+    released_year: int,
     debug: bool,
   ) -> None:
     self.path = path
@@ -24,7 +23,7 @@ class GameProfile:
     self.window_size = window_size
     self.fps = fps
     self.copyright = copyright
-    self.release_year = release_year
+    self.released_year = released_year
     self.debug = debug
 
 
@@ -68,7 +67,6 @@ class Stopwatch:
 
 class Timer:
   def __init__(self, stopwatch: Stopwatch) -> None:
-    self.id = str(uuid())
     self.stopwatch = stopwatch
     self.start_frame: int | None = None
     self.limit_msec: int | None = None
@@ -104,7 +102,7 @@ class Timer:
 
   @property
   def over(self) -> bool:
-    if self.limit_msec is not None and self.limit_msec > 0:
+    if self.limit_msec is not None and self.limit_msec >= 0:
       if self.msec is not None and self.msec >= self.limit_msec:
         return True
     return False
@@ -128,12 +126,19 @@ class Timer:
 
 
 class Seq:
-  def __init__(self, stopwatch: Stopwatch, msec: int, process: Callable[[bool], bool], to_next: Callable[[], Any] | None) -> None:
+  def __init__(
+    self,
+    stopwatch: Stopwatch,
+    msec: int,
+    process: Callable[[bool], bool],
+    to_next: Callable[[], Any] | None,
+  ) -> None:
     self.timer = Timer.set_msec(stopwatch, msec)
     self.started = False
     self.process = process
     self.to_next = to_next
     self.ended = False
+
 
 class TimeSeq:
   def __init__(self, seqs: list[Seq]) -> None:
@@ -163,10 +168,10 @@ class TimeSeq:
 
 
 class Snapshot:
-  SAVE_FOLDER = 'snapshot'
+  SNAPSHOT_FOLDER = 'snapshot'
 
   def folder(self, path: Path) -> str:
-    return os.path.join(path.root, self.SAVE_FOLDER)
+    return os.path.join(path.root, self.SNAPSHOT_FOLDER)
 
   def to_json(self) -> dict:
     raise RuntimeError()
@@ -177,7 +182,6 @@ class Snapshot:
   def save(self, path: Path) -> None:
     if not os.path.exists(self.folder(path)):
       os.mkdir(self.folder(path))
-
     with open(os.path.join(self.folder(path), '{}.json'.format(datetime.now().timestamp())), mode='w') as f:
       json.dump(self.to_json(), f)
 
@@ -192,7 +196,6 @@ class Snapshot:
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
-
 
 class Scene(Generic[TSnapshot]):
   def __init__(

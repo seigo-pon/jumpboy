@@ -1,23 +1,93 @@
 from datetime import datetime
+from enum import IntEnum
 from typing import Any, Self
 from game import (
   Coordinate, Size,
-  Image, Text, Signboard,
-  GameProfile, Language, StringRes, Stopwatch, Timer, Seq, TimeSeq
+  AssetImage, Image, TileMap,
+  Collision, Block, Image, Text, Signboard,
+  GameProfile, Language, StringRes, Stopwatch, Timer, Seq, TimeSeq,
 )
 from core import (
   GamePad,
   Score, ScoreBoard,
-  Ball, Jumper, BlinkText,
+  Ball, Jumper, Field, BlinkText,
   Snapshot, Scene,
 )
-from component import (
-  GameLevel, BoyStage,
-  BoyStage1Field,
-  BoyJumper,
-  BoyStage1Ball,
-)
 import pyxel
+
+
+GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
+
+class BoyStage(IntEnum):
+  STAGE_1 = 0
+
+class GameLevel(IntEnum):
+  BOY = 0
+
+  @classmethod
+  def field(cls, level: Self, stage: BoyStage, max_size: Size) -> Field:
+    return Field(
+      [
+        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL),
+        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL),
+        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL),
+      ],
+      [],
+      max_size,
+      GROUND_TOP,
+    )
+
+  @classmethod
+  def jumper(cls, level: Self, stage: BoyStage) -> Jumper:
+    return Jumper(
+      {
+        Jumper.Motion.STOP: Block(
+          Image(0, Coordinate(1, 0), Size(1, 1), Image.Pose.NORMAL),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
+        Jumper.Motion.WALK: Block(
+          Image(0, Coordinate(1, 1), Size(1, 1), Image.Pose.NORMAL),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+        ),
+        Jumper.Motion.JUMP: Block(
+          Image(0, Coordinate(1, 2), Size(1, 1), Image.Pose.NORMAL),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+        ),
+        Jumper.Motion.FALL_DOWN: Block(
+          Image(0, Coordinate(1, 3), Size(1, 1), Image.Pose.NORMAL),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+        )
+      },
+      -10,
+      1,
+      2,
+    )
+
+  @classmethod
+  def balls(cls, level: Self, stage: BoyStage) -> list[Ball]:
+    return [
+      Ball(
+        {
+          Ball.Motion.ANGLE_0: Block(
+            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Ball.Motion.ANGLE_90: Block(
+            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_Y),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Ball.Motion.ANGLE_180: Block(
+            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_XY),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Ball.Motion.ANGLE_270: Block(
+            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_X),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+        },
+        2,
+        1,
+      )
+    ]
 
 
 GAME_TITLE: dict[int, str] = {
@@ -71,7 +141,7 @@ class BaseScene(Scene):
   def menu_middle_bottom_center(self) -> Coordinate:
     return Coordinate(
       self.profile.window_size.center.x,
-      self.snapshot.field.ground_top-Text.word_size().height*2+Text.word_size().height/2,
+      self.snapshot.field.ground_top-Text.word_size().height*3+Text.word_size().height/2,
     )
 
   def ball_start_origin(self, ball: Ball) -> Coordinate:
@@ -124,6 +194,9 @@ class OpeningScene(BaseScene):
   MOVE_TITLE_Y_MIN = 1
 
   def __init__(self, profile: GameProfile, string_res: StringRes) -> None:
+    level = GameLevel.BOY
+    stage = BoyStage.STAGE_1
+
     super().__init__(
       profile,
       string_res,
@@ -132,11 +205,11 @@ class OpeningScene(BaseScene):
         Language.EN,
         GamePad(),
         ScoreBoard(),
-        GameLevel.BOY,
-        BoyStage.STAGE_1,
-        BoyStage1Field(profile.window_size),
-        [BoyStage1Ball()],
-        BoyJumper(),
+        level,
+        stage,
+        GameLevel.field(level, stage, profile.window_size),
+        GameLevel.balls(level, stage),
+        GameLevel.jumper(level, stage),
       ),
     )
 
@@ -169,8 +242,8 @@ class OpeningScene(BaseScene):
 
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 2000, walk_jumper, None),
-      Seq(self.stopwatch, 1000, move_title, None),
-      Seq(self.stopwatch, 1000, lambda x: True, lambda: TitleScene(self)),
+      Seq(self.stopwatch, 2000, move_title, None),
+      Seq(self.stopwatch, 2000, lambda x: True, lambda: TitleScene(self)),
     ])
 
   def update(self) -> Self | Any:
@@ -203,7 +276,8 @@ class TitleScene(BaseScene):
       ball.origin = self.ball_start_origin(ball)
     if self.snapshot.jumper.falling_down:
       self.snapshot.jumper.stop()
-      self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
+      self.snapshot.jumper.origin = Coordinate(self.jumper_play_x(), self.jumper_start_origin(self.snapshot.jumper).y)
+    self.snapshot.jumper.walk(self.jumper_play_x())
 
     self.title_text = self.text(self.profile.title)
     self.title_text.center = self.title_center()
@@ -225,17 +299,13 @@ class TitleScene(BaseScene):
 
     def show_score(start: bool):
       self.show_score = True
-      self.score.move(self.menu_middle_top_center(self.score.size))
-      self.title_text.move(
-        Coordinate(
-          self.title_text.center.x,
-          self.snapshot.field.bottom+Text.word_size().height,
-        )
-      )
+      self.score.move(self.menu_middle_top_center(
+        Size(self.score.size.width, self.score.size.height+Text.word_size().height*3)
+      ))
       return True
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 30000, walk_jumper, None),
+      Seq(self.stopwatch, 20000, walk_jumper, None),
       Seq(self.stopwatch, 1000, show_score, None),
     ])
 
@@ -244,7 +314,7 @@ class TitleScene(BaseScene):
 
     score_center = self.menu_middle_top_center(None)
     score_text = self.text(self.string('SCORE_RANKING'))
-    score_text.center = score_center
+    score_text.center = Coordinate(score_center.x, score_center.y)
     score_texts.append(score_text)
 
     score_center.y += Text.word_size().height*2
@@ -261,15 +331,15 @@ class TitleScene(BaseScene):
             score.created_at.strftime('%Y/%m/%d %H:%M'),
           )
         )
-        score_text.center = score_center
+        score_text.center = Coordinate(score_center.x, score_center.y)
         score_texts.append(score_text)
     else:
       score_center.y += Text.word_size().height
       no_score_text = self.text(self.string('NO_SCORE'))
-      no_score_text.center = score_center
+      no_score_text.center = Coordinate(score_center.x, score_center.y)
       score_texts.append(no_score_text)
 
-    return Signboard(None, score_texts)
+    return Signboard(None, score_texts, self.profile.window_size.width, None)
 
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter():
@@ -290,11 +360,11 @@ class TitleScene(BaseScene):
 
     if self.show_score:
       subjects.append(self.score)
-
-    subjects.append(self.title_text)
+    else:
+      subjects.append(self.title_text)
     subjects.append(self.start_text)
 
-    copyright_text = self.text('(c) {} {}'.format(self.profile.release_year, self.profile.copyright))
+    copyright_text = self.text('(c) {} {}'.format(self.profile.released_year, self.profile.copyright))
     copyright_text.center = self.menu_middle_bottom_center()
     subjects.append(copyright_text)
 
@@ -370,11 +440,12 @@ class ReadyScene(BaseStageScene):
       return True
 
     def start_play(start: bool) -> bool:
-      if self.ready_timer.over:
-        for ball in self.snapshot.balls:
-          ball.roll()
-        self.snapshot.jumper.stand_by()
-        return True
+      if self.ready_timer is not None:
+        if self.ready_timer.over:
+          for ball in self.snapshot.balls:
+            ball.roll()
+          self.snapshot.jumper.stand_by()
+          return True
       return False
 
     self.time_seq = TimeSeq([
@@ -516,6 +587,7 @@ class GameOverScene(BaseStageScene):
       subjects.append(end_text)
 
     return subjects
+
 
 class StageClearScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int) -> None:

@@ -19,8 +19,5 @@ class Size:
 
 class Path:
   def __init__(self, file_path: str) -> None:
-    self.file_path = file_path
-
-  @property
-  def root(self) -> str:
-    return os.path.abspath(os.path.join(os.path.abspath(self.file_path), os.pardir))
+    self.root = os.path.abspath(os.path.join(os.path.abspath(file_path), os.pardir))
+    print(self.root)

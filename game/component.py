@@ -46,7 +46,6 @@ class Block:
 
 TSprite = TypeVar('TSprite', bound='Sprite')
 
-
 class Sprite(Subject):
   def __init__(self, motions: dict[int, Block]) -> None:
     self.id = str(uuid())
@@ -197,18 +196,15 @@ class Text(Subject):
 
 
 class Signboard(Subject):
-  def __init__(self, image: Image | None, texts: list[Text]) -> None:
+  def __init__(self, image: Image | None, texts: list[Text], width: float | None, height: float | None) -> None:
     self.image = image
-    self.center = Coordinate(0, 0)
     self.texts = texts
-    self.moved_center: Coordinate | None = None
-
-  @property
-  def size(self) -> Size:
-    return Size(
-      max([text.origin.x+text.size.width for text in self.texts]),
-      max([text.origin.y+text.size.height for text in self.texts]),
+    self.center = Coordinate(0, 0)
+    self.size = Size(
+      width if width is not None else max([text.origin.x+text.size.width for text in self.texts]),
+      height if height is not None else max([text.origin.y+text.size.height for text in self.texts]),
     )
+    self.moved_center: Coordinate | None = None
 
   @property
   def origin(self) -> Coordinate:
