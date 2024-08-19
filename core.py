@@ -244,10 +244,11 @@ class Ball(Sprite):
     ANGLE_180 = 2
     ANGLE_270 = 3
 
-  def __init__(self, motions: dict[int, Block], rolling_distance: float, rolling_step: int) -> None:
+  def __init__(self, motions: dict[int, Block], rolling_distance: float, rolling_step: int, point: int) -> None:
     super().__init__(motions)
     self.rolling_distance = rolling_distance
     self.rolling_step = rolling_step
+    self.point = point
 
     self.action = self.Action.STOP
     self.rolling_direction = True

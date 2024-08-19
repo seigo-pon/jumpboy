@@ -86,6 +86,7 @@ class GameLevel(IntEnum):
         },
         2,
         1,
+        10,
       )
     ]
 
@@ -345,7 +346,7 @@ class TitleScene(BaseScene):
     if self.snapshot.game_pad.enter():
       self.start_text.set_msec(120, True)
       self.time_seq = TimeSeq([
-        Seq(self.stopwatch, 1000, lambda x: True, lambda: ReadyScene(self, 0)),
+        Seq(self.stopwatch, 1000, lambda x: True, lambda: ReadyScene(self, 0, None, {})),
       ])
 
     if self.show_score:
@@ -372,11 +373,11 @@ class TitleScene(BaseScene):
 
 
 class BaseStageScene(BaseScene):
-  def __init__(self, scene: Scene, point: int) -> None:
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene.profile, scene.string_res, scene.stopwatch, scene.snapshot)
-
-    self.play_timer: Timer | None = None
     self.point = point
+    self.play_timer = play_timer
+    self.ball_last_directions = ball_last_directions
 
   def record_score(self) -> None:
     self.snapshot.score_board.scores.append(
@@ -387,7 +388,6 @@ class BaseStageScene(BaseScene):
         self.point,
       )
     )
-    self.point = 0
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -414,11 +414,12 @@ class BaseStageScene(BaseScene):
 
     return subjects
 
+
 class ReadyScene(BaseStageScene):
   START_SEC = 3
 
-  def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(scene, point)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+    super().__init__(scene, point, play_timer, ball_last_directions)
 
     for ball in self.snapshot.balls:
       ball.stop()
@@ -451,7 +452,7 @@ class ReadyScene(BaseStageScene):
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 0, walk_jumper, None),
       Seq(self.stopwatch, 1000, ready_play, None),
-      Seq(self.stopwatch, 0, start_play, lambda: PlayScene(self, self.point)),
+      Seq(self.stopwatch, 0, start_play, lambda: PlayScene(self, self.point, self.play_timer, self.ball_last_directions)),
     ])
 
   @property
@@ -475,14 +476,16 @@ class PlayScene(BaseStageScene):
     },
   }
 
-  def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(scene, point)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+    super().__init__(scene, point, play_timer, ball_last_directions)
 
     if self.play_timer is None:
       self.play_timer = Timer.set_sec(
         self.stopwatch,
         self.STAGE_LIMIT_SEC[self.snapshot.level][self.snapshot.stage],
       )
+      for ball in self.snapshot.balls:
+        self.ball_last_directions[ball.id] = ball.rolling_direction
     if self.play_timer is not None:
       self.play_timer.resume()
 
@@ -490,7 +493,7 @@ class PlayScene(BaseStageScene):
     if self.play_timer is not None:
       if self.snapshot.game_pad.cancel():
         self.play_timer.pause()
-        return PauseScene(self, self.point)
+        return PauseScene(self, self.point, self.play_timer, self.ball_last_directions)
 
       for ball in self.snapshot.balls:
         if ball.hit(self.snapshot.jumper):
@@ -498,14 +501,18 @@ class PlayScene(BaseStageScene):
           for ball in self.snapshot.balls:
             ball.stop()
           self.snapshot.jumper.fall_down()
-          return GameOverScene(self, self.point)
+          return GameOverScene(self, self.point, self.play_timer, self.ball_last_directions)
+      else:
+        if self.ball_last_directions[ball.id] != ball.rolling_direction:
+          self.point += ball.point
+          self.ball_last_directions[ball.id] = ball.rolling_direction
 
       if self.play_timer.over:
         self.play_timer.pause()
         for ball in self.snapshot.balls:
           ball.stop()
         self.snapshot.jumper.stop()
-        return StageClearScene(self, self.point)
+        return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
     return super().update()
 
@@ -513,8 +520,8 @@ class PlayScene(BaseStageScene):
 class PauseScene(BaseStageScene):
   RESTART_TEXT = 1
 
-  def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(scene, point)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+    super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.restart_text = self.blink_text(self.string('PAUSE_RESTART'), 1000, False)
     self.restart_text.center = self.menu_middle_center()
@@ -525,7 +532,7 @@ class PauseScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter() or self.snapshot.game_pad.cancel():
-      return PlayScene(self, self.point)
+      return PlayScene(self, self.point, self.play_timer, self.ball_last_directions)
 
     self.restart_text.update()
 
@@ -543,9 +550,10 @@ class PauseScene(BaseStageScene):
 
     return subjects
 
+
 class GameOverScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(scene, point)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+    super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.record_score()
     self.snapshot.save(self.profile.path)
@@ -590,8 +598,8 @@ class GameOverScene(BaseStageScene):
 
 
 class StageClearScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(scene, point)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+    super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.record_score()
     self.snapshot.save(self.profile.path)
@@ -625,13 +633,13 @@ class StageClearScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.cleared:
-      return GameClearScene(self, self.point)
+      return GameClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter():
         self.snapshot.stage = self.next_stage
         self.snapshot.save(self.profile.path)
-        return ReadyScene(self, self.point)
+        return ReadyScene(self, self.point, None, {})
 
     return super().update()
 
@@ -653,8 +661,8 @@ class StageClearScene(BaseStageScene):
 
 
 class GameClearScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int) -> None:
-    super().__init__(scene, point)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+    super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.record_score()
     self.snapshot.save(self.profile.path)
