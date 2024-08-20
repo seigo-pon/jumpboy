@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Self
+from typing import Any, Self, TypeVar
 from game import (
   Coordinate, Size,
   TileMap,
@@ -13,6 +13,7 @@ import pyxel
 class GamePad(BaseGamePad):
   def __init__(self) -> None:
     super().__init__()
+
     self.enter_keys = [
       pyxel.KEY_RETURN,
       pyxel.MOUSE_BUTTON_LEFT,
@@ -81,6 +82,7 @@ class Field(BaseField):
     return self.ground_height-self.scroll_pos.y
 
 
+TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
 class Jumper(Sprite):
   class Action(IntEnum):
     STOP = 0
@@ -109,12 +111,10 @@ class Jumper(Sprite):
       self.walking_step = walking_step
       self.joying_count_max = joying_count_max
 
-  def __init__(self, motions: dict[int, Block], param: Param, game_pad: GamePad, field: Field) -> None:
+  def __init__(self, motions: dict[int, Block], param: Param) -> None:
     super().__init__(motions)
 
     self.param = param
-    self.game_pad = game_pad
-    self.field = field
 
     self.action = self.Action.STOP
     self.walking_x = 0.0
@@ -155,22 +155,26 @@ class Jumper(Sprite):
     return self.action == self.Action.JUMP
 
   def stop(self) -> None:
+    print('jumper stop', self.id)
     self.action = self.Action.STOP
     self.reset()
 
   def walk(self, x: float) -> None:
     if self.stopping:
+      print('jumper walk', self.id, x)
       self.action = self.Action.WALK
       self.reset()
       self.walking_x = x
 
   def stand_by(self) -> None:
     if self.stopping:
+      print('jumper stand by', self.id)
       self.action = self.Action.STAND_BY
       self.reset()
 
   def jump(self) -> None:
     if self.standing_by:
+      print('jumper jump', self.id, self.param.max_accel)
       self.action = self.Action.JUMP
       self.reset()
       self.accel_y = self.param.max_accel
@@ -178,17 +182,19 @@ class Jumper(Sprite):
 
   def fall_down(self) -> None:
     if self.standing_by or self.jumping:
+      print('jumper fall down', self.id)
       self.action = self.Action.FALL_DOWN
       self.reset()
 
   def joy(self) -> None:
     if self.stopping:
+      print('jumper fall joy', self.id)
       self.action = self.Action.JOY
       self.reset()
       self.accel_y = self.param.max_accel
       self.prev_y = self.center.y
 
-  def update(self) -> None:
+  def update(self, snapshot: TSnapshot) -> None:
     if self.stopping:
       self.motion = self.Motion.STOP
 
@@ -200,9 +206,11 @@ class Jumper(Sprite):
       else:
         if diff > 0:
           distance *= -1
+
       self.origin = Coordinate(self.origin.x+distance, self.origin.y)
 
       if self.origin.x == self.walking_x:
+        print('jumper walk to stop', self.id)
         self.action = self.Action.STOP
         self.reset()
 
@@ -217,17 +225,19 @@ class Jumper(Sprite):
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
-      if self.game_pad.enter():
+      if snapshot.game_pad.enter():
         self.jump()
-        self.motion = self.Motion.JUMP
 
     elif self.jumping:
-      if self.bottom < self.field.bottom or self.accel_y == self.param.max_accel:
+      self.motion = self.Motion.JUMP
+
+      if self.bottom < snapshot.field.bottom or self.accel_y == self.param.max_accel:
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
         self.accel_y = 1
       else:
+        print('jumper jump to stand by', self.id)
         self.action = self.Action.STAND_BY
         self.reset()
 
@@ -235,7 +245,7 @@ class Jumper(Sprite):
       self.motion = self.Motion.FALL_DOWN
 
     elif self.joying:
-      if self.bottom < self.field.bottom or self.accel_y == self.param.max_accel:
+      if self.bottom < snapshot.field.bottom or self.accel_y == self.param.max_accel:
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
@@ -243,9 +253,11 @@ class Jumper(Sprite):
       else:
         self.joying_count += 1
         if self.joying_count > self.param.joying_count_max:
+          print('jumper joy to stop', self.id, self.joying_count, self.param.joying_count_max)
           self.action = self.Action.STOP
           self.reset()
         else:
+          print('jumper joy again', self.id, self.joying_count, self.param.joying_count_max)
           self.accel_y = self.param.max_accel
           self.prev_y = self.center.y
 
@@ -268,11 +280,10 @@ class Ball(Sprite):
       self.rolling_step = rolling_step
       self.defeat_point = defeat_point
 
-  def __init__(self, motions: dict[int, Block], param: Param, field: Field) -> None:
+  def __init__(self, motions: dict[int, Block], param: Param) -> None:
     super().__init__(motions)
 
     self.param = param
-    self.field = field
 
     self.action = self.Action.STOP
     self.rolling_direction = True
@@ -292,26 +303,30 @@ class Ball(Sprite):
 
   def stop(self) -> None:
     if self.rolling:
+      print('ball stop')
       self.action = self.Action.STOP
 
   def roll(self) -> None:
     if self.stopping:
+      print('ball roll')
       self.action = self.Action.ROLL
 
-  def update(self) -> None:
+  def update(self, snapshot: TSnapshot) -> None:
     if self.stopping:
       pass
 
     elif self.rolling:
       next_x = self.origin.x + self.param.rolling_distance * (1 if self.rolling_direction else -1)
       if not self.rolling_direction:
-        if next_x <= self.field.left:
+        if next_x <= snapshot.field.left:
           next_x = 0
           self.rolling_direction = True
+          print('ball roll direction +', self.id, self.rolling_direction)
       else:
-        if next_x+self.size.width >= self.field.right:
-          next_x = self.field.right-self.size.width
+        if next_x+self.size.width >= snapshot.field.right:
+          next_x = snapshot.field.right-self.size.width
           self.rolling_direction = False
+          print('ball roll direction -', self.id, self.rolling_direction)
 
       self.origin = Coordinate(next_x, self.origin.y)
 
@@ -343,12 +358,13 @@ class BlinkText(Text):
     self.timer = Timer.set_msec(self.timer.stopwatch, msec, True)
     self.show = show
 
-  def update(self) -> None:
+  def update(self, snapshot: TSnapshot) -> None:
     if self.timer.over:
       self.show = not self.show
       self.timer.reset()
+      print('blink text update', self.string, self.show)
 
-    super().update()
+    super().update(snapshot)
 
   def draw(self) -> None:
     if self.show:
@@ -425,7 +441,7 @@ class Scene(BaseScene[Snapshot]):
 
   def update(self) -> Self | Any:
     for variation in self.updating_variations:
-      variation.update()
+      variation.update(self.snapshot)
     return super().update()
 
   @property

@@ -183,19 +183,30 @@ class Snapshot:
     raise RuntimeError()
 
   def save(self, path: Path) -> None:
-    if not os.path.exists(self.folder(path)):
-      os.mkdir(self.folder(path))
-    with open(os.path.join(self.folder(path), '{}.json'.format(datetime.now().timestamp())), mode='w') as f:
-      json.dump(self.to_json(), f)
+    folder = self.folder(path)
+    print('snapshot folder', folder)
+    if not os.path.exists(folder):
+      os.mkdir(folder)
+
+    file_path = os.path.join(folder, '{}.json'.format(datetime.now().timestamp()))
+    with open(file_path, mode='w') as f:
+      json_data = self.to_json()
+      print('snapshot save', file_path, json_data)
+      json.dump(json_data, f)
 
   def load(self, path: Path) -> None:
     files = []
-    if os.path.exists(self.folder(path)):
-      files = os.listdir(self.folder(path))
+    folder = self.folder(path)
+    print('snapshot folder', folder)
+    if os.path.exists(folder):
+      files = os.listdir(folder)
     if len(files) > 0:
       files = sorted(files, reverse=True)
-      with open(os.path.join(self.folder(path), files[0]), mode='r') as f:
-        self.from_json(json.load(f))
+      file_path = os.path.join(self.folder(path), files[0])
+      with open(file_path, mode='r') as f:
+        json_data = json.load(f)
+        print('snapshot save', file_path, json_data)
+        self.from_json(json_data)
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
@@ -221,12 +232,14 @@ class Scene(Generic[TSnapshot]):
   def title(self, value: str) -> None:
     self.config.title = value
     pyxel.title(self.config.title)
+    print('title', self.config.title)
 
   def update(self) -> Self | Any:
     self.stopwatch.update()
 
     res = self.time_seq.update()
     if res is not None:
+      print('next scene', res)
       return res
 
     return self

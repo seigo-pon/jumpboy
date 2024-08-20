@@ -47,7 +47,7 @@ class GameLevelAll(Enum):
     )
 
   @classmethod
-  def jumper(cls, level: GameLevel, config: GameConfig, game_pad: GamePad, field: Field) -> Jumper:
+  def jumper(cls, level: GameLevel, config: GameConfig) -> Jumper:
     return Jumper(
       {
         Jumper.Motion.STOP: Block(
@@ -67,12 +67,10 @@ class GameLevelAll(Enum):
         )
       },
       Jumper.Param(-10, 1, 2, 3),
-      game_pad,
-      field,
     )
 
   @classmethod
-  def balls(cls, level: GameLevel, config: GameConfig, field: Field) -> list[Ball]:
+  def balls(cls, level: GameLevel, config: GameConfig) -> list[Ball]:
     return [
       Ball(
         {
@@ -94,7 +92,6 @@ class GameLevelAll(Enum):
           ),
         },
         Ball.Param(2, 1, 10),
-        field,
       )
     ]
 
@@ -202,9 +199,7 @@ class OpeningScene(BaseScene):
   MOVE_TITLE_Y_MIN = 1
 
   def __init__(self, config: GameConfig, string_res: StringRes) -> None:
-    level = GameLevelAll.NORMAL_1
-    game_pad = GamePad()
-    field = GameLevel.field(level, config)
+    level = GameLevelAll.NORMAL_1.value
 
     super().__init__(
       config,
@@ -212,12 +207,12 @@ class OpeningScene(BaseScene):
       Stopwatch(config.fps),
       Snapshot(
         Language.EN,
-        game_pad,
+        GamePad(),
         ScoreBoard(),
         level,
-        field,
-        GameLevelAll.balls(level, config, field),
-        GameLevelAll.jumper(level, config, game_pad, field),
+        GameLevelAll.field(level, config),
+        GameLevelAll.balls(level, config),
+        GameLevelAll.jumper(level, config),
       ),
     )
 
@@ -409,6 +404,7 @@ class BaseStageScene(BaseScene):
         self.point,
       )
     )
+    print('score record', self.snapshot.score_board.scores)
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -429,7 +425,7 @@ class BaseStageScene(BaseScene):
       play_time_text.center = self.menu_middle_top_center(None)
       subjects.append(play_time_text)
 
-    score_text = self.text('{}:{:04}'.format(self.string(SCORE[self.snapshot.level]), self.point))
+    score_text = self.text('{}:{:04}'.format(self.string(SCORE[self.snapshot.level.mode]), self.point))
     score_text.origin = self.menu_right_top_origin(score_text)
     subjects.append(score_text)
 
@@ -492,14 +488,15 @@ class ReadyScene(BaseStageScene):
 
 
 class PlayScene(BaseStageScene):
-  STAGE_LIMIT_SEC: dict[int, dict[int, int]] = {
-    GameLevelAll.NORMAL_1: 30,
+  STAGE_LIMIT_SEC: dict[GameLevel, int] = {
+    GameLevelAll.NORMAL_1.value: 30,
   }
 
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     if self.play_timer is None:
+      print('play start')
       self.play_timer = Timer.set_sec(
         self.stopwatch,
         self.STAGE_LIMIT_SEC[self.snapshot.level],
@@ -721,7 +718,7 @@ class GameClearScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter():
-        self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1
+        self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
         return TitleScene(self)
 
     return super().update()
@@ -731,7 +728,7 @@ class GameClearScene(BaseStageScene):
     subjects = super().drawing_subjects
 
     if self.show_clear:
-      clear_text = self.text(self.string('GAME_CLEAR' if not self.cleared else 'GAME_CLEAR_ALL'))
+      clear_text = self.text(self.string('GAME_CLEAR' if self.next_level is not None else 'GAME_CLEAR_ALL'))
       clear_text.center = self.subtitle_center()
       subjects.append(clear_text)
 

@@ -1,11 +1,11 @@
-from typing import Self, TypeVar
+from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import Coordinate, Image, Size, TileMap, Music
 import pyxel
 
 
 class Variation:
-  def update(self) -> None:
+  def update(self, snapshot: Any) -> None:
     raise RuntimeError()
 
 
@@ -147,7 +147,7 @@ class Movable(Variation):
   def move(self, center: Coordinate) -> None:
     self.moved_center = center
 
-  def update(self) -> None:
+  def update(self, snapshot: Any) -> None:
     if self.moved_center is not None:
       distance_x = self.center.x - self.moved_center.x
       if distance_x != 0:
