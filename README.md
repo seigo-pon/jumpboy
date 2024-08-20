@@ -6,14 +6,20 @@
 ## Environment
 - Python 3.12
 - pyxel
+- python-dotenv
 
 ## Getting Start
 ```bash
 pip install -r requirement.txt
-pyxel run app.py 
+pyxel run app.py
+```
+
+## Edit Asset File
+```bash
+pyxel edit assets/jumpboy.pyxres
 ```
 
 ## Game Rule
 
 ## License
-- MIT License
+- GNU General Public License (GPL)
