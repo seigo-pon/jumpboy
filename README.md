@@ -7,6 +7,8 @@
 - Python 3.12
 - pyxel
 - python-dotenv
+- PyxelUnicode
+- PixelMplus
 
 ## Getting Start
 ```bash
