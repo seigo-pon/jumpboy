@@ -11,6 +11,7 @@
 ## Getting Start
 ```bash
 pip install -r requirement.txt
+cp .env.sample .env
 pyxel run app.py
 ```
 
@@ -20,6 +21,7 @@ pyxel edit assets/jumpboy.pyxres
 ```
 
 ## Game Rule
+- Coming soon...
 
 ## License
 - GNU General Public License (GPL)
