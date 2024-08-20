@@ -5,7 +5,7 @@ from game import (
   Coordinate, Size,
   TileMap,
   Sprite, Block, Obstacle, Field as BaseField, Text, GamePad as BaseGamePad,
-  GameProfile, Language, StringRes, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
+  GameConfig, Language, StringRes, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
 
@@ -31,11 +31,17 @@ class GamePad(BaseGamePad):
     return GamePad.press(self.cancel_keys)
 
 
+
+class GameLevel:
+  def __init__(self, mode: int, stage: int) -> None:
+    self.mode = mode
+    self.stage = stage
+
+
 class Score:
-  def __init__(self, created_at: datetime, level: int, stage: int, point: int) -> None:
+  def __init__(self, created_at: datetime, level: GameLevel, point: int) -> None:
     self.created_at = created_at
     self.level = level
-    self.stage = stage
     self.point = point
 
 
@@ -53,10 +59,10 @@ class Field(BaseField):
     background_tiles: list[TileMap],
     obstacles: list[Obstacle],
     max_size: Size,
-    ground_top: float,
+    ground_height: float,
   ) -> None:
     super().__init__(background_tiles, obstacles, max_size)
-    self.ground_top = ground_top
+    self.ground_height = ground_height
 
   @property
   def left(self) -> float:
@@ -72,7 +78,7 @@ class Field(BaseField):
 
   @property
   def bottom(self) -> float:
-    return self.ground_top-self.scroll_pos.y
+    return self.ground_height-self.scroll_pos.y
 
 
 class Jumper(Sprite):
@@ -90,13 +96,25 @@ class Jumper(Sprite):
     JUMP = 2
     FALL_DOWN = 3
 
-  JOY_MAX = 3
+  class Param:
+    def __init__(
+      self,
+      max_accel: int,
+      walking_distance: float,
+      walking_step: int,
+      joying_count_max: int,
+    ) -> None:
+      self.max_accel = max_accel
+      self.walking_distance = walking_distance
+      self.walking_step = walking_step
+      self.joying_count_max = joying_count_max
 
-  def __init__(self, motions: dict[int, Block], max_accel: int, walking_distance: float, walking_step: int) -> None:
+  def __init__(self, motions: dict[int, Block], param: Param, game_pad: GamePad, field: Field) -> None:
     super().__init__(motions)
-    self.max_accel = max_accel
-    self.walking_distance = walking_distance
-    self.walking_step = walking_step
+
+    self.param = param
+    self.game_pad = game_pad
+    self.field = field
 
     self.action = self.Action.STOP
     self.walking_x = 0.0
@@ -155,7 +173,7 @@ class Jumper(Sprite):
     if self.standing_by:
       self.action = self.Action.JUMP
       self.reset()
-      self.accel_y = self.max_accel
+      self.accel_y = self.param.max_accel
       self.prev_y = self.center.y
 
   def fall_down(self) -> None:
@@ -167,15 +185,15 @@ class Jumper(Sprite):
     if self.stopping:
       self.action = self.Action.JOY
       self.reset()
-      self.accel_y = self.max_accel
+      self.accel_y = self.param.max_accel
       self.prev_y = self.center.y
 
-  def update(self, game_pad: GamePad, field: Field) -> None:
+  def update(self) -> None:
     if self.stopping:
       self.motion = self.Motion.STOP
 
     elif self.walking:
-      distance = self.walking_distance
+      distance = self.param.walking_distance
       diff = self.origin.x - self.walking_x
       if abs(diff) < distance:
         distance = diff
@@ -188,7 +206,7 @@ class Jumper(Sprite):
         self.action = self.Action.STOP
         self.reset()
 
-      if self.walking_interval < self.walking_step:
+      if self.walking_interval < self.param.walking_step:
         self.walking_interval += 1
       else:
         self.walking_interval = 0
@@ -199,12 +217,12 @@ class Jumper(Sprite):
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
-      if game_pad.enter():
+      if self.game_pad.enter():
         self.jump()
         self.motion = self.Motion.JUMP
 
     elif self.jumping:
-      if self.bottom < field.bottom or self.accel_y == self.max_accel:
+      if self.bottom < self.field.bottom or self.accel_y == self.param.max_accel:
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
@@ -217,18 +235,18 @@ class Jumper(Sprite):
       self.motion = self.Motion.FALL_DOWN
 
     elif self.joying:
-      if self.bottom < field.bottom or self.accel_y == self.max_accel:
+      if self.bottom < self.field.bottom or self.accel_y == self.param.max_accel:
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
         self.accel_y = 1
       else:
         self.joying_count += 1
-        if self.joying_count > self.JOY_MAX:
+        if self.joying_count > self.param.joying_count_max:
           self.action = self.Action.STOP
           self.reset()
         else:
-          self.accel_y = self.max_accel
+          self.accel_y = self.param.max_accel
           self.prev_y = self.center.y
 
 
@@ -244,11 +262,17 @@ class Ball(Sprite):
     ANGLE_180 = 2
     ANGLE_270 = 3
 
-  def __init__(self, motions: dict[int, Block], rolling_distance: float, rolling_step: int, point: int) -> None:
+  class Param:
+    def __init__(self, rolling_distance: float, rolling_step: int, defeat_point: int) -> None:
+      self.rolling_distance = rolling_distance
+      self.rolling_step = rolling_step
+      self.defeat_point = defeat_point
+
+  def __init__(self, motions: dict[int, Block], param: Param, field: Field) -> None:
     super().__init__(motions)
-    self.rolling_distance = rolling_distance
-    self.rolling_step = rolling_step
-    self.point = point
+
+    self.param = param
+    self.field = field
 
     self.action = self.Action.STOP
     self.rolling_direction = True
@@ -274,24 +298,24 @@ class Ball(Sprite):
     if self.stopping:
       self.action = self.Action.ROLL
 
-  def update(self, field: Field) -> None:
+  def update(self) -> None:
     if self.stopping:
       pass
 
     elif self.rolling:
-      next_x = self.origin.x + self.rolling_distance * (1 if self.rolling_direction else -1)
+      next_x = self.origin.x + self.param.rolling_distance * (1 if self.rolling_direction else -1)
       if not self.rolling_direction:
-        if next_x <= field.left:
+        if next_x <= self.field.left:
           next_x = 0
           self.rolling_direction = True
       else:
-        if next_x+self.size.width >= field.right:
-          next_x = field.right-self.size.width
+        if next_x+self.size.width >= self.field.right:
+          next_x = self.field.right-self.size.width
           self.rolling_direction = False
 
       self.origin = Coordinate(next_x, self.origin.y)
 
-      if self.rolling_interval < self.rolling_step:
+      if self.rolling_interval < self.param.rolling_step:
         self.rolling_interval += 1
       else:
         self.rolling_interval = 0
@@ -311,6 +335,7 @@ class Ball(Sprite):
 class BlinkText(Text):
   def __init__(self, string: str, text_color: int, stopwatch: Stopwatch, msec: int, show: bool) -> None:
     super().__init__(string, text_color)
+
     self.timer = Timer.set_msec(stopwatch, msec, True)
     self.show = show
 
@@ -323,9 +348,11 @@ class BlinkText(Text):
       self.show = not self.show
       self.timer.reset()
 
-  def draw(self, transparent_color: int) -> None:
+    super().update()
+
+  def draw(self) -> None:
     if self.show:
-      super().draw(transparent_color)
+      super().draw()
 
 
 class Snapshot(BaseSnapshot):
@@ -334,8 +361,7 @@ class Snapshot(BaseSnapshot):
     lang: Language,
     game_pad: GamePad,
     score_board: ScoreBoard,
-    level :int,
-    stage: int,
+    level :GameLevel,
     field: Field,
     balls: list[Ball],
     jumper: Jumper,
@@ -345,7 +371,6 @@ class Snapshot(BaseSnapshot):
     self.game_pad = game_pad
     self.score_board = score_board
     self.level = level
-    self.stage = stage
     self.field = field
     self.balls = balls
     self.jumper = jumper
@@ -354,12 +379,12 @@ class Snapshot(BaseSnapshot):
     return {
       'score_board': [{
         'created_at': score.created_at.timestamp(),
-        'level': score.level,
-        'stage': score.stage,
+        'level': score.level.mode,
+        'stage': score.level.stage,
         'point': score.point,
       } for score in self.score_board.scores],
-      'level': self.level,
-      'stage': self.stage,
+      'level': self.level.mode,
+      'stage': self.level.stage,
     }
 
   def from_json(self, data: dict) -> None:
@@ -369,47 +394,45 @@ class Snapshot(BaseSnapshot):
         scores.append(
           Score(
             datetime.fromtimestamp(score['created_at']),
-            score['level'],
-            score['stage'],
+            GameLevel(score['level'], score['stage']),
             score['point'],
           )
         )
       self.score_board.scores = scores
-    if 'level' in data:
-      self.level = data['level']
-    if 'stage' in data:
-      self.stage = data['stage']
+
+    if 'level' in data and 'stage' in data:
+      self.level = GameLevel(data['level'], data['stage'])
 
 
 class Scene(BaseScene[Snapshot]):
   def __init__(
     self,
-    profile: GameProfile,
+    config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(profile, string_res, stopwatch, snapshot)
+    super().__init__(config, string_res, stopwatch, snapshot)
 
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)
 
   @property
-  def can_update_sprite(self) -> bool:
-    return True
+  def updating_variations(self) -> list[Any]:
+    variations: list[Any] = self.snapshot.balls
+    variations.append(self.snapshot.jumper)
+    return variations
 
   def update(self) -> Self | Any:
-    if self.can_update_sprite:
-      for ball in self.snapshot.balls:
-        ball.update(self.snapshot.field)
-      self.snapshot.jumper.update(self.snapshot.game_pad, self.snapshot.field)
+    for variation in self.updating_variations:
+      variation.update()
     return super().update()
 
   @property
   def drawing_subjects(self) -> list[Any]:
     return []
 
-  def draw(self, transparent_color: int) -> None:
-    super().draw(transparent_color)
+  def draw(self) -> None:
+    super().draw()
     for subject in self.drawing_subjects:
-      subject.draw(transparent_color)
+      subject.draw()

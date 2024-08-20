@@ -7,13 +7,14 @@ import os
 import pyxel
 
 
-class GameProfile:
+class GameConfig:
   def __init__(
     self,
     path: Path,
     title: str,
     window_size: Size,
     fps: int,
+    transparent_color: int,
     copyright: str,
     released_year: int,
     debug: bool,
@@ -22,6 +23,7 @@ class GameProfile:
     self.title = title
     self.window_size = window_size
     self.fps = fps
+    self.transparent_color = transparent_color
     self.copyright = copyright
     self.released_year = released_year
     self.debug = debug
@@ -29,6 +31,7 @@ class GameProfile:
 
 class Language(StrEnum):
   EN = 'en'
+  JP = 'jp'
 
 
 class StringRes:
@@ -45,7 +48,7 @@ class StringRes:
     return ''
 
 
-class Stopwatch:      
+class Stopwatch:
   def __init__(self, fps: int) -> None:
     self.fps = fps
     self.frame = 0
@@ -196,16 +199,15 @@ class Snapshot:
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
-
 class Scene(Generic[TSnapshot]):
   def __init__(
     self,
-    profile: GameProfile,
+    config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
     snapshot: TSnapshot,
   ) -> None:
-    self.profile = profile
+    self.config = config
     self.string_res = string_res
     self.stopwatch = stopwatch
     self.snapshot = snapshot
@@ -213,12 +215,12 @@ class Scene(Generic[TSnapshot]):
 
   @property
   def title(self) -> str:
-    return self.profile.title
+    return self.config.title
 
   @title.setter
   def title(self, value: str) -> None:
-    self.profile.title = value
-    pyxel.title(self.profile.title)
+    self.config.title = value
+    pyxel.title(self.config.title)
 
   def update(self) -> Self | Any:
     self.stopwatch.update()
@@ -229,5 +231,5 @@ class Scene(Generic[TSnapshot]):
 
     return self
 
-  def draw(self, transparent_color: int) -> None:
-    pyxel.cls(transparent_color)
+  def draw(self) -> None:
+    pyxel.cls(self.config.transparent_color)

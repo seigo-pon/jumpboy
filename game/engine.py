@@ -1,30 +1,27 @@
 from typing import Callable
-from game import GameProfile, StringRes
+from game import GameConfig
 import pyxel
 
 
 class GameEngine:
   def __init__(
     self,
-    profile: GameProfile,
+    config: GameConfig,
     quit_key: int,
     asset_paths: list[str],
     update: Callable[[], None],
-    draw: Callable[[], None],
-    transparent_color: int,
+    draw: Callable[[], None]
   ) -> None:
     self.update = update
     self.draw = draw
-    self.transparent_color = transparent_color
 
     pyxel.init(
-      int(profile.window_size.width),
-      int(profile.window_size.height),
-      title=profile.title,
-      fps=profile.fps,
+      int(config.window_size.width),
+      int(config.window_size.height),
+      title=config.title,
+      fps=config.fps,
       quit_key=quit_key,
     )
-
     for asset_path in asset_paths:
       pyxel.load(asset_path)
 

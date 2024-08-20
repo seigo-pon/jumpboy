@@ -9,11 +9,12 @@ class AssetImage:
     MIRROR_Y = 2
     MIRROR_XY = 3
 
-  def __init__(self, id: int, address: Coordinate, scale: Size, pose: Pose) -> None:
+  def __init__(self, id: int, address: Coordinate, scale: Size, pose: Pose, transparent_color: int) -> None:
     self.id = id
     self.address = address
     self.scale = scale
     self.pose = pose
+    self.transparent_color = transparent_color
 
   @classmethod
   def basic_size(cls) -> Size:
@@ -21,17 +22,11 @@ class AssetImage:
 
   @property
   def origin(self) -> Coordinate:
-    return Coordinate(
-      self.address.x*self.basic_size().width,
-      self.address.y*self.basic_size().height,
-    )
+    return Coordinate(self.address.x*self.basic_size().width, self.address.y*self.basic_size().height)
 
   @property
   def size(self) -> Size:
-    return Size(
-      self.scale.width*self.basic_size().width,
-      self.scale.height*self.basic_size().height,
-    )
+    return Size(self.scale.width*self.basic_size().width, self.scale.height*self.basic_size().height)
 
   @property
   def copy_vector(self) -> Size:

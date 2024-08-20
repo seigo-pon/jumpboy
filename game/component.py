@@ -4,8 +4,13 @@ from game import Coordinate, Image, Size, TileMap, Music
 import pyxel
 
 
+class Variation:
+  def update(self) -> None:
+    raise RuntimeError()
+
+
 class Subject:
-  def draw(self, transparent_color: int) -> None:
+  def draw(self) -> None:
     raise RuntimeError()
 
 
@@ -15,16 +20,10 @@ class Collision:
     self.size = size
 
   def min(self, center: Coordinate) -> Coordinate:
-    return Coordinate(
-      center.x-self.size.width/2+self.origin.x,
-      center.y-self.size.height/2+self.origin.y,
-    )
+    return Coordinate(center.x-self.size.width/2+self.origin.x, center.y-self.size.height/2+self.origin.y)
 
   def max(self, center: Coordinate) -> Coordinate:
-    return Coordinate(
-      self.min(center).x+self.size.width,
-      self.min(center).y+self.size.height,
-    )
+    return Coordinate(self.min(center).x+self.size.width, self.min(center).y+self.size.height)
 
   def hit(self, center: Coordinate, other: Self, other_center: Coordinate) -> bool:
     if other.min(other_center).x <= self.min(center).x <= other.max(other_center).x:
@@ -45,8 +44,7 @@ class Block:
 
 
 TSprite = TypeVar('TSprite', bound='Sprite')
-
-class Sprite(Subject):
+class Sprite(Variation, Subject):
   def __init__(self, motions: dict[int, Block]) -> None:
     self.id = str(uuid())
     self.motions = motions
@@ -59,10 +57,7 @@ class Sprite(Subject):
 
   @property
   def origin(self) -> Coordinate:
-    return Coordinate(
-      self.center.x-self.block.collision.size.width/2,
-      self.center.y-self.block.collision.size.height/2,
-    )
+    return Coordinate(self.center.x-self.block.collision.size.width/2, self.center.y-self.block.collision.size.height/2)
 
   @origin.setter
   def origin(self, value: Coordinate) -> None:
@@ -88,7 +83,7 @@ class Sprite(Subject):
   def bottom(self) -> float:
     return self.top+self.size.height
 
-  def draw(self, transparent_color: int) -> None:
+  def draw(self) -> None:
     pyxel.blt(
       self.center.x-self.block.image.size.width/2,
       self.center.y-self.block.image.size.height/2,
@@ -97,7 +92,7 @@ class Sprite(Subject):
       self.block.image.origin.y,
       self.block.image.copy_vector.width,
       self.block.image.copy_vector.height,
-      transparent_color,
+      self.block.image.transparent_color,
     )
 
   def hit(self, other: TSprite) -> bool:
@@ -110,14 +105,14 @@ class Obstacle:
     self.collision = collision
 
 
-class Field(Subject):
+class Field(Variation, Subject):
   def __init__(self, background_tiles: list[TileMap], obstacles: list[Obstacle], max_size: Size) -> None:
     self.background_tiles = background_tiles
     self.obstacles = obstacles
     self.max_size = max_size
     self.scroll_pos = Coordinate(0, 0)
 
-  def draw(self, transparent_color: int) -> None:
+  def draw(self) -> None:
     pos = Coordinate(0, 0)
     distance = Coordinate(0, 0)
     for tile in self.background_tiles:
@@ -130,20 +125,59 @@ class Field(Subject):
           tile.origin.y,
           tile.copy_vector.width,
           tile.copy_vector.height,
-          transparent_color,
+          tile.transparent_color,
         )
         pos = Coordinate(pos.x+tile.size.width, pos.y)
       distance = Coordinate(distance.x+tile.size.width, distance.y)
 
 
-class Text(Subject):
-  def __init__(self, string: str, text_color: int) -> None:
-    if string == '':
-      raise RuntimeError()
-    self.string = string
-    self.text_color = text_color
+class Movable(Variation):
+  def __init__(self) -> None:
     self.center = Coordinate(0, 0)
     self.moved_center: Coordinate | None = None
+
+  @property
+  def moving_distance(self) -> int:
+    return 1
+
+  @property
+  def moving(self) -> bool:
+    return self.moved_center is not None
+
+  def move(self, center: Coordinate) -> None:
+    self.moved_center = center
+
+  def update(self) -> None:
+    if self.moved_center is not None:
+      distance_x = self.center.x - self.moved_center.x
+      if distance_x != 0:
+        if abs(distance_x) < self.moving_distance:
+          distance_x = self.moving_distance if distance_x >= 0 else self.moving_distance*-1
+        else:
+          distance_x = self.moving_distance
+
+      distance_y = self.center.y - self.moved_center.y
+      if distance_y != 0:
+        if abs(distance_y) < self.moving_distance:
+          distance_y = self.moving_distance if distance_y >= 0 else self.moving_distance*-1
+        else:
+          distance_y = self.moving_distance
+
+      self.center = Coordinate(self.center.x+distance_x, self.center.y+distance_y)
+
+      if self.center.x == self.moved_center.x and self.center.y == self.moved_center.y:
+        self.moved_center = None
+
+
+class Text(Subject, Movable):
+  def __init__(self, string: str, text_color: int) -> None:
+    super().__init__()
+
+    if string == '':
+      raise RuntimeError()
+
+    self.string = string
+    self.text_color = text_color
 
   @classmethod
   def word_size(cls) -> Size:
@@ -161,50 +195,20 @@ class Text(Subject):
   def origin(self, value: Coordinate) -> None:
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
-  @property
-  def moving_distance(self) -> int:
-    return 1
-
-  @property
-  def moving(self) -> bool:
-    return self.moved_center is not None
-
-  def move(self, center: Coordinate) -> None:
-    self.moved_center = center
-
-  def update(self) -> None:
-    if self.moved_center is not None:
-      distance_x = self.center.x - self.moved_center.x
-      if distance_x != 0:
-        if abs(distance_x) < self.moving_distance:
-          distance_x = self.moving_distance if distance_x >= 0 else self.moving_distance*-1
-        else:
-          distance_x = self.moving_distance
-      distance_y = self.center.y - self.moved_center.y
-      if distance_y != 0:
-        if abs(distance_y) < self.moving_distance:
-          distance_y = self.moving_distance if distance_y >= 0 else self.moving_distance*-1
-        else:
-          distance_y = self.moving_distance
-      self.center = Coordinate(self.center.x+distance_x, self.center.y+distance_y)
-
-      if self.center.x == self.moved_center.x and self.center.y == self.moved_center.y:
-        self.moved_center = None
-
-  def draw(self, transparent_color: int) -> None:
+  def draw(self) -> None:
     pyxel.text(self.origin.x, self.origin.y, self.string, self.text_color)
 
 
-class Signboard(Subject):
+class Signboard(Subject, Movable):
   def __init__(self, image: Image | None, texts: list[Text], width: float | None, height: float | None) -> None:
+    super().__init__()
+
     self.image = image
     self.texts = texts
-    self.center = Coordinate(0, 0)
     self.size = Size(
       width if width is not None else max([text.origin.x+text.size.width for text in self.texts]),
       height if height is not None else max([text.origin.y+text.size.height for text in self.texts]),
     )
-    self.moved_center: Coordinate | None = None
 
   @property
   def origin(self) -> Coordinate:
@@ -214,37 +218,7 @@ class Signboard(Subject):
   def origin(self, value: Coordinate) -> None:
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
-  @property
-  def moving_distance(self) -> int:
-    return 1
-
-  @property
-  def moving(self) -> bool:
-    return self.moved_center is not None
-
-  def move(self, center: Coordinate) -> None:
-    self.moved_center = center
-
-  def update(self) -> None:
-    if self.moved_center is not None:
-      distance_x = self.center.x - self.moved_center.x
-      if distance_x != 0:
-        if abs(distance_x) < self.moving_distance:
-          distance_x = self.moving_distance if distance_x >= 0 else self.moving_distance*-1
-        else:
-          distance_x = self.moving_distance
-      distance_y = self.center.y - self.moved_center.y
-      if distance_y != 0:
-        if abs(distance_y) < self.moving_distance:
-          distance_y = self.moving_distance if distance_y >= 0 else self.moving_distance*-1
-        else:
-          distance_y = self.moving_distance
-      self.center = Coordinate(self.center.x+distance_x, self.center.y+distance_y)
-
-      if self.center.x == self.moved_center.x and self.center.y == self.moved_center.y:
-        self.moved_center = None
-
-  def draw(self, transparent_color: int) -> None:
+  def draw(self) -> None:
     if self.image is not None:
       pyxel.blt(
         self.origin.x,
@@ -254,13 +228,12 @@ class Signboard(Subject):
         self.image.origin.y,
         self.image.copy_vector.width,
         self.image.copy_vector.height,
-        transparent_color,
+        self.image.transparent_color,
       )
     for text in self.texts:
-      center = text.center
-      text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
-      text.draw(transparent_color)
-      text.center = center
+      draw_text = Text(text.string, text.text_color)
+      draw_text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
+      draw_text.draw()
 
 
 class GamePad:
