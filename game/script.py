@@ -239,7 +239,7 @@ class Scene(Generic[TSnapshot]):
 
     res = self.time_seq.update()
     if res is not None:
-      print('next scene', res)
+      print('next scene', vars(res))
       return res
 
     return self

@@ -1,4 +1,5 @@
 import os
+from random import randint
 
 
 class Coordinate:
@@ -21,3 +22,11 @@ class Path:
   def __init__(self, file_path: str) -> None:
     self.root = os.path.abspath(os.path.join(os.path.abspath(file_path), os.pardir))
     print('root path', self.root)
+
+
+class Dice:
+  @classmethod
+  def roll(cls, max: int) -> int:
+    value = randint(0, max)
+    print('dice roll', max, value)
+    return value

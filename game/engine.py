@@ -12,7 +12,7 @@ class GameEngine:
     update: Callable[[], None],
     draw: Callable[[], None]
   ) -> None:
-    print('engine', config, quit_key, asset_paths)
+    print('engine', vars(config), quit_key, asset_paths)
     self.update = update
     self.draw = draw
 

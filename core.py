@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Any, Self, TypeVar
 from game import (
-  Coordinate, Size,
+  Coordinate, Size, Dice,
   TileMap,
   Sprite, Block, Obstacle, Field as BaseField, Text, GamePad as BaseGamePad,
   GameConfig, Language, StringRes, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
@@ -119,6 +119,7 @@ class Jumper(Sprite):
     self.action = self.Action.STOP
     self.walking_x = 0.0
     self.accel_y = 0.0
+    self.now_accel = 0.0
     self.prev_y = 0.0
     self.joying_count = 0
     self.walking_interval = 0
@@ -126,6 +127,7 @@ class Jumper(Sprite):
   def reset(self) -> None:
     self.walking_x = 0.0
     self.accel_y = 0.0
+    self.now_accel = 0.0
     self.prev_y = 0.0
     self.joying_count = 0
     self.walking_interval = 0
@@ -152,7 +154,7 @@ class Jumper(Sprite):
 
   @property
   def joying(self) -> bool:
-    return self.action == self.Action.JUMP
+    return self.action == self.Action.JOY
 
   def stop(self) -> None:
     print('jumper stop', self.id)
@@ -172,12 +174,20 @@ class Jumper(Sprite):
       self.action = self.Action.STAND_BY
       self.reset()
 
+  @property
+  def max_accel(self) -> int:
+    accel = int(self.param.max_accel/2)
+    accel += Dice.roll(abs(accel)) * (1 if self.param.max_accel >= 0 else -1)
+    print('jump accel', accel, self.param.max_accel)
+    return accel
+
   def jump(self) -> None:
     if self.standing_by:
       print('jumper jump', self.id, self.param.max_accel)
       self.action = self.Action.JUMP
       self.reset()
       self.accel_y = self.param.max_accel
+      self.now_accel = self.accel_y
       self.prev_y = self.center.y
 
   def fall_down(self) -> None:
@@ -188,10 +198,11 @@ class Jumper(Sprite):
 
   def joy(self) -> None:
     if self.stopping:
-      print('jumper fall joy', self.id)
+      print('jumper joy', self.id)
       self.action = self.Action.JOY
       self.reset()
-      self.accel_y = self.param.max_accel
+      self.accel_y = self.max_accel
+      self.now_accel = self.accel_y
       self.prev_y = self.center.y
 
   def update(self, snapshot: TSnapshot) -> None:
@@ -231,7 +242,7 @@ class Jumper(Sprite):
     elif self.jumping:
       self.motion = self.Motion.JUMP
 
-      if self.bottom < snapshot.field.bottom or self.accel_y == self.param.max_accel:
+      if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
@@ -245,20 +256,23 @@ class Jumper(Sprite):
       self.motion = self.Motion.FALL_DOWN
 
     elif self.joying:
-      if self.bottom < snapshot.field.bottom or self.accel_y == self.param.max_accel:
+      self.motion = self.Motion.JUMP
+
+      if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
         self.accel_y = 1
       else:
         self.joying_count += 1
-        if self.joying_count > self.param.joying_count_max:
+        if self.joying_count >= self.param.joying_count_max:
           print('jumper joy to stop', self.id, self.joying_count, self.param.joying_count_max)
           self.action = self.Action.STOP
           self.reset()
         else:
           print('jumper joy again', self.id, self.joying_count, self.param.joying_count_max)
-          self.accel_y = self.param.max_accel
+          self.accel_y = self.max_accel
+          self.now_accel = self.accel_y
           self.prev_y = self.center.y
 
 
@@ -303,12 +317,12 @@ class Ball(Sprite):
 
   def stop(self) -> None:
     if self.rolling:
-      print('ball stop')
+      print('ball stop', self.id)
       self.action = self.Action.STOP
 
   def roll(self) -> None:
     if self.stopping:
-      print('ball roll')
+      print('ball roll', self.id)
       self.action = self.Action.ROLL
 
   def update(self, snapshot: TSnapshot) -> None:
@@ -362,7 +376,6 @@ class BlinkText(Text):
     if self.timer.over:
       self.show = not self.show
       self.timer.reset()
-      print('blink text update', self.string, self.show)
 
     super().update(snapshot)
 
@@ -435,13 +448,15 @@ class Scene(BaseScene[Snapshot]):
 
   @property
   def updating_variations(self) -> list[Any]:
-    variations: list[Any] = self.snapshot.balls
+    variations: list[Any] = []
+    variations += self.snapshot.balls
     variations.append(self.snapshot.jumper)
     return variations
 
   def update(self) -> Self | Any:
     for variation in self.updating_variations:
       variation.update(self.snapshot)
+
     return super().update()
 
   @property

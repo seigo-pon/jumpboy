@@ -172,7 +172,8 @@ class BaseScene(Scene):
 
   @property
   def drawing_subjects(self) -> list[Any]:
-    subjects: list[Any] = [self.snapshot.field]
+    subjects: list[Any] = []
+    subjects.append(self.snapshot.field)
     subjects += self.snapshot.balls
     subjects.append(self.snapshot.jumper)
 
@@ -312,6 +313,7 @@ class TitleScene(BaseScene):
       self.score.move(self.menu_middle_top_center(
         Size(self.score.size.width, self.score.size.height+Text.word_size().height*3)
       ))
+      self.start_text.move(Coordinate(self.menu_middle_center().x, self.menu_middle_center().y+Text.word_size().height*2))
       return True
 
     self.time_seq = TimeSeq([
@@ -336,7 +338,7 @@ class TitleScene(BaseScene):
           '{}.{}.{:02} {:04} {}'.format(
             index+1,
             self.string(SCORE[score.level.mode]),
-            score.level.stage,
+            score.level.stage+1,
             score.point,
             score.created_at.strftime('%Y/%m/%d %H:%M'),
           )
@@ -404,7 +406,7 @@ class BaseStageScene(BaseScene):
         self.point,
       )
     )
-    print('score record', self.snapshot.score_board.scores)
+    print('score record', vars(self.snapshot.score_board.scores[-1]))
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -488,18 +490,20 @@ class ReadyScene(BaseStageScene):
 
 
 class PlayScene(BaseStageScene):
-  STAGE_LIMIT_SEC: dict[GameLevel, int] = {
-    GameLevelAll.NORMAL_1.value: 30,
+  STAGE_LIMIT_SEC: dict[int, dict[int, int]] = {
+    GameLevelAll.NORMAL_1.value.mode: {
+      GameLevelAll.NORMAL_1.value.stage: 15,
+    },
   }
 
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     if self.play_timer is None:
-      print('play start')
+      print('play start', vars(self.snapshot.level))
       self.play_timer = Timer.set_sec(
         self.stopwatch,
-        self.STAGE_LIMIT_SEC[self.snapshot.level],
+        self.STAGE_LIMIT_SEC[self.snapshot.level.mode][self.snapshot.level.stage],
       )
       for ball in self.snapshot.balls:
         self.ball_last_directions[ball.id] = ball.rolling_direction
@@ -656,6 +660,7 @@ class StageClearScene(BaseStageScene):
       if self.time_seq.ended:
         if self.snapshot.game_pad.enter():
           self.snapshot.level = self.next_level
+          self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
           self.snapshot.save(self.config.path)
           return ReadyScene(self, self.point, None, {})
 
@@ -719,6 +724,8 @@ class GameClearScene(BaseStageScene):
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter():
         self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
+        self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
+        self.snapshot.save(self.config.path)
         return TitleScene(self)
 
     return super().update()
