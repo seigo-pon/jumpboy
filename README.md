@@ -7,7 +7,7 @@
 - Python 3.12
 - pyxel
 - python-dotenv
-- PyxelUnicode
+- pyxel-universal-font
 - PixelMplus
 
 ## Getting Start
@@ -20,6 +20,8 @@ pyxel run app.py
 ## Edit Asset File
 ```bash
 pyxel edit assets/jumpboy.pyxres
+puf edit
+# Copy from all file in 'assets/font' folder.
 ```
 
 ## Game Rule

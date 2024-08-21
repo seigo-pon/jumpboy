@@ -37,14 +37,11 @@ class App:
       RELEASED_YEAR,
       DEBUG,
     )
-    asset_paths = []
-    for asset_file in ASSET_FILES:
-      asset_paths.append(os.path.join(config.path.asset_path, asset_file))
 
     self.engine = GameEngine(
       config=config,
       quit_key=pyxel.KEY_Q,
-      asset_paths=asset_paths,
+      asset_files=ASSET_FILES,
       update=self.update,
       draw=self.draw,
     )

@@ -125,6 +125,7 @@ class Jumper(Sprite):
     self.walking_x = 0.0
     self.accel_y = 0.0
     self.now_accel = 0.0
+    self.top_y = 0.0
     self.prev_y = 0.0
     self.joying_count = 0
     self.walking_interval = 0
@@ -133,6 +134,7 @@ class Jumper(Sprite):
     self.walking_x = 0.0
     self.accel_y = 0.0
     self.now_accel = 0.0
+    self.top_y = 0.0
     self.prev_y = 0.0
     self.joying_count = 0
     self.walking_interval = 0
@@ -193,6 +195,7 @@ class Jumper(Sprite):
       self.reset()
       self.accel_y = self.param.max_accel
       self.now_accel = self.accel_y
+      self.top_y = 0.0
       self.prev_y = self.center.y
 
   def fall_down(self) -> None:
@@ -208,6 +211,7 @@ class Jumper(Sprite):
       self.reset()
       self.accel_y = self.fuzzy_accel
       self.now_accel = self.accel_y
+      self.top_y = 0.0
       self.prev_y = self.center.y
 
   def update(self, snapshot: TSnapshot) -> None:
@@ -249,19 +253,27 @@ class Jumper(Sprite):
 
       if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
         center_y = self.center.y
-        self.center.y += (self.center.y - self.prev_y) + self.accel_y
+
+        min_y = snapshot.field.top+self.size.height/2
+        max_y = snapshot.field.bottom-self.size.height/2
+
+        new_y = self.center.y + (self.center.y - self.prev_y) + self.accel_y
+        if new_y < min_y:
+          new_y = min_y
+        if new_y > max_y:
+          new_y = max_y
+
+        self.center.y = new_y
+
         self.prev_y = center_y
-        if self.center.y < center_y:
-          if not snapshot.game_pad.enter(False, True):
-            self.accel_y -= 1
+
+        self.accel_y = 1
+        if center_y < self.center.y:
+          if self.center.y < self.top_y+self.size.height:
+            if snapshot.game_pad.enter(True, False) and not snapshot.game_pad.enter(False, True):
+              self.accel_y = 0
         else:
-          if snapshot.field.bottom+self.size.height*2 < self.bottom < snapshot.field.bottom:
-              if snapshot.game_pad.enter(False, True):
-                self.accel_y = self.param.max_accel
-              else:
-                self.accel_y = 1
-          else:
-            self.accel_y = 1
+          self.top_y = self.center.y
       else:
         print('jumper jump to stand by', self.id)
         self.action = self.Action.STAND_BY
@@ -377,8 +389,8 @@ class Ball(Sprite):
 
 
 class BlinkText(Text):
-  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, path: Path, stopwatch: Stopwatch, msec: int, show: bool) -> None:
-    super().__init__(string, text_color, font_size, bold, path)
+  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, stopwatch: Stopwatch, msec: int, show: bool) -> None:
+    super().__init__(string, text_color, font_size, bold)
 
     self.timer = Timer.set_msec(stopwatch, msec, True)
     self.show = show

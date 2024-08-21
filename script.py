@@ -67,7 +67,7 @@ class GameLevelAll(Enum):
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         )
       },
-      Jumper.Param(-10, 1, 2, 3),
+      Jumper.Param(-10, 0.5, 4, 3),
     )
 
   @classmethod
@@ -132,13 +132,13 @@ class BaseScene(Scene):
   def title_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      TEXT_HEIGHT*3+TEXT_HEIGHT/2,
+      TEXT_HEIGHT*2+TEXT_HEIGHT/2,
     )
 
   def subtitle_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      TEXT_HEIGHT*4+TEXT_HEIGHT/2,
+      TEXT_HEIGHT*3+TEXT_HEIGHT/2,
     )
 
   def menu_middle_center(self) -> Coordinate:
@@ -147,7 +147,7 @@ class BaseScene(Scene):
   def menu_middle_bottom_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      self.snapshot.field.ground_height-TEXT_HEIGHT*3+TEXT_HEIGHT/2,
+      self.snapshot.field.ground_height-TEXT_HEIGHT*2+TEXT_HEIGHT/2,
     )
 
   def ball_start_origin(self, ball: Ball) -> Coordinate:
@@ -166,10 +166,10 @@ class BaseScene(Scene):
     return self.snapshot.field.right-self.JUMPER_START_X
 
   def text(self, string: str) -> Text:
-    return Text(string, TEXT_COLOR, TEXT_HEIGHT, False, self.config.path)
+    return Text(string, TEXT_COLOR, TEXT_HEIGHT, False)
 
   def blink_text(self, string: str, msec: int, show: bool) -> BlinkText:
-    return BlinkText(string, TEXT_COLOR, TEXT_HEIGHT, False, self.config.path, self.stopwatch, msec, show)
+    return BlinkText(string, TEXT_COLOR, TEXT_HEIGHT, False, self.stopwatch, msec, show)
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -189,7 +189,6 @@ class BaseScene(Scene):
         pyxel.COLOR_BLACK,
         10,
         False,
-        self.config.path,
       )
       stopwatch_text.origin = Coordinate(
         self.config.window_size.width-stopwatch_text.size.width,
@@ -230,7 +229,7 @@ class OpeningScene(BaseScene):
 
     self.title_text: Text | None = None
 
-    def walk_jumper(start: bool) -> bool:
+    def walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
         self.snapshot.jumper.walk(self.jumper_play_x())
       else:
@@ -238,20 +237,20 @@ class OpeningScene(BaseScene):
           return True
       return False
 
-    def move_title(start: bool) -> bool:
+    def move_title(start: bool, timer: Timer) -> bool:
       if self.title_text is None:
         self.title_text = self.text(self.config.title)
         self.title_text.center = Coordinate(self.title_center().x, -TEXT_HEIGHT)
-        self.title_text.move(self.title_center())
+        self.title_text.move(self.title_center(), 0.5)
       else:
         if self.title_text.moving:
           return True
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 2000, walk_jumper, None),
+      Seq(self.stopwatch, 500, walk_jumper, None),
       Seq(self.stopwatch, 2000, move_title, None),
-      Seq(self.stopwatch, 2000, lambda x: True, lambda: TitleScene(self)),
+      Seq(self.stopwatch, 3000, lambda x, y: True, lambda: TitleScene(self)),
     ])
 
   @property
@@ -297,6 +296,7 @@ class TitleScene(BaseScene):
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
 
+    self.show_start = True
     self.start_text = self.blink_text(self.string('GAME_START'), 1000, True)
     self.start_text.center = self.menu_middle_center()
 
@@ -304,7 +304,7 @@ class TitleScene(BaseScene):
     self.score = self.scoreboard()
     self.score.center = Coordinate(self.menu_middle_top_center(None).x, -self.score.size.height/2)
 
-    def walk_jumper(start: bool) -> bool:
+    def walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
         self.snapshot.jumper.walk(self.snapshot.field.right)
       else:
@@ -312,13 +312,22 @@ class TitleScene(BaseScene):
           return True
       return False
 
-    def show_score(start: bool):
-      self.show_score = True
-      self.score.move(self.menu_middle_top_center(
-        Size(self.score.size.width, self.score.size.height+TEXT_HEIGHT*3)
-      ))
-      self.start_text.center = Coordinate(self.menu_middle_center().x, self.menu_middle_center().y+TEXT_HEIGHT*2)
-      return True
+    def show_score(start: bool, timer: Timer):
+      if start:
+        self.show_score = True
+        self.score.move(
+          self.menu_middle_top_center(
+            Size(self.score.size.width, self.score.size.height+TEXT_HEIGHT*2)
+          ),
+          0.5,
+        )
+        self.show_start = False
+      else:
+        if not self.score.moving:
+          self.show_start = True
+          self.start_text.center = Coordinate(self.menu_middle_center().x, self.menu_middle_center().y+TEXT_HEIGHT*2)
+          return True
+      return False
 
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 20000, walk_jumper, None),
@@ -333,7 +342,7 @@ class TitleScene(BaseScene):
     score_text.center = Coordinate(score_center.x, score_center.y)
     score_texts.append(score_text)
 
-    score_center.y += score_text.word_size().height
+    score_center.y += score_text.word_size().height*2
     scores = self.snapshot.score_board.ranking(self.SCORE_RANKING_NUM)
     if len(scores) > 0:
       for (index, score) in enumerate(scores):
@@ -362,8 +371,7 @@ class TitleScene(BaseScene):
 
     if self.show_score:
       variations.append(self.score)
-    if not self.score.moving:
-      variations.append(self.start_text)
+    variations.append(self.start_text)
 
     return variations
 
@@ -371,9 +379,8 @@ class TitleScene(BaseScene):
     if self.snapshot.game_pad.enter(False, False):
       self.start_text.set_msec(120, True)
       self.time_seq = TimeSeq([
-        Seq(self.stopwatch, 1000, lambda x: True, lambda: ReadyScene(self, 0, None, {})),
+        Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
       ])
-
     return super().update()
 
   @property
@@ -384,9 +391,11 @@ class TitleScene(BaseScene):
       subjects.append(self.score)
     else:
       subjects.append(self.title_text)
-    subjects.append(self.start_text)
 
-    copyright_text = self.text('(c) {} {}'.format(self.config.released_year, self.config.copyright))
+    if self.show_start:
+      subjects.append(self.start_text)
+
+    copyright_text = self.text('© {} {}'.format(self.config.released_year, self.config.copyright))
     copyright_text.center = self.menu_middle_bottom_center()
     subjects.append(copyright_text)
 
@@ -407,6 +416,8 @@ class BaseStageScene(BaseScene):
     self.play_timer = play_timer
     self.ball_last_directions = ball_last_directions
 
+    self.show_stage = True
+
   def record_score(self) -> None:
     self.snapshot.score_board.scores.append(
       Score(
@@ -421,9 +432,10 @@ class BaseStageScene(BaseScene):
   def drawing_subjects(self) -> list[Any]:
     subjects = super().drawing_subjects
 
-    stage_text = self.text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.level.stage+1))
-    stage_text.origin = self.menu_left_top_origin()
-    subjects.append(stage_text)
+    if self.show_stage:
+      stage_text = self.text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.level.stage+1))
+      stage_text.origin = self.menu_left_top_origin()
+      subjects.append(stage_text)
 
     if self.play_timer is not None:
       play_time_text = self.text(
@@ -449,6 +461,11 @@ class ReadyScene(BaseStageScene):
     TIME_LIMIT = 1
     READY = 2
 
+  DESCRIBE_MSEC: dict[int, int] = {
+    Describe.STAGE: 1000,
+    Describe.TIME_LIMIT: 2000,
+    Describe.READY: 1000,
+  }
   START_MSEC = 3000
 
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
@@ -460,11 +477,12 @@ class ReadyScene(BaseStageScene):
 
     self.snapshot.jumper.stop()
 
+    self.show_stage = False
+
     self.describe: self.Describe | None = None
-    self.describe_timer: Timer | None = None
     self.ready_timer: Timer | None = None
 
-    def walk_jumper(start: bool) -> bool:
+    def walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
         self.snapshot.jumper.walk(self.jumper_play_x())
       else:
@@ -472,34 +490,37 @@ class ReadyScene(BaseStageScene):
           return True
       return False
 
-    def ready_describe(start: bool) -> bool:
+    def ready_describe(start: bool, timer: Timer) -> bool:
       if self.describe is None:
         self.describe = [e for e in self.Describe][0]
-        self.describe_timer = Timer.set_msec(self.stopwatch, 1000, True)
-      elif self.describe_timer is not None and self.describe_timer.over:
+      else:
         self.describe += 1
-        if self.describe > [e for e in self.Describe]:
+        if self.describe > [e for e in self.Describe][-1]:
           self.describe = None
           return True
+
+      timer.limit_msec = self.DESCRIBE_MSEC[self.describe]
+      timer.reset()
       return False
 
-    def ready_play(start: bool) -> bool:
+    def ready_play(start: bool, timer: Timer) -> bool:
       self.ready_timer = Timer.set_msec(self.stopwatch, self.START_MSEC, True)
       return True
 
-    def start_play(start: bool) -> bool:
+    def start_play(start: bool, timer: Timer) -> bool:
       if self.ready_timer is not None:
         if self.ready_timer.over:
           for ball in self.snapshot.balls:
             ball.roll()
           self.snapshot.jumper.stand_by()
+          self.show_stage = True
           return True
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 0, walk_jumper, None),
-      Seq(self.stopwatch, 1000, ready_describe, None),
-      Seq(self.stopwatch, 1000, ready_play, None),
+      Seq(self.stopwatch, 1000, walk_jumper, None),
+      Seq(self.stopwatch, 0, ready_describe, None),
+      Seq(self.stopwatch, 0, ready_play, None),
       Seq(self.stopwatch, 0, start_play, lambda: PlayScene(self, self.point, self.play_timer, self.ball_last_directions)),
     ])
 
@@ -515,9 +536,9 @@ class ReadyScene(BaseStageScene):
 
       elif self.describe == self.Describe.TIME_LIMIT:
         describe_text = self.text(
-          '{} {:02}{}'.format(
+          '{} {:02} {}'.format(
             self.string('TIME_LIMIT'),
-            self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage]/1000,
+            int(self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage]/1000),
             self.string('SEC'),
           ),
         )
@@ -530,8 +551,8 @@ class ReadyScene(BaseStageScene):
         subjects.append(describe_text)
 
     elif self.ready_timer is not None:
-      wait_sec = max(self.START_SEC-self.ready_timer.sec, 1)
-      wait_sec = min(wait_sec, self.START_SEC)
+      wait_sec = max(int(self.START_MSEC/1000)-int(self.ready_timer.msec/1000), 1)
+      wait_sec = min(wait_sec, int(self.START_MSEC/1000))
       start_wait_time_text = self.text(str(wait_sec))
       start_wait_time_text.center = self.subtitle_center()
       subjects.append(start_wait_time_text)
@@ -626,11 +647,11 @@ class GameOverScene(BaseStageScene):
     self.show_game_over = False
     self.show_game_end = False
 
-    def show_game_over(start: bool) -> bool:
+    def show_game_over(start: bool, timer: Timer) -> bool:
       self.show_game_over = True
       return True
 
-    def show_game_end(start: bool) -> bool:
+    def show_game_end(start: bool, timer: Timer) -> bool:
       self.show_game_end = True
       return True
 
@@ -678,11 +699,11 @@ class StageClearScene(BaseStageScene):
     self.show_clear = False
     self.show_next = False
 
-    def show_clear(start: bool) -> bool:
+    def show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       return True
 
-    def show_next(start: bool) -> bool:
+    def show_next(start: bool, timer: Timer) -> bool:
       if start:
         self.show_next = True
         self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
@@ -746,17 +767,17 @@ class GameClearScene(BaseStageScene):
     self.show_clear = False
     self.show_thanks = False
 
-    def show_clear(start: bool) -> bool:
+    def show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
       return True
 
-    def joy_jumper(start: bool) -> bool:
+    def joy_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.joying:
         return True
       return False
 
-    def show_next(start: bool) -> bool:
+    def show_next(start: bool, timer: Timer) -> bool:
       if start:
         self.show_thanks = True
         self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)

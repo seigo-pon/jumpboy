@@ -1,10 +1,9 @@
-from enum import StrEnum
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import Coordinate, Path, Image, Size, TileMap, Music
 import os
 import pyxel
-from pyxelunicode import PyxelUnicode
+import PyxelUniversalFont as puf
 
 
 class Variation:
@@ -138,17 +137,15 @@ class Movable(Variation):
   def __init__(self) -> None:
     self.center = Coordinate(0, 0)
     self.moved_center: Coordinate | None = None
-
-  @property
-  def moving_distance(self) -> int:
-    return 1
+    self.moving_distance = 1.0
 
   @property
   def moving(self) -> bool:
     return self.moved_center is not None
 
-  def move(self, center: Coordinate) -> None:
+  def move(self, center: Coordinate, moving_distance: float) -> None:
     self.moved_center = center
+    self.moving_distance = moving_distance
 
   def update(self, snapshot: Any) -> None:
     if self.moved_center is not None:
@@ -174,7 +171,7 @@ class Movable(Variation):
 
 class Text(Subject, Movable):
   FOLDER = 'font'
-  FONT_FILES: dict[int, dict[bool, str]] = {
+  CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
     10: {
       False: 'PixelMplus10-Regular.ttf',
       True: 'PixelMplus10-Bold.ttf',
@@ -184,8 +181,9 @@ class Text(Subject, Movable):
       True: 'PixelMplus12-Bold.ttf',
     },
   }
+  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
   
-  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, path: Path) -> None:
+  def __init__(self, string: str, text_color: int, font_size: int, bold: bool) -> None:
     super().__init__()
 
     if string == '':
@@ -193,13 +191,16 @@ class Text(Subject, Movable):
 
     self.string = string
     self.text_color = text_color
-    self.pyuni = PyxelUnicode(
-      os.path.join(path.asset_path, self.FOLDER, self.FONT_FILES[font_size][bold]),
-      original_size=font_size,
-    )
+    self.font_size = font_size
+    self.bold = bold
+
+    font = self.CUSTOM_FONT_FILES[self.font_size][self.bold]
+    if font not in puf.get_available_fonts():
+      font = self.DEFAULT_FONT_FILE
+    self.writer = puf.Writer(font)
 
   def word_size(self) -> Size:
-    return Size(self.pyuni.font_height, self.pyuni.font_height)
+    return Size(self.font_size/2, self.font_size)
 
   @property
   def size(self) -> Size:
@@ -214,7 +215,7 @@ class Text(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self) -> None:
-    self.pyuni.text(self.origin.x, self.origin.y, self.string, self.text_color)
+    self.writer.draw(self.origin.x, self.origin.y, self.string, self.font_size, self.text_color)
 
 
 class Signboard(Subject, Movable):
@@ -249,7 +250,7 @@ class Signboard(Subject, Movable):
         self.image.transparent_color,
       )
     for text in self.texts:
-      draw_text = Text(text.string, text.text_color)
+      draw_text = Text(text.string, text.text_color, text.font_size, text.bold)
       draw_text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
       draw_text.draw()
 
@@ -262,6 +263,7 @@ class GamePad:
         return True
     return False
 
+  @classmethod
   def hold_down(cls, keys: list[int]) -> bool:
     for key in keys:
       if pyxel.btn(key):

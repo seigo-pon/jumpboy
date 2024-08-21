@@ -129,7 +129,7 @@ class Seq:
     self,
     stopwatch: Stopwatch,
     msec: int,
-    process: Callable[[bool], bool],
+    process: Callable[[bool, Timer], bool],
     to_next: Callable[[], Any] | None,
   ) -> None:
     self.timer = Timer.set_msec(stopwatch, msec)
@@ -154,7 +154,7 @@ class TimeSeq:
         if not seq.timer.over:
           break
 
-        res = seq.process(not seq.started)
+        res = seq.process(not seq.started, seq.timer)
         seq.started = True
         if not res:
           break
