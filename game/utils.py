@@ -19,9 +19,14 @@ class Size:
 
 
 class Path:
-  def __init__(self, file_path: str) -> None:
+  def __init__(self, file_path: str, asset_folder: str) -> None:
     self.root = os.path.abspath(os.path.join(os.path.abspath(file_path), os.pardir))
-    print('root path', self.root)
+    self.asset_folder = asset_folder
+    print('root path', self.root, self.asset_folder)
+
+  @property
+  def asset_path(self) -> str:
+    return os.path.join(self.root, self.asset_folder)
 
 
 class Dice:

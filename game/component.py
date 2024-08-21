@@ -1,7 +1,10 @@
+from enum import StrEnum
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
-from game import Coordinate, Image, Size, TileMap, Music
+from game import Coordinate, Path, Image, Size, TileMap, Music
+import os
 import pyxel
+from pyxelunicode import PyxelUnicode
 
 
 class Variation:
@@ -170,7 +173,19 @@ class Movable(Variation):
 
 
 class Text(Subject, Movable):
-  def __init__(self, string: str, text_color: int) -> None:
+  FOLDER = 'font'
+  FONT_FILES: dict[int, dict[bool, str]] = {
+    10: {
+      False: 'PixelMplus10-Regular.ttf',
+      True: 'PixelMplus10-Bold.ttf',
+    },
+    12: {
+      False: 'PixelMplus12-Regular.ttf',
+      True: 'PixelMplus12-Bold.ttf',
+    },
+  }
+  
+  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, path: Path) -> None:
     super().__init__()
 
     if string == '':
@@ -178,14 +193,17 @@ class Text(Subject, Movable):
 
     self.string = string
     self.text_color = text_color
+    self.pyuni = PyxelUnicode(
+      os.path.join(path.asset_path, self.FOLDER, self.FONT_FILES[font_size][bold]),
+      original_size=font_size,
+    )
 
-  @classmethod
-  def word_size(cls) -> Size:
-    return Size(4, 6)
+  def word_size(self) -> Size:
+    return Size(self.pyuni.font_height, self.pyuni.font_height)
 
   @property
   def size(self) -> Size:
-    return Size(len(self.string)*Text.word_size().width, Text.word_size().height)
+    return Size(len(self.string)*self.word_size().width, self.word_size().height)
 
   @property
   def origin(self) -> Coordinate:
@@ -196,7 +214,7 @@ class Text(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self) -> None:
-    pyxel.text(self.origin.x, self.origin.y, self.string, self.text_color)
+    self.pyuni.text(self.origin.x, self.origin.y, self.string, self.text_color)
 
 
 class Signboard(Subject, Movable):
@@ -241,6 +259,19 @@ class GamePad:
   def press(cls, keys: list[int]) -> bool:
     for key in keys:
       if pyxel.btnp(key):
+        return True
+    return False
+
+  def hold_down(cls, keys: list[int]) -> bool:
+    for key in keys:
+      if pyxel.btn(key):
+        return True
+    return False
+
+  @classmethod
+  def release(cls, keys: list[int]) -> bool:
+    for key in keys:
+      if pyxel.btnr(key):
         return True
     return False
 

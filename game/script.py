@@ -37,9 +37,9 @@ class Language(StrEnum):
 class StringRes:
   STRING_FILE = 'string.json'
 
-  def __init__(self, path: Path, folder: str) -> None:
+  def __init__(self, path: Path) -> None:
     self.strings: dict[str, dict[str, str]] = {}
-    with open(os.path.join(path.root, folder, self.STRING_FILE), mode='r') as f:
+    with open(os.path.join(path.asset_path, self.STRING_FILE), mode='r') as f:
       self.strings = json.loads(f.read())
 
   def string(self, key: str, language: Language) -> str:
@@ -87,10 +87,6 @@ class Timer:
     timer = cls.set_timer(stopwatch, start)
     timer.limit_msec = msec
     return timer
-
-  @classmethod
-  def set_sec(cls, stopwatch: Stopwatch, sec: int, start: bool = False) -> Self:
-    return cls.set_msec(stopwatch, sec*1000, start)
 
   @property
   def msec(self) -> int:

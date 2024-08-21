@@ -25,8 +25,8 @@ ASSET_FILES = ['jumpboy.pyxres']
 
 class App:
   def __init__(self) -> None:
-    path = Path(__file__)
-    string_res = StringRes(path, ASSET_FOLDER)
+    path = Path(__file__, ASSET_FOLDER)
+    string_res = StringRes(path)
     config = GameConfig(
       path,
       string_res.string('TITLE_BOY', Language.EN),
@@ -39,7 +39,7 @@ class App:
     )
     asset_paths = []
     for asset_file in ASSET_FILES:
-      asset_paths.append(os.path.join(os.path.join(config.path.root, ASSET_FOLDER), asset_file))
+      asset_paths.append(os.path.join(config.path.asset_path, asset_file))
 
     self.engine = GameEngine(
       config=config,

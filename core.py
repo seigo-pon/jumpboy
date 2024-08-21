@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Any, Self, TypeVar
 from game import (
-  Coordinate, Size, Dice,
+  Coordinate, Size, Path, Dice,
   TileMap,
   Sprite, Block, Obstacle, Field as BaseField, Text, GamePad as BaseGamePad,
   GameConfig, Language, StringRes, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
@@ -25,8 +25,13 @@ class GamePad(BaseGamePad):
       pyxel.GAMEPAD1_BUTTON_B,
     ]
 
-  def enter(self) -> bool:
-    return GamePad.press(self.enter_keys)
+  def enter(self, hold_down: bool, released: bool) -> bool:
+    if hold_down:
+      return GamePad.hold_down(self.enter_keys)
+    elif released:
+      return GamePad.release(self.enter_keys)
+    else:
+      return GamePad.press(self.enter_keys)
 
   def cancel(self) -> bool:
     return GamePad.press(self.cancel_keys)
@@ -175,7 +180,7 @@ class Jumper(Sprite):
       self.reset()
 
   @property
-  def max_accel(self) -> int:
+  def fuzzy_accel(self) -> int:
     accel = int(self.param.max_accel/2)
     accel += Dice.roll(abs(accel)) * (1 if self.param.max_accel >= 0 else -1)
     print('jump accel', accel, self.param.max_accel)
@@ -201,7 +206,7 @@ class Jumper(Sprite):
       print('jumper joy', self.id)
       self.action = self.Action.JOY
       self.reset()
-      self.accel_y = self.max_accel
+      self.accel_y = self.fuzzy_accel
       self.now_accel = self.accel_y
       self.prev_y = self.center.y
 
@@ -236,7 +241,7 @@ class Jumper(Sprite):
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
-      if snapshot.game_pad.enter():
+      if snapshot.game_pad.enter(False, False):
         self.jump()
 
     elif self.jumping:
@@ -246,7 +251,17 @@ class Jumper(Sprite):
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
-        self.accel_y = 1
+        if self.center.y < center_y:
+          if not snapshot.game_pad.enter(False, True):
+            self.accel_y -= 1
+        else:
+          if snapshot.field.bottom+self.size.height*2 < self.bottom < snapshot.field.bottom:
+              if snapshot.game_pad.enter(False, True):
+                self.accel_y = self.param.max_accel
+              else:
+                self.accel_y = 1
+          else:
+            self.accel_y = 1
       else:
         print('jumper jump to stand by', self.id)
         self.action = self.Action.STAND_BY
@@ -271,7 +286,7 @@ class Jumper(Sprite):
           self.reset()
         else:
           print('jumper joy again', self.id, self.joying_count, self.param.joying_count_max)
-          self.accel_y = self.max_accel
+          self.accel_y = self.fuzzy_accel
           self.now_accel = self.accel_y
           self.prev_y = self.center.y
 
@@ -362,8 +377,8 @@ class Ball(Sprite):
 
 
 class BlinkText(Text):
-  def __init__(self, string: str, text_color: int, stopwatch: Stopwatch, msec: int, show: bool) -> None:
-    super().__init__(string, text_color)
+  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, path: Path, stopwatch: Stopwatch, msec: int, show: bool) -> None:
+    super().__init__(string, text_color, font_size, bold, path)
 
     self.timer = Timer.set_msec(stopwatch, msec, True)
     self.show = show

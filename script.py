@@ -1,5 +1,5 @@
 from datetime import datetime
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import Any, Self
 from game import (
   Coordinate, Size,
@@ -17,6 +17,7 @@ import pyxel
 
 
 GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
+TEXT_HEIGHT = 10
 
 class GameLevelAll(Enum):
   NORMAL_1 = GameLevel(0, 0)
@@ -122,7 +123,7 @@ class BaseScene(Scene):
   def menu_middle_top_center(self, size: Size | None) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      (size.height if size is not None else Text.word_size().height)/2,
+      (size.height if size is not None else TEXT_HEIGHT)/2,
     )
 
   def menu_right_top_origin(self, text: Text) -> Coordinate:
@@ -131,13 +132,13 @@ class BaseScene(Scene):
   def title_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      Text.word_size().height*3+Text.word_size().height/2,
+      TEXT_HEIGHT*3+TEXT_HEIGHT/2,
     )
 
   def subtitle_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      Text.word_size().height*4+Text.word_size().height/2,
+      TEXT_HEIGHT*4+TEXT_HEIGHT/2,
     )
 
   def menu_middle_center(self) -> Coordinate:
@@ -146,7 +147,7 @@ class BaseScene(Scene):
   def menu_middle_bottom_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      self.snapshot.field.ground_height-Text.word_size().height*3+Text.word_size().height/2,
+      self.snapshot.field.ground_height-TEXT_HEIGHT*3+TEXT_HEIGHT/2,
     )
 
   def ball_start_origin(self, ball: Ball) -> Coordinate:
@@ -165,10 +166,10 @@ class BaseScene(Scene):
     return self.snapshot.field.right-self.JUMPER_START_X
 
   def text(self, string: str) -> Text:
-    return Text(string, TEXT_COLOR)
+    return Text(string, TEXT_COLOR, TEXT_HEIGHT, False, self.config.path)
 
   def blink_text(self, string: str, msec: int, show: bool) -> BlinkText:
-    return BlinkText(string, TEXT_COLOR, self.stopwatch, msec, show)
+    return BlinkText(string, TEXT_COLOR, TEXT_HEIGHT, False, self.config.path, self.stopwatch, msec, show)
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -186,6 +187,9 @@ class BaseScene(Scene):
           self.stopwatch.msec%1000,
         ),
         pyxel.COLOR_BLACK,
+        10,
+        False,
+        self.config.path,
       )
       stopwatch_text.origin = Coordinate(
         self.config.window_size.width-stopwatch_text.size.width,
@@ -237,7 +241,7 @@ class OpeningScene(BaseScene):
     def move_title(start: bool) -> bool:
       if self.title_text is None:
         self.title_text = self.text(self.config.title)
-        self.title_text.center = Coordinate(self.title_center().x, -Text.word_size().height)
+        self.title_text.center = Coordinate(self.title_center().x, -TEXT_HEIGHT)
         self.title_text.move(self.title_center())
       else:
         if self.title_text.moving:
@@ -260,7 +264,7 @@ class OpeningScene(BaseScene):
     return variations
 
   def update(self) -> Self | Any:
-    if self.snapshot.game_pad.enter():
+    if self.snapshot.game_pad.enter(False, False):
       return TitleScene(self)
 
     return super().update()
@@ -311,9 +315,9 @@ class TitleScene(BaseScene):
     def show_score(start: bool):
       self.show_score = True
       self.score.move(self.menu_middle_top_center(
-        Size(self.score.size.width, self.score.size.height+Text.word_size().height*3)
+        Size(self.score.size.width, self.score.size.height+TEXT_HEIGHT*3)
       ))
-      self.start_text.move(Coordinate(self.menu_middle_center().x, self.menu_middle_center().y+Text.word_size().height*2))
+      self.start_text.center = Coordinate(self.menu_middle_center().x, self.menu_middle_center().y+TEXT_HEIGHT*2)
       return True
 
     self.time_seq = TimeSeq([
@@ -329,11 +333,10 @@ class TitleScene(BaseScene):
     score_text.center = Coordinate(score_center.x, score_center.y)
     score_texts.append(score_text)
 
-    score_center.y += Text.word_size().height*2
+    score_center.y += score_text.word_size().height
     scores = self.snapshot.score_board.ranking(self.SCORE_RANKING_NUM)
     if len(scores) > 0:
       for (index, score) in enumerate(scores):
-        score_center.y += Text.word_size().height
         score_text = self.text(
           '{}.{}.{:02} {:04} {}'.format(
             index+1,
@@ -345,8 +348,8 @@ class TitleScene(BaseScene):
         )
         score_text.center = Coordinate(score_center.x, score_center.y)
         score_texts.append(score_text)
+        score_center.y += score_text.word_size().height
     else:
-      score_center.y += Text.word_size().height
       no_score_text = self.text(self.string('NO_SCORE'))
       no_score_text.center = Coordinate(score_center.x, score_center.y)
       score_texts.append(no_score_text)
@@ -359,13 +362,13 @@ class TitleScene(BaseScene):
 
     if self.show_score:
       variations.append(self.score)
-
-    variations.append(self.start_text)
+    if not self.score.moving:
+      variations.append(self.start_text)
 
     return variations
 
   def update(self) -> Self | Any:
-    if self.snapshot.game_pad.enter():
+    if self.snapshot.game_pad.enter(False, False):
       self.start_text.set_msec(120, True)
       self.time_seq = TimeSeq([
         Seq(self.stopwatch, 1000, lambda x: True, lambda: ReadyScene(self, 0, None, {})),
@@ -391,6 +394,12 @@ class TitleScene(BaseScene):
 
 
 class BaseStageScene(BaseScene):
+  STAGE_LIMIT_MSEC: dict[int, dict[int, int]] = {
+    GameLevelAll.NORMAL_1.value.mode: {
+      GameLevelAll.NORMAL_1.value.stage: 15000,
+    },
+  }
+
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.snapshot)
 
@@ -435,7 +444,12 @@ class BaseStageScene(BaseScene):
 
 
 class ReadyScene(BaseStageScene):
-  START_SEC = 3
+  class Describe(IntEnum):
+    STAGE = 0
+    TIME_LIMIT = 1
+    READY = 2
+
+  START_MSEC = 3000
 
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
@@ -446,6 +460,8 @@ class ReadyScene(BaseStageScene):
 
     self.snapshot.jumper.stop()
 
+    self.describe: self.Describe | None = None
+    self.describe_timer: Timer | None = None
     self.ready_timer: Timer | None = None
 
     def walk_jumper(start: bool) -> bool:
@@ -456,8 +472,19 @@ class ReadyScene(BaseStageScene):
           return True
       return False
 
+    def ready_describe(start: bool) -> bool:
+      if self.describe is None:
+        self.describe = [e for e in self.Describe][0]
+        self.describe_timer = Timer.set_msec(self.stopwatch, 1000, True)
+      elif self.describe_timer is not None and self.describe_timer.over:
+        self.describe += 1
+        if self.describe > [e for e in self.Describe]:
+          self.describe = None
+          return True
+      return False
+
     def ready_play(start: bool) -> bool:
-      self.ready_timer = Timer.set_sec(self.stopwatch, self.START_SEC, True)
+      self.ready_timer = Timer.set_msec(self.stopwatch, self.START_MSEC, True)
       return True
 
     def start_play(start: bool) -> bool:
@@ -471,6 +498,7 @@ class ReadyScene(BaseStageScene):
 
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 0, walk_jumper, None),
+      Seq(self.stopwatch, 1000, ready_describe, None),
       Seq(self.stopwatch, 1000, ready_play, None),
       Seq(self.stopwatch, 0, start_play, lambda: PlayScene(self, self.point, self.play_timer, self.ball_last_directions)),
     ])
@@ -479,7 +507,29 @@ class ReadyScene(BaseStageScene):
   def drawing_subjects(self) -> list[Any]:
     subjects = super().drawing_subjects
 
-    if self.ready_timer is not None:
+    if self.describe is not None:
+      if self.describe == self.Describe.STAGE:
+        describe_text = self.text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.level.stage+1))
+        describe_text.center = self.subtitle_center()
+        subjects.append(describe_text)
+
+      elif self.describe == self.Describe.TIME_LIMIT:
+        describe_text = self.text(
+          '{} {:02}{}'.format(
+            self.string('TIME_LIMIT'),
+            self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage]/1000,
+            self.string('SEC'),
+          ),
+        )
+        describe_text.center = self.subtitle_center()
+        subjects.append(describe_text)
+
+      elif self.describe == self.Describe.READY:
+        describe_text = self.text(self.string('READY'))
+        describe_text.center = self.subtitle_center()
+        subjects.append(describe_text)
+
+    elif self.ready_timer is not None:
       wait_sec = max(self.START_SEC-self.ready_timer.sec, 1)
       wait_sec = min(wait_sec, self.START_SEC)
       start_wait_time_text = self.text(str(wait_sec))
@@ -490,20 +540,14 @@ class ReadyScene(BaseStageScene):
 
 
 class PlayScene(BaseStageScene):
-  STAGE_LIMIT_SEC: dict[int, dict[int, int]] = {
-    GameLevelAll.NORMAL_1.value.mode: {
-      GameLevelAll.NORMAL_1.value.stage: 15,
-    },
-  }
-
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     if self.play_timer is None:
       print('play start', vars(self.snapshot.level))
-      self.play_timer = Timer.set_sec(
+      self.play_timer = Timer.set_msec(
         self.stopwatch,
-        self.STAGE_LIMIT_SEC[self.snapshot.level.mode][self.snapshot.level.stage],
+        self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage],
       )
       for ball in self.snapshot.balls:
         self.ball_last_directions[ball.id] = ball.rolling_direction
@@ -546,7 +590,7 @@ class PauseScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    self.restart_text = self.blink_text(self.string('PAUSE_RESTART'), 1000, False)
+    self.restart_text = self.blink_text(self.string('RESTART'), 1000, False)
     self.restart_text.center = self.menu_middle_center()
 
   @property
@@ -554,7 +598,7 @@ class PauseScene(BaseStageScene):
     return [self.restart_text]
 
   def update(self) -> Self | Any:
-    if self.snapshot.game_pad.enter() or self.snapshot.game_pad.cancel():
+    if self.snapshot.game_pad.enter(False, False) or self.snapshot.game_pad.cancel():
       return PlayScene(self, self.point, self.play_timer, self.ball_last_directions)
 
     return super().update()
@@ -597,7 +641,7 @@ class GameOverScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.time_seq.ended:
-      if self.snapshot.game_pad.enter():
+      if self.snapshot.game_pad.enter(False, False):
         return TitleScene(self)
 
     return super().update()
@@ -658,9 +702,16 @@ class StageClearScene(BaseStageScene):
 
     else:
       if self.time_seq.ended:
-        if self.snapshot.game_pad.enter():
+        if self.snapshot.game_pad.enter(False, False):
           self.snapshot.level = self.next_level
+
+          self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
+          self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
+
+          for ball in self.snapshot.balls:
+            ball.origin = self.ball_start_origin(ball)
           self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
+
           self.snapshot.save(self.config.path)
           return ReadyScene(self, self.point, None, {})
 
@@ -722,9 +773,17 @@ class GameClearScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.time_seq.ended:
-      if self.snapshot.game_pad.enter():
+      if self.snapshot.game_pad.enter(False, False):
         self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
+
+        self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
+        self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
+        self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
+
+        for ball in self.snapshot.balls:
+          ball.origin = self.ball_start_origin(ball)
         self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
+
         self.snapshot.save(self.config.path)
         return TitleScene(self)
 
