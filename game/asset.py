@@ -1,5 +1,6 @@
 from enum import IntEnum
 from game import Coordinate, Size
+import pyxel
 
 
 class AssetImage:
@@ -54,7 +55,14 @@ class AssetSound:
 
 
 class Sound(AssetSound):
-  pass
+  def __init__(self, id: int, channel: int) -> None:
+    self.id = id
+    self.channel = channel
+
+  @property
+  def play(self) -> None:
+    if pyxel.play_pos(self.channel) is None:
+      pyxel.play(self.channel, self.id, resume=True)
 
 
 class Music(AssetSound):

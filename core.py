@@ -3,7 +3,7 @@ from enum import IntEnum
 from typing import Any, TypeVar
 from game import (
   Coordinate, Size, Dice, Stopwatch, Timer,
-  TileMap,
+  TileMap, Sound,
   Sprite, Block, Obstacle, Field as BaseField, TextScriber, Text, GamePad as BaseGamePad,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
@@ -235,6 +235,9 @@ class Jumper(Sprite):
         if diff > 0:
           distance *= -1
 
+      if abs(diff) > 0:
+        Sound(0, 0).play
+
       self.origin = Coordinate(self.origin.x+distance, self.origin.y)
 
       if self.origin.x == self.walking_x:
@@ -260,6 +263,9 @@ class Jumper(Sprite):
       self.motion = self.Motion.JUMP
 
       if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
+        if self.accel_y == self.now_accel:
+          Sound(1, 0).play
+
         center_y = self.center.y
 
         min_y = snapshot.field.top+self.size.height/2
