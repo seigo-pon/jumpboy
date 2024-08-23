@@ -1,40 +1,43 @@
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Self, TypeVar
+from typing import Any, TypeVar
 from game import (
-  Coordinate, Size, Path, Dice,
+  Coordinate, Size, Dice, Stopwatch, Timer,
   TileMap,
-  Sprite, Block, Obstacle, Field as BaseField, Text, GamePad as BaseGamePad,
-  GameConfig, Language, StringRes, Timer, Stopwatch, Snapshot as BaseSnapshot, Scene as BaseScene,
+  Sprite, Block, Obstacle, Field as BaseField, TextScriber, Text, GamePad as BaseGamePad,
+  GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
 
 
 class GamePad(BaseGamePad):
+  class Button(IntEnum):
+    ENTER = 0
+    CANCEL = 1
+
   def __init__(self) -> None:
-    super().__init__()
+    super().__init__(
+      {
+        self.Button.ENTER: [
+          pyxel.KEY_RETURN,
+          pyxel.MOUSE_BUTTON_LEFT,
+          pyxel.GAMEPAD1_BUTTON_A,
+        ],
+        self.Button.CANCEL: [
+          pyxel.KEY_SPACE,
+          pyxel.MOUSE_BUTTON_RIGHT,
+          pyxel.GAMEPAD1_BUTTON_B,
+        ]
+      }
+    )
 
-    self.enter_keys = [
-      pyxel.KEY_RETURN,
-      pyxel.MOUSE_BUTTON_LEFT,
-      pyxel.GAMEPAD1_BUTTON_A,
-    ]
-    self.cancel_keys = [
-      pyxel.KEY_SPACE,
-      pyxel.MOUSE_BUTTON_RIGHT,
-      pyxel.GAMEPAD1_BUTTON_B,
-    ]
-
-  def enter(self, hold_down: bool, released: bool) -> bool:
-    if hold_down:
-      return GamePad.hold_down(self.enter_keys)
-    elif released:
-      return GamePad.release(self.enter_keys)
-    else:
-      return GamePad.press(self.enter_keys)
+  def enter(self, pushing: bool) -> bool:
+    if pushing:
+      return self.pushing(self.Button.ENTER)
+    return self.push(self.Button.ENTER)
 
   def cancel(self) -> bool:
-    return GamePad.press(self.cancel_keys)
+    return self.push(self.Button.CANCEL)
 
 
 
@@ -88,6 +91,7 @@ class Field(BaseField):
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
+
 class Jumper(Sprite):
   class Action(IntEnum):
     STOP = 0
@@ -127,6 +131,7 @@ class Jumper(Sprite):
     self.now_accel = 0.0
     self.top_y = 0.0
     self.prev_y = 0.0
+    self.jump_keeping = False
     self.joying_count = 0
     self.walking_interval = 0
 
@@ -136,6 +141,7 @@ class Jumper(Sprite):
     self.now_accel = 0.0
     self.top_y = 0.0
     self.prev_y = 0.0
+    self.jump_keeping = False
     self.joying_count = 0
     self.walking_interval = 0
 
@@ -165,8 +171,11 @@ class Jumper(Sprite):
 
   def stop(self) -> None:
     print('jumper stop', self.id)
-    self.action = self.Action.STOP
-    self.reset()
+    if self.action == self.Action.JUMP:
+      self.jump_keeping = False
+    else:
+      self.action = self.Action.STOP
+      self.reset()
 
   def walk(self, x: float) -> None:
     if self.stopping:
@@ -195,8 +204,8 @@ class Jumper(Sprite):
       self.reset()
       self.accel_y = self.param.max_accel
       self.now_accel = self.accel_y
-      self.top_y = 0.0
       self.prev_y = self.center.y
+      self.jump_keeping = True
 
   def fall_down(self) -> None:
     if self.standing_by or self.jumping:
@@ -211,7 +220,6 @@ class Jumper(Sprite):
       self.reset()
       self.accel_y = self.fuzzy_accel
       self.now_accel = self.accel_y
-      self.top_y = 0.0
       self.prev_y = self.center.y
 
   def update(self, snapshot: TSnapshot) -> None:
@@ -245,7 +253,7 @@ class Jumper(Sprite):
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
-      if snapshot.game_pad.enter(False, False):
+      if snapshot.game_pad.enter(False):
         self.jump()
 
     elif self.jumping:
@@ -270,8 +278,11 @@ class Jumper(Sprite):
         self.accel_y = 1
         if center_y < self.center.y:
           if self.center.y < self.top_y+self.size.height:
-            if snapshot.game_pad.enter(True, False) and not snapshot.game_pad.enter(False, True):
-              self.accel_y = 0
+            if self.jump_keeping:
+              if snapshot.game_pad.enter(True):
+                self.accel_y = 0
+              else:
+                self.jump_keeping = False
         else:
           self.top_y = self.center.y
       else:
@@ -389,8 +400,18 @@ class Ball(Sprite):
 
 
 class BlinkText(Text):
-  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, stopwatch: Stopwatch, msec: int, show: bool) -> None:
-    super().__init__(string, text_color, font_size, bold)
+  def __init__(
+    self,
+    string: str,
+    text_color: int,
+    font_size: int,
+    bold: bool,
+    scriber: TextScriber,
+    stopwatch: Stopwatch,
+    msec: int,
+    show: bool,
+  ) -> None:
+    super().__init__(string, text_color, font_size, bold, scriber)
 
     self.timer = Timer.set_msec(stopwatch, msec, True)
     self.show = show
@@ -466,31 +487,16 @@ class Scene(BaseScene[Snapshot]):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
+    scriber: TextScriber,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, snapshot)
+    super().__init__(config, string_res, stopwatch, scriber, snapshot)
 
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)
 
   @property
   def updating_variations(self) -> list[Any]:
-    variations: list[Any] = []
-    variations += self.snapshot.balls
+    variations: list[Any] = [ball for ball in self.snapshot.balls]
     variations.append(self.snapshot.jumper)
     return variations
-
-  def update(self) -> Self | Any:
-    for variation in self.updating_variations:
-      variation.update(self.snapshot)
-
-    return super().update()
-
-  @property
-  def drawing_subjects(self) -> list[Any]:
-    return []
-
-  def draw(self) -> None:
-    super().draw()
-    for subject in self.drawing_subjects:
-      subject.draw()

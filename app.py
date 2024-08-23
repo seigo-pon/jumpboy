@@ -1,10 +1,6 @@
 from datetime import datetime
 from dotenv import load_dotenv
-from game import (
-  Size, Path,
-  GameConfig, Language, StringRes,
-  GameEngine,
-)
+from game import Size, Path, GameConfig, Language, StringRes, GameEngine
 from script import OpeningScene
 import os
 import pyxel
@@ -12,11 +8,9 @@ import pyxel
 
 load_dotenv()
 
-
 DEBUG = bool(os.getenv('DEBUG') == 'True')
 COPYRIGHT = str(os.getenv('COPYRIGHT') or 'ANONYMOUS')
 RELEASED_YEAR = int(os.getenv('RELEASED_YEAR') or datetime.now().year)
-
 GAME_WINDOW_SIZE = Size(160, 120)
 FPS = 30
 ASSET_FOLDER = 'assets'

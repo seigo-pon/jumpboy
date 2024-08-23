@@ -1,19 +1,18 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
-from game import Coordinate, Path, Image, Size, TileMap, Music
-import os
+from game import Coordinate, Size, Image, TileMap, Music
 import pyxel
 import PyxelUniversalFont as puf
 
 
 class Variation:
   def update(self, snapshot: Any) -> None:
-    raise RuntimeError()
+    pass
 
 
 class Subject:
   def draw(self) -> None:
-    raise RuntimeError()
+    pass
 
 
 class Collision:
@@ -46,6 +45,7 @@ class Block:
 
 
 TSprite = TypeVar('TSprite', bound='Sprite')
+
 class Sprite(Variation, Subject):
   def __init__(self, motions: dict[int, Block]) -> None:
     self.id = str(uuid())
@@ -169,8 +169,9 @@ class Movable(Variation):
         self.moved_center = None
 
 
-class Text(Subject, Movable):
+class TextScriber:
   FOLDER = 'font'
+  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
   CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
     10: {
       False: 'PixelMplus10-Regular.ttf',
@@ -181,9 +182,29 @@ class Text(Subject, Movable):
       True: 'PixelMplus12-Bold.ttf',
     },
   }
-  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
-  
-  def __init__(self, string: str, text_color: int, font_size: int, bold: bool) -> None:
+
+  def __init__(self) -> None:
+    self.writers: dict[str, puf.Writer] = {}
+
+  @classmethod
+  def word_size(cls, font_size: int) -> Size:
+    return Size(font_size/2, font_size)
+
+  def writer(self, font_size: int, bold: bool) -> puf.Writer:
+    font = self.CUSTOM_FONT_FILES[font_size][bold]
+    if font not in puf.get_available_fonts():
+      font = self.DEFAULT_FONT_FILE
+
+    if font not in self.writers:
+      writer = puf.Writer(font)
+      print('new font', font, writer)
+      self.writers[font] = writer
+
+    return self.writers[font]
+
+
+class Text(Subject, Movable):
+  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, scriber: TextScriber) -> None:
     super().__init__()
 
     if string == '':
@@ -193,18 +214,14 @@ class Text(Subject, Movable):
     self.text_color = text_color
     self.font_size = font_size
     self.bold = bold
-
-    font = self.CUSTOM_FONT_FILES[self.font_size][self.bold]
-    if font not in puf.get_available_fonts():
-      font = self.DEFAULT_FONT_FILE
-    self.writer = puf.Writer(font)
-
-  def word_size(self) -> Size:
-    return Size(self.font_size/2, self.font_size)
+    self.scriber = scriber
 
   @property
   def size(self) -> Size:
-    return Size(len(self.string)*self.word_size().width, self.word_size().height)
+    return Size(
+      len(self.string)*TextScriber.word_size(self.font_size).width,
+      TextScriber.word_size(self.font_size).height,
+    )
 
   @property
   def origin(self) -> Coordinate:
@@ -215,7 +232,16 @@ class Text(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self) -> None:
-    self.writer.draw(self.origin.x, self.origin.y, self.string, self.font_size, self.text_color)
+    self.scriber.writer(
+      self.font_size,
+      self.bold,
+    ).draw(
+      self.origin.x,
+      self.origin.y,
+      self.string,
+      self.font_size,
+      self.text_color,
+    )
 
 
 class Signboard(Subject, Movable):
@@ -250,30 +276,24 @@ class Signboard(Subject, Movable):
         self.image.transparent_color,
       )
     for text in self.texts:
-      draw_text = Text(text.string, text.text_color, text.font_size, text.bold)
+      draw_text = Text(text.string, text.text_color, text.font_size, text.bold, text.scriber)
       draw_text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
       draw_text.draw()
 
 
 class GamePad:
-  @classmethod
-  def press(cls, keys: list[int]) -> bool:
-    for key in keys:
+  def __init__(self, watching_buttons: dict[int, list[int]]) -> None:
+    self.watching_buttons: dict[int, list[int]] = watching_buttons
+
+  def push(self, button: int) -> bool:
+    for key in self.watching_buttons[button]:
       if pyxel.btnp(key):
         return True
     return False
 
-  @classmethod
-  def hold_down(cls, keys: list[int]) -> bool:
-    for key in keys:
+  def pushing(self, button: int) -> bool:
+    for key in self.watching_buttons[button]:
       if pyxel.btn(key):
-        return True
-    return False
-
-  @classmethod
-  def release(cls, keys: list[int]) -> bool:
-    for key in keys:
-      if pyxel.btnr(key):
         return True
     return False
 
