@@ -18,8 +18,17 @@ import pyxel
 
 GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
 TEXT_FONT_SIZE = 10
+
+JUMPER_IMAGE_X = 1
 JUMPER_SOUND_CH = 2
-BALL_SOUND_CH = 3
+JUMPER_SOUND_ID = 0
+
+BALL_IMAGE_X = 0
+BALL_SOUND_CH = 2
+BALL_SOUND_ID = 10
+
+SCENE_SOUND_CH = 3
+SCENE_SOUND_ID = 20
 
 class GameLevelAll(Enum):
   NORMAL_1 = GameLevel(0, 0)
@@ -54,26 +63,30 @@ class GameLevelAll(Enum):
     return Jumper(
       {
         Jumper.Motion.STOP: Block(
-          Image(0, Coordinate(1, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+          Image(0, Coordinate(JUMPER_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
         Jumper.Motion.WALK: Block(
-          Image(0, Coordinate(1, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+          Image(0, Coordinate(JUMPER_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         Jumper.Motion.JUMP: Block(
-          Image(0, Coordinate(1, 2), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+          Image(0, Coordinate(JUMPER_IMAGE_X, 2), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
         Jumper.Motion.FALL_DOWN: Block(
-          Image(0, Coordinate(1, 3), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+          Image(0, Coordinate(JUMPER_IMAGE_X, 3), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+        ),
+        Jumper.Motion.JOY: Block(
+          Image(0, Coordinate(JUMPER_IMAGE_X, 4), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
         ),
       },
-      JUMPER_SOUND_CH,
       {
-        Jumper.Sound.WALK: SoundEffect(0),
-        Jumper.Sound.JUMP: SoundEffect(1),
-        Jumper.Sound.FALL_DOWN: SoundEffect(2),
+        Jumper.Sound.WALK: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 0),
+        Jumper.Sound.JUMP: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 1),
+        Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 2),
+        Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 3),
       },
       Jumper.Param(-10, 0.5, 4, 3),
     )
@@ -84,26 +97,30 @@ class GameLevelAll(Enum):
       Ball(
         {
           Ball.Motion.ANGLE_0: Block(
-            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Ball.Motion.ANGLE_90: Block(
-            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_Y, config.transparent_color),
+            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_Y, config.transparent_color),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Ball.Motion.ANGLE_180: Block(
-            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_XY, config.transparent_color),
+            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_XY, config.transparent_color),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Ball.Motion.ANGLE_270: Block(
-            Image(0, Coordinate(0, 0), Size(1, 1), Image.Pose.MIRROR_X, config.transparent_color),
+            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_X, config.transparent_color),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Ball.Motion.BURST: Block(
+            Image(0, Coordinate(BALL_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
         },
-        BALL_SOUND_CH,
         {
-          Ball.Sound.ROLL: SoundEffect(4),
-          Ball.Sound.DESTROY: SoundEffect(5),
+          Ball.Sound.ROLL: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID, 0),
+          Ball.Sound.CRASH: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID, 1),
+          Ball.Sound.BURST: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID, 2),
         },
         Ball.Param(2, 1, 10),
       )
@@ -116,6 +133,25 @@ SCORE: dict[int, str] = {
   GameLevelAll.NORMAL_1.value.mode: 'SCORE_BOY',
 }
 TEXT_COLOR = pyxel.COLOR_WHITE
+
+class SceneSound(IntEnum):
+  READY = 0
+  PAUSE = 1
+  TIME_UP = 2
+  GAME_OVER = 3
+  STAGE_CLEAR = 4
+  SELECT = 5
+  RESTART = 6
+
+SCENES_SOUNDS: dict[int, SoundEffect] = {
+  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 0),
+  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 1),
+  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 2),
+  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 3),
+  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 4),
+  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 5),
+  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 6),
+}
 
 
 class BaseScene(Scene):
@@ -430,6 +466,7 @@ class TitleScene(BaseScene):
       self.time_seq = TimeSeq([
         Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
       ])
+      SCENES_SOUNDS[SceneSound.SELECT].play()
 
     return super().update()
 
@@ -538,6 +575,7 @@ class ReadyScene(BaseStageScene):
 
     self.describe: self.Describe | None = None
     self.ready_timer: Timer | None = None
+    self.last_sec = -1
 
     def walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
@@ -564,6 +602,7 @@ class ReadyScene(BaseStageScene):
 
     def ready_play(start: bool, timer: Timer) -> bool:
       self.ready_timer = Timer.set_msec(self.stopwatch, self.START_MSEC, True)
+      self.last_sec = -1
       return True
 
     def start_play(start: bool, timer: Timer) -> bool:
@@ -574,6 +613,11 @@ class ReadyScene(BaseStageScene):
           self.snapshot.jumper.stand_by()
           self.show_stage = True
           return True
+        else:
+          last_sec = int(self.ready_timer.msec/1000)
+          if self.last_sec != last_sec:
+            SCENES_SOUNDS[SceneSound.READY].play()
+            self.last_sec = last_sec
 
       return False
 
@@ -640,6 +684,7 @@ class PlayScene(BaseStageScene):
     if self.play_timer is not None:
       if self.snapshot.game_pad.cancel():
         self.play_timer.pause()
+        SCENES_SOUNDS[SceneSound.PAUSE].play()
         return PauseScene(self, self.point, self.play_timer, self.ball_last_directions)
 
       for ball in self.snapshot.balls:
@@ -660,6 +705,7 @@ class PlayScene(BaseStageScene):
         for ball in self.snapshot.balls:
           ball.stop()
         self.snapshot.jumper.stop()
+        SCENES_SOUNDS[SceneSound.TIME_UP].play()
         return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
     return super().update()
@@ -681,6 +727,7 @@ class PauseScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter(False) or self.snapshot.game_pad.cancel():
+      SCENES_SOUNDS[SceneSound.RESTART].play()
       return PlayScene(self, self.point, self.play_timer, self.ball_last_directions)
 
     return super().update()
@@ -710,6 +757,7 @@ class GameOverScene(BaseStageScene):
 
     def show_game_over(start: bool, timer: Timer) -> bool:
       self.show_game_over = True
+      SCENES_SOUNDS[SceneSound.GAME_OVER].play()
       return True
 
     def show_game_end(start: bool, timer: Timer) -> bool:
@@ -769,6 +817,7 @@ class StageClearScene(BaseStageScene):
 
     def show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
+      SCENES_SOUNDS[SceneSound.STAGE_CLEAR].play()
       return True
 
     def show_next(start: bool, timer: Timer) -> bool:
@@ -840,7 +889,6 @@ class GameClearScene(BaseStageScene):
     def show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
-
       return True
 
     def joy_jumper(start: bool, timer: Timer) -> bool:
@@ -860,7 +908,7 @@ class GameClearScene(BaseStageScene):
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 1000, show_clear, None),
+      Seq(self.stopwatch, 2000, show_clear, None),
       Seq(self.stopwatch, 0, joy_jumper, None),
       Seq(self.stopwatch, 2000, show_next, None),
     ])

@@ -55,11 +55,13 @@ class AssetSound:
 
 
 class SoundEffect(AssetSound):
-  def __init__(self, id: int) -> None:
-    self.id = id
+  def __init__(self, channel: int, base_id: int, offset_id: int) -> None:
+    self.channel = channel
+    self.base_id = base_id
+    self.offset_id = offset_id
 
-  def play(self, channel: int) -> None:
-    pyxel.play(channel, self.id, resume=True)
+  def play(self) -> None:
+    pyxel.play(self.channel, self.base_id+self.offset_id, resume=True)
 
 
 class Music(AssetSound):

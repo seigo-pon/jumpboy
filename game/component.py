@@ -47,9 +47,8 @@ class Block:
 TSprite = TypeVar('TSprite', bound='Sprite')
 
 class Sprite(Variation, Subject):
-  def __init__(self, motions: dict[int, Block], sound_channel: int, sounds: dict[int, SoundEffect]) -> None:
+  def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect]) -> None:
     self.motions = motions
-    self.sound_channel = sound_channel
     self.sounds = sounds
 
     self.id = str(uuid())
@@ -305,7 +304,7 @@ class GamePad:
 
 class MusicBox:
   def __init__(self) -> None:
-    self.music: Music = None
+    self.music: Music | None = None
 
   def play(self, music: Music) -> None:
     if self.music is not None:

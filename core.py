@@ -4,7 +4,7 @@ from typing import Any, TypeVar
 from game import (
   Coordinate, Size, Dice, Stopwatch, Timer,
   TileMap, SoundEffect,
-  Sprite, Block, Obstacle, Field as BaseField, TextScriber, Text, GamePad as BaseGamePad,
+  Sprite, Block, Obstacle, Field as BaseField, TextScriber, Text, GamePad as BaseGamePad, MusicBox,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
@@ -108,11 +108,13 @@ class Jumper(Sprite):
     WALK = 1
     JUMP = 2
     FALL_DOWN = 3
+    JOY = 4
 
   class Sound(IntEnum):
     WALK = 0
     JUMP = 1
     FALL_DOWN = 2
+    JOY = 3
 
 
   class Param:
@@ -131,11 +133,10 @@ class Jumper(Sprite):
   def __init__(
     self,
     motions: dict[int, Block],
-    sound_channel: int,
     sounds: dict[int, SoundEffect],
     param: Param,
   ) -> None:
-    super().__init__(motions, sound_channel, sounds)
+    super().__init__(motions, sounds)
 
     self.param = param
 
@@ -226,6 +227,7 @@ class Jumper(Sprite):
       print('jumper fall down', self.id)
       self.action = self.Action.FALL_DOWN
       self.reset()
+      self.sounds[self.Sound.FALL_DOWN].play()
 
   def joy(self) -> None:
     if self.stopping:
@@ -264,7 +266,7 @@ class Jumper(Sprite):
           self.motion = self.Motion.STOP
         else:
           self.motion = self.Motion.WALK
-          self.sounds[self.Sound.WALK].play(self.sound_channel)
+          self.sounds[self.Sound.WALK].play()
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
@@ -276,7 +278,7 @@ class Jumper(Sprite):
 
       if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
         if self.accel_y == self.now_accel:
-          self.sounds[self.Sound.JUMP].play(self.sound_channel)
+          self.sounds[self.Sound.JUMP].play()
 
         center_y = self.center.y
 
@@ -312,11 +314,11 @@ class Jumper(Sprite):
       self.motion = self.Motion.FALL_DOWN
 
     elif self.joying:
-      self.motion = self.Motion.JUMP
+      self.motion = self.Motion.JOY
 
       if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
         if self.accel_y == self.now_accel:
-          self.sounds[self.Sound.JUMP].play(self.sound_channel)
+          self.sounds[self.Sound.JOY].play()
 
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
@@ -334,40 +336,38 @@ class Jumper(Sprite):
           self.now_accel = self.accel_y
           self.prev_y = self.center.y
 
-    self.play_sound(self)
-
 
 class Ball(Sprite):
   class Action(IntEnum):
     STOP = 0
     ROLL = 1
-    DESTROY = 2
+    BURST = 2
 
   class Motion(IntEnum):
     ANGLE_0 = 0
     ANGLE_90 = 1
     ANGLE_180 = 2
     ANGLE_270 = 3
-    DESTROY = 4
+    BURST = 4
 
   class Sound(IntEnum):
     ROLL = 0
-    DESTROY = 1
+    CRASH = 1
+    BURST = 2
 
   class Param:
-    def __init__(self, rolling_distance: float, rolling_step: int, defeat_point: int) -> None:
+    def __init__(
+      self,
+      rolling_distance: float,
+      rolling_step: int,
+      defeat_point: int,
+    ) -> None:
       self.rolling_distance = rolling_distance
       self.rolling_step = rolling_step
       self.defeat_point = defeat_point
 
-  def __init__(
-    self,
-    motions: dict[int, Block],
-    sound_channel: int,
-    sounds: dict[int, SoundEffect],
-    param: Param,
-  ) -> None:
-    super().__init__(motions, sound_channel, sounds)
+  def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect], param: Param) -> None:
+    super().__init__(motions, sounds)
 
     self.param = param
 
@@ -384,8 +384,8 @@ class Ball(Sprite):
     return self.action == self.Action.ROLL
 
   @property
-  def destroying(self) -> bool:
-    return self.action == self.Action.DESTROY
+  def bursting(self) -> bool:
+    return self.action == self.Action.BURST
 
   def stop(self) -> None:
     if self.rolling:
@@ -396,11 +396,13 @@ class Ball(Sprite):
     if self.stopping:
       print('ball roll', self.id)
       self.action = self.Action.ROLL
+      self.sounds[self.Sound.ROLL].play()
 
-  def destroy(self) -> None:
+  def burst(self) -> None:
     if self.rolling:
-      print('ball destroy', self.id)
-      self.action = self.Action.DESTROY
+      print('ball burst', self.id)
+      self.action = self.Action.BURST
+      self.sounds[self.Sound.BURST].play()
 
   def update(self, snapshot: TSnapshot) -> None:
     if self.stopping:
@@ -413,11 +415,13 @@ class Ball(Sprite):
           next_x = 0
           self.rolling_direction = True
           print('ball roll direction +', self.id, self.rolling_direction)
+          self.sounds[self.Sound.CRASH].play()
       else:
         if next_x+self.size.width >= snapshot.field.right:
           next_x = snapshot.field.right-self.size.width
           self.rolling_direction = False
           print('ball roll direction -', self.id, self.rolling_direction)
+          self.sounds[self.Sound.CRASH].play()
 
       self.origin = Coordinate(next_x, self.origin.y)
 
@@ -427,19 +431,15 @@ class Ball(Sprite):
         self.rolling_interval = 0
         if self.rolling_direction:
           self.motion += 1
-          if self.motion > [e for e in self.Motion][-1]:
-            self.motion = [e for e in self.Motion][0]
-            self.sounds[self.Sound.ROLL].play(self.sound_channel)
+          if self.motion > self.Motion.ANGLE_270:
+            self.motion = self.Motion.ANGLE_0
         else:
           self.motion -= 1
-          if self.motion < [e for e in self.Motion][0]:
-            self.motion = [e for e in self.Motion][-1]
-            self.sounds[self.Sound.ROLL].play(self.sound_channel)
+          if self.motion < self.Motion.ANGLE_0:
+            self.motion = self.Motion.ANGLE_270
 
-    elif self.destroying:
-      if self.motion != self.Motion.DESTROY:
-        self.sounds[self.Sound.DESTROY].play(self.sound_channel)
-      self.motion = self.Motion.DESTROY
+    elif self.bursting:
+      self.motion = self.Motion.BURST
 
 
 class BlinkText(Text):
@@ -531,9 +531,10 @@ class Scene(BaseScene[Snapshot]):
     string_res: StringRes,
     stopwatch: Stopwatch,
     scriber: TextScriber,
+    music_box: MusicBox,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, scriber, snapshot)
+    super().__init__(config, string_res, stopwatch, scriber, music_box, snapshot)
 
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)

@@ -13,7 +13,10 @@
 - pyxel-universal-font
 
 ### Font
-- PixelMplus
+- [PixelMplus](https://itouhiro.hatenablog.com/entry/20130602/font)
+
+### Sound effect
+- [8bit_taste_game_se](https://booth.pm/ja/items/2576189)
 
 ## Getting start
 ```bash
