@@ -54,16 +54,30 @@ class AssetSound:
   pass
 
 
-class Sound(AssetSound):
-  def __init__(self, id: int, channel: int) -> None:
+class SoundEffect(AssetSound):
+  def __init__(self, id: int) -> None:
     self.id = id
-    self.channel = channel
 
-  @property
-  def play(self) -> None:
-    if pyxel.play_pos(self.channel) is None:
-      pyxel.play(self.channel, self.id, resume=True)
+  def play(self, channel: int) -> None:
+    pyxel.play(channel, self.id, resume=True)
 
 
 class Music(AssetSound):
-  pass
+  def __init__(self, id: int, channels: list[int]) -> None:
+    self.id = id
+    self.channels = channels
+
+  @property
+  def playing(self) -> bool:
+    for channel in self.channels:
+      if pyxel.play_pos(channel) is not None:
+        return True
+
+    return False
+
+  def play(self) -> None:
+    pyxel.playm(self.id, loop=True)
+
+  def stop(self) -> None:
+    for channel in self.channels:
+      pyxel.stop(channel)

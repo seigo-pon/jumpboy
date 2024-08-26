@@ -1,6 +1,6 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
-from game import Coordinate, Size, Image, TileMap, Music
+from game import Coordinate, Size, Image, TileMap, SoundEffect, Music
 import pyxel
 import PyxelUniversalFont as puf
 
@@ -47,9 +47,12 @@ class Block:
 TSprite = TypeVar('TSprite', bound='Sprite')
 
 class Sprite(Variation, Subject):
-  def __init__(self, motions: dict[int, Block]) -> None:
-    self.id = str(uuid())
+  def __init__(self, motions: dict[int, Block], sound_channel: int, sounds: dict[int, SoundEffect]) -> None:
     self.motions = motions
+    self.sound_channel = sound_channel
+    self.sounds = sounds
+
+    self.id = str(uuid())
     self.motion = list(self.motions.keys())[0]
     self.center = Coordinate(0, 0)
 
@@ -289,18 +292,28 @@ class GamePad:
     for key in self.watching_buttons[button]:
       if pyxel.btnp(key):
         return True
+
     return False
 
   def pushing(self, button: int) -> bool:
     for key in self.watching_buttons[button]:
       if pyxel.btn(key):
         return True
+
     return False
 
 
 class MusicBox:
-  def __init__(self, music: Music) -> None:
-    self.music = music
+  def __init__(self) -> None:
+    self.music: Music = None
 
-  def play(self) -> None:
-    pass
+  def play(self, music: Music) -> None:
+    if self.music is not None:
+      self.music.stop()
+
+    self.music = music
+    self.music.play()
+
+  def stop(self) -> None:
+    if self.music is not None:
+      self.music.stop()

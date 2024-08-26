@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Callable, Generic, Self, TypeVar
-from game import Size, Path, Stopwatch, Timer, TextScriber
+from game import Size, Path, Stopwatch, Timer, TextScriber, MusicBox
 import json
 import os
 import pyxel
@@ -138,12 +138,14 @@ class Scene(Generic[TSnapshot]):
     string_res: StringRes,
     stopwatch: Stopwatch,
     scriber: TextScriber,
+    music_box: MusicBox,
     snapshot: TSnapshot,
   ) -> None:
     self.config = config
     self.string_res = string_res
     self.stopwatch = stopwatch
     self.scriber = scriber
+    self.music_box = music_box
     self.snapshot = snapshot
     self.time_seq = TimeSeq([])
 
@@ -171,6 +173,7 @@ class Scene(Generic[TSnapshot]):
 
     for variation in self.updating_variations:
       variation.update(self.snapshot)
+
     return self
 
   @property
@@ -179,5 +182,6 @@ class Scene(Generic[TSnapshot]):
 
   def draw(self) -> None:
     pyxel.cls(self.config.transparent_color)
+
     for subject in self.drawing_subjects:
       subject.draw()

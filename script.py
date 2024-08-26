@@ -3,8 +3,8 @@ from enum import Enum, IntEnum
 from typing import Any, Self
 from game import (
   Coordinate, Size, Stopwatch, Timer,
-  AssetImage, Image, TileMap,
-  Collision, Block, Image, TextScriber, Text, Signboard,
+  AssetImage, Image, TileMap, SoundEffect,
+  Collision, Block, Image, TextScriber, Text, Signboard, MusicBox,
   GameConfig, Language, StringRes, Seq, TimeSeq,
 )
 from core import (
@@ -18,6 +18,8 @@ import pyxel
 
 GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
 TEXT_FONT_SIZE = 10
+JUMPER_SOUND_CH = 2
+BALL_SOUND_CH = 3
 
 class GameLevelAll(Enum):
   NORMAL_1 = GameLevel(0, 0)
@@ -65,7 +67,13 @@ class GameLevelAll(Enum):
         Jumper.Motion.FALL_DOWN: Block(
           Image(0, Coordinate(1, 3), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
           Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-        )
+        ),
+      },
+      JUMPER_SOUND_CH,
+      {
+        Jumper.Sound.WALK: SoundEffect(0),
+        Jumper.Sound.JUMP: SoundEffect(1),
+        Jumper.Sound.FALL_DOWN: SoundEffect(2),
       },
       Jumper.Param(-10, 0.5, 4, 3),
     )
@@ -92,6 +100,11 @@ class GameLevelAll(Enum):
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
         },
+        BALL_SOUND_CH,
+        {
+          Ball.Sound.ROLL: SoundEffect(4),
+          Ball.Sound.DESTROY: SoundEffect(5),
+        },
         Ball.Param(2, 1, 10),
       )
     ]
@@ -114,9 +127,10 @@ class BaseScene(Scene):
     string_res: StringRes,
     stopwatch: Stopwatch,
     scriber: TextScriber,
+    music_box: MusicBox,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, scriber, snapshot)
+    super().__init__(config, string_res, stopwatch, scriber, music_box, snapshot)
 
   def menu_left_top_origin(self) -> Coordinate:
     return Coordinate(0, 0)
@@ -223,6 +237,7 @@ class OpeningScene(BaseScene):
       string_res,
       stopwatch,
       TextScriber(),
+      MusicBox(),
       Snapshot(
         Language.EN,
         GamePad(),
@@ -249,6 +264,7 @@ class OpeningScene(BaseScene):
       else:
         if not self.snapshot.jumper.walking:
           return True
+
       return False
 
     def move_title(start: bool, timer: Timer) -> bool:
@@ -262,6 +278,7 @@ class OpeningScene(BaseScene):
       else:
         if self.title_text.moving:
           return True
+
       return False
 
     self.time_seq = TimeSeq([
@@ -300,7 +317,14 @@ class TitleScene(BaseScene):
   SCORE_RANKING_NUM = 3
 
   def __init__(self, scene: Scene) -> None:
-    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.scriber, scene.snapshot)
+    super().__init__(
+      scene.config,
+      scene.string_res,
+      scene.stopwatch,
+      scene.scriber,
+      scene.music_box,
+      scene.snapshot,
+    )
 
     for ball in self.snapshot.balls:
       ball.origin = self.ball_start_origin(ball)
@@ -327,6 +351,7 @@ class TitleScene(BaseScene):
       else:
         if not self.snapshot.jumper.walking:
           return True
+
       return False
 
     def show_score(start: bool, timer: Timer):
@@ -350,6 +375,7 @@ class TitleScene(BaseScene):
             self.menu_middle_center().y+TextScriber.word_size(TEXT_FONT_SIZE).height*2,
           )
           return True
+
       return False
 
     self.time_seq = TimeSeq([
@@ -404,6 +430,7 @@ class TitleScene(BaseScene):
       self.time_seq = TimeSeq([
         Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
       ])
+
     return super().update()
 
   @property
@@ -433,7 +460,14 @@ class BaseStageScene(BaseScene):
   }
 
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
-    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.scriber, scene.snapshot)
+    super().__init__(
+      scene.config,
+      scene.string_res,
+      scene.stopwatch,
+      scene.scriber,
+      scene.music_box,
+      scene.snapshot,
+    )
 
     self.point = point
     self.play_timer = play_timer
@@ -511,6 +545,7 @@ class ReadyScene(BaseStageScene):
       else:
         if not self.snapshot.jumper.walking:
           return True
+
       return False
 
     def ready_describe(start: bool, timer: Timer) -> bool:
@@ -524,6 +559,7 @@ class ReadyScene(BaseStageScene):
 
       timer.limit_msec = self.DESCRIBE_MSEC[self.describe]
       timer.reset()
+
       return False
 
     def ready_play(start: bool, timer: Timer) -> bool:
@@ -538,6 +574,7 @@ class ReadyScene(BaseStageScene):
           self.snapshot.jumper.stand_by()
           self.show_stage = True
           return True
+
       return False
 
     self.time_seq = TimeSeq([
@@ -645,6 +682,7 @@ class PauseScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter(False) or self.snapshot.game_pad.cancel():
       return PlayScene(self, self.point, self.play_timer, self.ball_last_directions)
+
     return super().update()
 
   @property
@@ -726,6 +764,7 @@ class StageClearScene(BaseStageScene):
           if self.next_level.mode != self.snapshot.level.mode:
             self.next_level = None
         return True
+
       return False
 
     def show_clear(start: bool, timer: Timer) -> bool:
@@ -739,6 +778,7 @@ class StageClearScene(BaseStageScene):
       else:
         if not self.snapshot.jumper.walking:
           return True
+
       return False
 
     self.time_seq = TimeSeq([
@@ -800,11 +840,13 @@ class GameClearScene(BaseStageScene):
     def show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
+
       return True
 
     def joy_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.joying:
         return True
+
       return False
 
     def show_next(start: bool, timer: Timer) -> bool:
@@ -814,6 +856,7 @@ class GameClearScene(BaseStageScene):
       else:
         if not self.snapshot.jumper.walking:
           return True
+
       return False
 
     self.time_seq = TimeSeq([

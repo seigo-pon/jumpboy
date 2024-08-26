@@ -6,6 +6,7 @@ import os
 import pyxel
 
 
+# load env file
 load_dotenv()
 
 DEBUG = bool(os.getenv('DEBUG') == 'True')
@@ -51,4 +52,5 @@ class App:
     self.scene.draw()
 
 
+# start game
 App()

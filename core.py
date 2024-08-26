@@ -3,7 +3,7 @@ from enum import IntEnum
 from typing import Any, TypeVar
 from game import (
   Coordinate, Size, Dice, Stopwatch, Timer,
-  TileMap, Sound,
+  TileMap, SoundEffect,
   Sprite, Block, Obstacle, Field as BaseField, TextScriber, Text, GamePad as BaseGamePad,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
@@ -34,7 +34,8 @@ class GamePad(BaseGamePad):
   def enter(self, pushing: bool) -> bool:
     if pushing:
       return self.pushing(self.Button.ENTER)
-    return self.push(self.Button.ENTER)
+    else:
+      return self.push(self.Button.ENTER)
 
   def cancel(self) -> bool:
     return self.push(self.Button.CANCEL)
@@ -91,6 +92,7 @@ class Field(BaseField):
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
+TJumper = TypeVar('TJumper', bound='Jumper')
 
 class Jumper(Sprite):
   class Action(IntEnum):
@@ -107,6 +109,12 @@ class Jumper(Sprite):
     JUMP = 2
     FALL_DOWN = 3
 
+  class Sound(IntEnum):
+    WALK = 0
+    JUMP = 1
+    FALL_DOWN = 2
+
+
   class Param:
     def __init__(
       self,
@@ -120,8 +128,14 @@ class Jumper(Sprite):
       self.walking_step = walking_step
       self.joying_count_max = joying_count_max
 
-  def __init__(self, motions: dict[int, Block], param: Param) -> None:
-    super().__init__(motions)
+  def __init__(
+    self,
+    motions: dict[int, Block],
+    sound_channel: int,
+    sounds: dict[int, SoundEffect],
+    param: Param,
+  ) -> None:
+    super().__init__(motions, sound_channel, sounds)
 
     self.param = param
 
@@ -235,9 +249,6 @@ class Jumper(Sprite):
         if diff > 0:
           distance *= -1
 
-      if abs(diff) > 0:
-        Sound(0, 0).play
-
       self.origin = Coordinate(self.origin.x+distance, self.origin.y)
 
       if self.origin.x == self.walking_x:
@@ -253,6 +264,7 @@ class Jumper(Sprite):
           self.motion = self.Motion.STOP
         else:
           self.motion = self.Motion.WALK
+          self.sounds[self.Sound.WALK].play(self.sound_channel)
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
@@ -264,7 +276,7 @@ class Jumper(Sprite):
 
       if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
         if self.accel_y == self.now_accel:
-          Sound(1, 0).play
+          self.sounds[self.Sound.JUMP].play(self.sound_channel)
 
         center_y = self.center.y
 
@@ -303,6 +315,9 @@ class Jumper(Sprite):
       self.motion = self.Motion.JUMP
 
       if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
+        if self.accel_y == self.now_accel:
+          self.sounds[self.Sound.JUMP].play(self.sound_channel)
+
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel_y
         self.prev_y = center_y
@@ -319,18 +334,25 @@ class Jumper(Sprite):
           self.now_accel = self.accel_y
           self.prev_y = self.center.y
 
+    self.play_sound(self)
+
 
 class Ball(Sprite):
   class Action(IntEnum):
     STOP = 0
     ROLL = 1
-    BREAK = 2
+    DESTROY = 2
 
   class Motion(IntEnum):
     ANGLE_0 = 0
     ANGLE_90 = 1
     ANGLE_180 = 2
     ANGLE_270 = 3
+    DESTROY = 4
+
+  class Sound(IntEnum):
+    ROLL = 0
+    DESTROY = 1
 
   class Param:
     def __init__(self, rolling_distance: float, rolling_step: int, defeat_point: int) -> None:
@@ -338,8 +360,14 @@ class Ball(Sprite):
       self.rolling_step = rolling_step
       self.defeat_point = defeat_point
 
-  def __init__(self, motions: dict[int, Block], param: Param) -> None:
-    super().__init__(motions)
+  def __init__(
+    self,
+    motions: dict[int, Block],
+    sound_channel: int,
+    sounds: dict[int, SoundEffect],
+    param: Param,
+  ) -> None:
+    super().__init__(motions, sound_channel, sounds)
 
     self.param = param
 
@@ -356,8 +384,8 @@ class Ball(Sprite):
     return self.action == self.Action.ROLL
 
   @property
-  def breaking(self) -> bool:
-    return self.action == self.Action.BREAK
+  def destroying(self) -> bool:
+    return self.action == self.Action.DESTROY
 
   def stop(self) -> None:
     if self.rolling:
@@ -368,6 +396,11 @@ class Ball(Sprite):
     if self.stopping:
       print('ball roll', self.id)
       self.action = self.Action.ROLL
+
+  def destroy(self) -> None:
+    if self.rolling:
+      print('ball destroy', self.id)
+      self.action = self.Action.DESTROY
 
   def update(self, snapshot: TSnapshot) -> None:
     if self.stopping:
@@ -396,13 +429,17 @@ class Ball(Sprite):
           self.motion += 1
           if self.motion > [e for e in self.Motion][-1]:
             self.motion = [e for e in self.Motion][0]
+            self.sounds[self.Sound.ROLL].play(self.sound_channel)
         else:
           self.motion -= 1
           if self.motion < [e for e in self.Motion][0]:
             self.motion = [e for e in self.Motion][-1]
+            self.sounds[self.Sound.ROLL].play(self.sound_channel)
 
-    elif self.breaking:
-      pass
+    elif self.destroying:
+      if self.motion != self.Motion.DESTROY:
+        self.sounds[self.Sound.DESTROY].play(self.sound_channel)
+      self.motion = self.Motion.DESTROY
 
 
 class BlinkText(Text):
