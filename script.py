@@ -19,8 +19,6 @@ import pyxel
 GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
 TEXT_FONT_SIZE = 10
 
-GAME_LEVEL_BOY = 0
-
 TILE_ID = 0
 FIELD_TILE_X = 0
 
@@ -28,16 +26,17 @@ IMAGE_ID = 0
 JUMPER_IMAGE_X = 1
 BALL_IMAGE_X = 0
 
-JUMPER_SOUND_CH = 2
+JUMPER_SOUND_CH = 3
 JUMPER_SOUND_ID = 0
-BALL_SOUND_CH = 2
+BALL_SOUND_CH = 3
 BALL_SOUND_ID = 10
 SCENE_SOUND_CH = 3
 SCENE_SOUND_ID = 20
 
+
 class GameLevelAll(Enum):
-  NORMAL_1 = GameLevel(GAME_LEVEL_BOY, 0)
-  NORMAL_2 = GameLevel(GAME_LEVEL_BOY, 1)
+  NORMAL_1 = GameLevel(0, 0)
+  NORMAL_2 = GameLevel(0, 1)
 
   @classmethod
   def next(cls, level: GameLevel) -> GameLevel | None:
@@ -45,15 +44,19 @@ class GameLevelAll(Enum):
       levels = list([e.value for e in GameLevelAll])
       index = levels.index(level)
       next_level = levels[index+1]
+      print('next level', next_level)
       return next_level
     except:
-      pass
+      print('next level none')
 
     return None
 
   @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
-    if level.mode == GAME_LEVEL_BOY:
+    if level.mode in [
+      GameLevelAll.NORMAL_1.value.mode,
+      GameLevelAll.NORMAL_2.value.mode,
+    ]:
       if level.stage == GameLevelAll.NORMAL_1.value.stage:
         return Field(
           [
@@ -76,13 +79,13 @@ class GameLevelAll(Enum):
             Obstacle(
               Collision(
                 Coordinate(0, GROUND_TOP-Image.basic_size().height),
-                Size(1, Image.basic_size().height),
+                Size(0, Image.basic_size().height),
               ),
             ),
             Obstacle(
               Collision(
                 Coordinate(config.window_size.width, GROUND_TOP-Image.basic_size().height),
-                Size(1, Image.basic_size().height),
+                Size(0, Image.basic_size().height),
               ),
             ),
           ],
@@ -94,7 +97,10 @@ class GameLevelAll(Enum):
 
   @classmethod
   def jumper(cls, level: GameLevel, config: GameConfig) -> Jumper:
-    if level.mode == GAME_LEVEL_BOY:
+    if level.mode in [
+      GameLevelAll.NORMAL_1.value.mode,
+      GameLevelAll.NORMAL_2.value.mode,
+    ]:
       return Jumper(
         {
           Jumper.Motion.STOP: Block(
@@ -120,9 +126,9 @@ class GameLevelAll(Enum):
         {
           Jumper.Sound.WALK: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+0),
           Jumper.Sound.JUMP: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+1),
-          Jumper.Sound.DAMAGE: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+2),
-          Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+3),
-          Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+4),
+          Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+2),
+          Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+3),
+          Jumper.Sound.DAMAGE: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+4),
         },
         Jumper.Param(3, 2, 30, -10, 0.5, 4, 3),
       )
@@ -130,11 +136,16 @@ class GameLevelAll(Enum):
     raise RuntimeError()
 
   @classmethod
-  def balls(cls, level: GameLevel, config: GameConfig) -> list[Ball]:
-    if level.mode == GAME_LEVEL_BOY:
-      if level.stage == GameLevelAll.NORMAL_1.value.stage or level.stage == GameLevelAll.NORMAL_2.value.stage:
-        return [
-          Ball(
+  def ball(cls, level: GameLevel, config: GameConfig) -> Ball:
+    if level.mode in [
+      GameLevelAll.NORMAL_1.value.mode,
+      GameLevelAll.NORMAL_2.value.mode,
+    ]:
+      if level.stage in [
+        GameLevelAll.NORMAL_1.value.stage,
+        GameLevelAll.NORMAL_2.value.stage,
+      ]:
+        return Ball(
             {
               Ball.Motion.ANGLE_0: Block(
                 Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
@@ -164,8 +175,37 @@ class GameLevelAll(Enum):
             },
             Ball.Param(2, 1, 10),
           )
-        ]
+
     raise RuntimeError()
+
+  @classmethod
+  def balls(cls, level: GameLevel, config: GameConfig) -> list[Ball]:
+    if level.mode in [
+      GameLevelAll.NORMAL_1.value.mode,
+      GameLevelAll.NORMAL_2.value.mode,
+    ]:
+      if level.stage in [
+        GameLevelAll.NORMAL_1.value.stage,
+        GameLevelAll.NORMAL_2.value.stage,
+      ]:
+        return [GameLevelAll.ball(level, config)]
+
+    raise RuntimeError()
+
+  @classmethod
+  def play_limit_msec(cls, level: GameLevel) -> int:
+    if level.mode in [
+      GameLevelAll.NORMAL_1.value.mode,
+      GameLevelAll.NORMAL_2.value.mode,
+    ]:
+      if level.stage in [
+        GameLevelAll.NORMAL_1.value.stage,
+        GameLevelAll.NORMAL_2.value.stage,
+      ]:
+        return 15000
+
+    raise RuntimeError()
+
 
 GAME_TITLE: dict[int, str] = {
   GameLevelAll.NORMAL_1.value.mode: 'game_title_1',
@@ -176,13 +216,14 @@ SCORE: dict[int, str] = {
 TEXT_COLOR = pyxel.COLOR_WHITE
 
 class SceneSound(IntEnum):
-  READY = 0
-  PAUSE = 1
-  TIME_UP = 2
-  GAME_OVER = 3
-  STAGE_CLEAR = 4
-  SELECT = 5
-  RESTART = 6
+  START = 0
+  READY = 1
+  PAUSE = 2
+  TIME_UP = 3
+  GAME_OVER = 4
+  STAGE_CLEAR = 5
+  SELECT = 6
+  RESTART = 7
 
 SCENES_SOUNDS: dict[int, SoundEffect] = {
   SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+0),
@@ -192,6 +233,7 @@ SCENES_SOUNDS: dict[int, SoundEffect] = {
   SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+4),
   SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+5),
   SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+6),
+  SceneSound.START: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+7),
 }
 
 
@@ -329,6 +371,9 @@ class OpeningScene(BaseScene):
     self.snapshot.load(self.config.path)
     self.title = self.string(GAME_TITLE[self.snapshot.level.mode])
 
+    self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
+    self.snapshot.balls = []
+    self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
     self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
     self.title_text: Text | None = None
@@ -401,7 +446,6 @@ class TitleScene(BaseScene):
       scene.snapshot,
     )
 
-    self.snapshot.jumper.origin = Coordinate(self.jumper_play_x(), self.jumper_start_origin(self.snapshot.jumper).y)
     self.snapshot.jumper.walk(self.jumper_play_x())
 
     self.title_text = self.text(self.config.title)
@@ -410,6 +454,7 @@ class TitleScene(BaseScene):
     self.show_start = True
     self.start_text = self.blink_text(self.string('game_start_text'), 1000, True)
     self.start_text.center = self.menu_middle_center()
+    self.wait_start = False
 
     self.show_score = False
     self.score = self.scoreboard()
@@ -495,12 +540,14 @@ class TitleScene(BaseScene):
     return variations
 
   def update(self) -> Self | Any:
-    if self.snapshot.game_pad.enter(False):
-      self.start_text.set_msec(120, True)
-      self.time_seq = TimeSeq([
-        Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
-      ])
-      SCENES_SOUNDS[SceneSound.SELECT].play()
+    if not self.wait_start:
+      if self.snapshot.game_pad.enter(False):
+        self.wait_start = True
+        self.start_text.set_msec(120, True)
+        self.time_seq = TimeSeq([
+          Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
+        ])
+        SCENES_SOUNDS[SceneSound.SELECT].play()
 
     return super().update()
 
@@ -524,13 +571,13 @@ class TitleScene(BaseScene):
 
 
 class BaseStageScene(BaseScene):
-  STAGE_LIMIT_MSEC: dict[int, dict[int, int]] = {
-    GameLevelAll.NORMAL_1.value.mode: {
-      GameLevelAll.NORMAL_1.value.stage: 15000,
-    },
-  }
-
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(
       scene.config,
       scene.string_res,
@@ -565,17 +612,18 @@ class BaseStageScene(BaseScene):
       stage_text.origin = self.menu_left_top_origin()
       subjects.append(stage_text)
 
-    if self.play_timer is not None:
-      remain_msec = self.play_timer.limit_msec-self.play_timer.msec
-      play_time_text = self.text(
-        '{:02}:{:02}.{:03}'.format(
-          int(int(remain_msec/1000)/60),
-          int(int(remain_msec/1000)%60),
-          remain_msec%1000,
-        ),
-      )
-      play_time_text.center = self.menu_middle_top_center(None)
-      subjects.append(play_time_text)
+      if self.play_timer is not None:
+        limit_msec = self.play_timer.limit_msec if self.play_timer.limit_msec is not None else 0
+        remain_msec = limit_msec-self.play_timer.msec
+        play_time_text = self.text(
+          '{:02}:{:02}.{:03}'.format(
+            int(int(remain_msec/1000)/60),
+            int(int(remain_msec/1000)%60),
+            remain_msec%1000,
+          ),
+        )
+        play_time_text.center = self.menu_middle_top_center(None)
+        subjects.append(play_time_text)
 
     score_text = self.text('{}:{:04}'.format(self.string(SCORE[self.snapshot.level.mode]), self.point))
     score_text.origin = self.menu_right_top_origin(score_text)
@@ -602,7 +650,13 @@ class ReadyScene(BaseStageScene):
   }
   START_MSEC = 3000
 
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
@@ -615,11 +669,9 @@ class ReadyScene(BaseStageScene):
     print('ready', vars(self.snapshot.level))
     self.play_timer = Timer.set_msec(
       self.stopwatch,
-      self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage],
+      GameLevelAll.play_limit_msec(self.snapshot.level),
       False,
     )
-    for ball in self.snapshot.balls:
-      self.ball_last_directions[ball.id] = ball.rolling_direction
 
     self.show_stage = False
 
@@ -639,6 +691,7 @@ class ReadyScene(BaseStageScene):
     def ready_describe(start: bool, timer: Timer) -> bool:
       if self.describe is None:
         self.describe = [e for e in self.Describe][0]
+        SCENES_SOUNDS[SceneSound.START].play()
       else:
         if self.describe == self.Describe.STAGE:
           self.show_stage = True
@@ -706,7 +759,13 @@ class ReadyScene(BaseStageScene):
 
 
 class PlayScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     if self.play_timer is not None:
@@ -727,28 +786,40 @@ class PlayScene(BaseStageScene):
 
         if ball.rolling_direction:
           if ball.left >= self.snapshot.field.right:
-            print('ball over', ball.id)
+            print('ball over left', ball.id, ball.left, self.snapshot.field.right)
+            self.point += ball.acquirement_point
             continue
         else:
           if ball.right <= self.snapshot.field.left:
-            print('ball over', ball.id)
+            print('ball over right', ball.id, ball.right, self.snapshot.field.left)
+            self.point += ball.acquirement_point
             continue
 
         next_balls.append(ball)
 
-        if ball.hit(self.snapshot.jumper):
-          if self.snapshot.jumper.jumping and \
-            self.snapshot.jumper.bottom < ball.center.y and \
-            ball.left < self.snapshot.jumper.center.x < ball.right:
-            ball.burst()
-          else:
-            self.snapshot.jumper.damage()
+        if not self.snapshot.jumper.damaging:
+          if ball.hit(self.snapshot.jumper):
+            attack = False
+            if self.snapshot.jumper.jumping:
+              if self.snapshot.jumper.bottom < ball.center.y:
+                if ball.left < self.snapshot.jumper.center.x < ball.right:
+                  attack = True
 
-        if not self.snapshot.jumper.falling_down:
-          if self.ball_last_directions[ball.id] != ball.rolling_direction:
-            self.point += ball.param.defeat_point
-            self.ball_last_directions[ball.id] = ball.rolling_direction
+            if attack:
+              ball.burst()
+              self.point += ball.acquirement_point
+            else:
+              ball.acquirement_point = 0
+              self.snapshot.jumper.damage()
 
+          if ball.id in self.ball_last_directions:
+            if self.ball_last_directions[ball.id] != ball.rolling_direction:
+              if not self.snapshot.jumper.falling_down:
+                self.point += ball.acquirement_point
+
+          self.ball_last_directions[ball.id] = ball.rolling_direction
+
+      erased_ball_count = len(self.snapshot.balls) - len(next_balls)
       self.snapshot.balls = next_balls
 
       if self.snapshot.jumper.falling_down:
@@ -765,19 +836,27 @@ class PlayScene(BaseStageScene):
         SCENES_SOUNDS[SceneSound.TIME_UP].play()
         return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
-      if len(self.snapshot.balls) == 0:
-        self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
+      if erased_ball_count > 0:
+        for _ in range(0, erased_ball_count):
+          ball = GameLevelAll.ball(self.snapshot.level, self.config)
+          ball.origin = self.ball_start_origin(ball)
+          ball.roll()
+          self.snapshot.balls.append(ball)
 
     return super().update()
 
 
 class PauseScene(BaseStageScene):
-  RESTART_TEXT = 1
-
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    self.restart_text = self.blink_text(self.string('game_restart_text'), 1000, False)
+    self.restart_text = self.blink_text(self.string('game_restart_text'), 1000, True)
     self.restart_text.center = self.menu_middle_center()
 
   @property
@@ -832,6 +911,10 @@ class GameOverScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
+        self.snapshot.level = GameLevelAll.NORMAL_1.value
+
+        self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
+        self.snapshot.balls = []
         self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
         self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
@@ -858,7 +941,13 @@ class GameOverScene(BaseStageScene):
 
 
 class StageClearScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.next_level: GameLevel | None = self.snapshot.level
@@ -936,7 +1025,13 @@ class StageClearScene(BaseStageScene):
 
 
 class GameClearScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.record_score()

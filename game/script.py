@@ -161,7 +161,7 @@ class Scene(Generic[TSnapshot]):
 
   @property
   def updating_variations(self) -> list[Any]:
-    return []
+    raise RuntimeError()
 
   def update(self) -> Self | Any:
     self.stopwatch.update()
@@ -178,7 +178,7 @@ class Scene(Generic[TSnapshot]):
 
   @property
   def drawing_subjects(self) -> list[Any]:
-    return []
+    raise RuntimeError()
 
   def draw(self) -> None:
     pyxel.cls(self.config.transparent_color)

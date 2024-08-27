@@ -7,12 +7,12 @@ import PyxelUniversalFont as puf
 
 class Variation:
   def update(self, snapshot: Any) -> None:
-    pass
+    raise RuntimeError()
 
 
 class Subject:
   def draw(self) -> None:
-    pass
+    raise RuntimeError()
 
 
 class Collision:

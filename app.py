@@ -15,7 +15,7 @@ RELEASED_YEAR = int(os.getenv('RELEASED_YEAR') or datetime.now().year)
 GAME_WINDOW_SIZE = Size(160, 120)
 FPS = 30
 ASSET_FOLDER = 'assets'
-ASSET_FILES = ['jumpboy.pyxres']
+ASSET_FILE = 'jumpboy.pyxres'
 
 
 class App:
@@ -36,7 +36,7 @@ class App:
     self.engine = GameEngine(
       config=config,
       quit_key=pyxel.KEY_Q,
-      asset_files=ASSET_FILES,
+      asset_file=ASSET_FILE,
       update=self.update,
       draw=self.draw,
     )
