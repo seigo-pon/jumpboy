@@ -78,9 +78,25 @@ class Field(BaseField):
   def left(self) -> float:
     return -self.scroll_pos.x
 
+  def left_end(self, origin: Coordinate) -> float | None:
+    min_x: float | None = None
+    for obstacle in self.obstacles:
+      if obstacle.collision.top-self.scroll_pos.y <= origin.y <= obstacle.collision.bottom-self.scroll_pos.y:
+        if obstacle.collision.right-self.scroll_pos.x <= origin.x:
+          min_x = min(min_x, obstacle.collision.right-self.scroll_pos.x)
+    return min_x
+
   @property
   def right(self) -> float:
     return self.max_size.width-self.scroll_pos.x
+
+  def right_end(self, origin: Coordinate) -> float | None:
+    max_x: float | None = None
+    for obstacle in self.obstacles:
+      if obstacle.collision.top-self.scroll_pos.y <= origin.y <= obstacle.collision.bottom-self.scroll_pos.y:
+        if origin.x <= obstacle.collision.left-self.scroll_pos.x:
+          max_x = max(max_x, obstacle.collision.left-self.scroll_pos.x)
+    return max_x
 
   @property
   def top(self) -> float:
@@ -113,22 +129,29 @@ class Jumper(Sprite):
   class Sound(IntEnum):
     WALK = 0
     JUMP = 1
-    FALL_DOWN = 2
+    DAMAGE = 2
+    FALL_DOWN = 3
     JOY = 3
 
 
   class Param:
     def __init__(
       self,
+      max_life: int,
+      flashing_period: int,
+      max_flash_count: int,
       max_accel: int,
       walking_distance: float,
-      walking_step: int,
-      joying_count_max: int,
+      walking_period: int,
+      joying_repeat_count: int,
     ) -> None:
+      self.max_life = max_life
+      self.flashing_period = flashing_period
+      self.max_flash_count = max_flash_count
       self.max_accel = max_accel
       self.walking_distance = walking_distance
-      self.walking_step = walking_step
-      self.joying_count_max = joying_count_max
+      self.walking_period = walking_period
+      self.joying_repeat_count = joying_repeat_count
 
   def __init__(
     self,
@@ -141,22 +164,29 @@ class Jumper(Sprite):
     self.param = param
 
     self.action = self.Action.STOP
+    self.life = self.param.max_life
+    self.damaging = False
+    self.flashing_interval = 0
+    self.flashed = False
     self.walking_x = 0.0
-    self.accel_y = 0.0
+    self.accel = 0.0
     self.now_accel = 0.0
     self.top_y = 0.0
     self.prev_y = 0.0
-    self.jump_keeping = False
+    self.keeping_jump = False
     self.joying_count = 0
     self.walking_interval = 0
 
   def reset(self) -> None:
+    self.damaging = False
+    self.flashing_interval = 0
+    self.flashed = False
     self.walking_x = 0.0
-    self.accel_y = 0.0
+    self.accel = 0.0
     self.now_accel = 0.0
     self.top_y = 0.0
     self.prev_y = 0.0
-    self.jump_keeping = False
+    self.keeping_jump = False
     self.joying_count = 0
     self.walking_interval = 0
 
@@ -187,7 +217,7 @@ class Jumper(Sprite):
   def stop(self) -> None:
     print('jumper stop', self.id)
     if self.action == self.Action.JUMP:
-      self.jump_keeping = False
+      self.keeping_jump = False
     else:
       self.action = self.Action.STOP
       self.reset()
@@ -217,25 +247,34 @@ class Jumper(Sprite):
       print('jumper jump', self.id, self.param.max_accel)
       self.action = self.Action.JUMP
       self.reset()
-      self.accel_y = self.param.max_accel
-      self.now_accel = self.accel_y
+      self.accel = self.param.max_accel
+      self.now_accel = self.accel
       self.prev_y = self.center.y
-      self.jump_keeping = True
+      self.keeping_jump = True
 
-  def fall_down(self) -> None:
+  def damage(self) -> None:
     if self.standing_by or self.jumping:
-      print('jumper fall down', self.id)
-      self.action = self.Action.FALL_DOWN
-      self.reset()
-      self.sounds[self.Sound.FALL_DOWN].play()
+      self.life -= 1
+      if self.life <= 0:
+        print('jumper fall down', self.id, self.life)
+        self.life = 0
+        self.action = self.Action.FALL_DOWN
+        self.reset()
+        self.sounds[self.Sound.FALL_DOWN].play()
+      else:
+        print('jumper damage', self.id, self.life)
+        self.damaging = True
+        self.flashing_interval = 0
+        self.flashed = False
+        self.sounds[self.Sound.DAMAGE].play()
 
   def joy(self) -> None:
     if self.stopping:
       print('jumper joy', self.id)
       self.action = self.Action.JOY
       self.reset()
-      self.accel_y = self.fuzzy_accel
-      self.now_accel = self.accel_y
+      self.accel = self.fuzzy_accel
+      self.now_accel = self.accel
       self.prev_y = self.center.y
 
   def update(self, snapshot: TSnapshot) -> None:
@@ -258,7 +297,7 @@ class Jumper(Sprite):
         self.action = self.Action.STOP
         self.reset()
 
-      if self.walking_interval < self.param.walking_step:
+      if self.walking_interval < self.param.walking_period:
         self.walking_interval += 1
       else:
         self.walking_interval = 0
@@ -276,8 +315,8 @@ class Jumper(Sprite):
     elif self.jumping:
       self.motion = self.Motion.JUMP
 
-      if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
-        if self.accel_y == self.now_accel:
+      if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
+        if self.accel == self.now_accel:
           self.sounds[self.Sound.JUMP].play()
 
         center_y = self.center.y
@@ -285,7 +324,7 @@ class Jumper(Sprite):
         min_y = snapshot.field.top+self.size.height/2
         max_y = snapshot.field.bottom-self.size.height/2
 
-        new_y = self.center.y + (self.center.y - self.prev_y) + self.accel_y
+        new_y = self.center.y + (self.center.y - self.prev_y) + self.accel
         if new_y < min_y:
           new_y = min_y
         if new_y > max_y:
@@ -295,14 +334,14 @@ class Jumper(Sprite):
 
         self.prev_y = center_y
 
-        self.accel_y = 1
+        self.accel = 1
         if center_y < self.center.y:
           if self.center.y < self.top_y+self.size.height:
-            if self.jump_keeping:
+            if self.keeping_jump:
               if snapshot.game_pad.enter(True):
-                self.accel_y = 0
+                self.accel = 0
               else:
-                self.jump_keeping = False
+                self.keeping_jump = False
         else:
           self.top_y = self.center.y
       else:
@@ -316,25 +355,41 @@ class Jumper(Sprite):
     elif self.joying:
       self.motion = self.Motion.JOY
 
-      if self.bottom < snapshot.field.bottom or self.accel_y == self.now_accel:
-        if self.accel_y == self.now_accel:
+      if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
+        if self.accel == self.now_accel:
           self.sounds[self.Sound.JOY].play()
 
         center_y = self.center.y
-        self.center.y += (self.center.y - self.prev_y) + self.accel_y
+        self.center.y += (self.center.y - self.prev_y) + self.accel
         self.prev_y = center_y
-        self.accel_y = 1
+        self.accel = 1
       else:
         self.joying_count += 1
-        if self.joying_count >= self.param.joying_count_max:
-          print('jumper joy to stop', self.id, self.joying_count, self.param.joying_count_max)
+        if self.joying_count >= self.param.joying_repeat_count:
+          print('jumper joy to stop', self.id, self.joying_count, self.param.joying_repeat_count)
           self.action = self.Action.STOP
           self.reset()
         else:
-          print('jumper joy again', self.id, self.joying_count, self.param.joying_count_max)
-          self.accel_y = self.fuzzy_accel
-          self.now_accel = self.accel_y
+          print('jumper joy again', self.id, self.joying_count, self.param.joying_repeat_count)
+          self.accel = self.fuzzy_accel
+          self.now_accel = self.accel
           self.prev_y = self.center.y
+
+      if self.damaging:
+        if self.flashing_interval < self.param.flashing_period:
+          self.flashing_interval += 1
+          if self.flashing_interval >= self.param.max_flash_count:
+            print('jumper damage finish', self.id, self.flashing_interval, self.param.max_flash_count)
+            self.damaging = False
+            self.flashing_interval = 0
+            self.flashed = False
+        else:
+          self.flashing_interval = 0
+          self.flashed = not self.flashed
+
+  def draw(self) -> None:
+    if not self.flashed:
+      super.draw()
 
 
 class Ball(Sprite):
@@ -355,15 +410,17 @@ class Ball(Sprite):
     CRASH = 1
     BURST = 2
 
+  BURST_COUNT = 30
+
   class Param:
     def __init__(
       self,
       rolling_distance: float,
-      rolling_step: int,
+      rolling_period: int,
       defeat_point: int,
     ) -> None:
       self.rolling_distance = rolling_distance
-      self.rolling_step = rolling_step
+      self.rolling_period = rolling_period
       self.defeat_point = defeat_point
 
   def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect], param: Param) -> None:
@@ -372,6 +429,8 @@ class Ball(Sprite):
     self.param = param
 
     self.action = self.Action.STOP
+    self.busting_count = 0
+    self.dead = False
     self.rolling_direction = True
     self.rolling_interval = 0
 
@@ -402,6 +461,7 @@ class Ball(Sprite):
     if self.rolling:
       print('ball burst', self.id)
       self.action = self.Action.BURST
+      self.busting_count = 0
       self.sounds[self.Sound.BURST].play()
 
   def update(self, snapshot: TSnapshot) -> None:
@@ -411,21 +471,23 @@ class Ball(Sprite):
     elif self.rolling:
       next_x = self.origin.x + self.param.rolling_distance * (1 if self.rolling_direction else -1)
       if not self.rolling_direction:
-        if next_x <= snapshot.field.left:
-          next_x = 0
+        left_end = snapshot.field.left_end(Coordinate(next_x, self.origin.y))
+        if left_end is not None and next_x <= left_end:
+          next_x = left_end
           self.rolling_direction = True
           print('ball roll direction +', self.id, self.rolling_direction)
           self.sounds[self.Sound.CRASH].play()
       else:
-        if next_x+self.size.width >= snapshot.field.right:
-          next_x = snapshot.field.right-self.size.width
+        right_end = snapshot.field.right_end(Coordinate(next_x, self.origin.y))
+        if right_end is not None and next_x+self.size.width >= right_end:
+          next_x = right_end-self.size.width
           self.rolling_direction = False
           print('ball roll direction -', self.id, self.rolling_direction)
           self.sounds[self.Sound.CRASH].play()
 
       self.origin = Coordinate(next_x, self.origin.y)
 
-      if self.rolling_interval < self.param.rolling_step:
+      if self.rolling_interval < self.param.rolling_period:
         self.rolling_interval += 1
       else:
         self.rolling_interval = 0
@@ -440,6 +502,10 @@ class Ball(Sprite):
 
     elif self.bursting:
       self.motion = self.Motion.BURST
+      if self.busting_count < self.BURST_COUNT:
+        self.busting_count += 1
+      else:
+        self.dead = True
 
 
 class BlinkText(Text):

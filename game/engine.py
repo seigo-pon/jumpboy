@@ -9,11 +9,11 @@ class GameEngine:
     self,
     config: GameConfig,
     quit_key: int,
-    asset_files: list[str],
+    asset_file: str,
     update: Callable[[], None],
     draw: Callable[[], None]
   ) -> None:
-    print('engine', vars(config), quit_key, asset_files)
+    print('engine', vars(config), quit_key, asset_file)
     self.update = update
     self.draw = draw
 
@@ -24,8 +24,7 @@ class GameEngine:
       fps=config.fps,
       quit_key=quit_key,
     )
-    for asset_file in asset_files:
-      pyxel.load(os.path.join(config.path.asset_path, asset_file))
+    pyxel.load(os.path.join(config.path.asset_path, asset_file))
 
   def run(self) -> None:
     pyxel.run(self.update, self.draw)

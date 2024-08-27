@@ -4,7 +4,7 @@ from typing import Any, Self
 from game import (
   Coordinate, Size, Stopwatch, Timer,
   AssetImage, Image, TileMap, SoundEffect,
-  Collision, Block, Image, TextScriber, Text, Signboard, MusicBox,
+  Collision, Block, Obstacle, TextScriber, Text, Signboard, MusicBox,
   GameConfig, Language, StringRes, Seq, TimeSeq,
 )
 from core import (
@@ -19,19 +19,25 @@ import pyxel
 GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
 TEXT_FONT_SIZE = 10
 
+GAME_LEVEL_BOY = 0
+
+TILE_ID = 0
+FIELD_TILE_X = 0
+
+IMAGE_ID = 0
 JUMPER_IMAGE_X = 1
+BALL_IMAGE_X = 0
+
 JUMPER_SOUND_CH = 2
 JUMPER_SOUND_ID = 0
-
-BALL_IMAGE_X = 0
 BALL_SOUND_CH = 2
 BALL_SOUND_ID = 10
-
 SCENE_SOUND_CH = 3
 SCENE_SOUND_ID = 20
 
 class GameLevelAll(Enum):
-  NORMAL_1 = GameLevel(0, 0)
+  NORMAL_1 = GameLevel(GAME_LEVEL_BOY, 0)
+  NORMAL_2 = GameLevel(GAME_LEVEL_BOY, 1)
 
   @classmethod
   def next(cls, level: GameLevel) -> GameLevel | None:
@@ -47,90 +53,125 @@ class GameLevelAll(Enum):
 
   @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
-    return Field(
-      [
-        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-        TileMap(0, Coordinate(0, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-      ],
-      [],
-      config.window_size,
-      GROUND_TOP,
-    )
+    if level.mode == GAME_LEVEL_BOY:
+      if level.stage == GameLevelAll.NORMAL_1.value.stage:
+        return Field(
+          [
+            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
+            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
+            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
+          ],
+          [],
+          config.window_size,
+          GROUND_TOP,
+        )
+      elif level.stage == GameLevelAll.NORMAL_2.value.stage:
+        return Field(
+          [
+            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
+            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
+            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
+          ],
+          [
+            Obstacle(
+              Collision(
+                Coordinate(0, GROUND_TOP-Image.basic_size().height),
+                Size(1, Image.basic_size().height),
+              ),
+            ),
+            Obstacle(
+              Collision(
+                Coordinate(config.window_size.width, GROUND_TOP-Image.basic_size().height),
+                Size(1, Image.basic_size().height),
+              ),
+            ),
+          ],
+          config.window_size,
+          GROUND_TOP,
+        )
+
+    raise RuntimeError()
 
   @classmethod
   def jumper(cls, level: GameLevel, config: GameConfig) -> Jumper:
-    return Jumper(
-      {
-        Jumper.Motion.STOP: Block(
-          Image(0, Coordinate(JUMPER_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
-        Jumper.Motion.WALK: Block(
-          Image(0, Coordinate(JUMPER_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-        ),
-        Jumper.Motion.JUMP: Block(
-          Image(0, Coordinate(JUMPER_IMAGE_X, 2), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-        ),
-        Jumper.Motion.FALL_DOWN: Block(
-          Image(0, Coordinate(JUMPER_IMAGE_X, 3), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-        ),
-        Jumper.Motion.JOY: Block(
-          Image(0, Coordinate(JUMPER_IMAGE_X, 4), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-          Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-        ),
-      },
-      {
-        Jumper.Sound.WALK: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 0),
-        Jumper.Sound.JUMP: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 1),
-        Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 2),
-        Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID, 3),
-      },
-      Jumper.Param(-10, 0.5, 4, 3),
-    )
+    if level.mode == GAME_LEVEL_BOY:
+      return Jumper(
+        {
+          Jumper.Motion.STOP: Block(
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
+          Jumper.Motion.WALK: Block(
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JUMP: Block(
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 2), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.FALL_DOWN: Block(
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 3), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JOY: Block(
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 4), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+        },
+        {
+          Jumper.Sound.WALK: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+0),
+          Jumper.Sound.JUMP: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+1),
+          Jumper.Sound.DAMAGE: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+2),
+          Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+3),
+          Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+4),
+        },
+        Jumper.Param(3, 2, 30, -10, 0.5, 4, 3),
+      )
+
+    raise RuntimeError()
 
   @classmethod
   def balls(cls, level: GameLevel, config: GameConfig) -> list[Ball]:
-    return [
-      Ball(
-        {
-          Ball.Motion.ANGLE_0: Block(
-            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-          ),
-          Ball.Motion.ANGLE_90: Block(
-            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_Y, config.transparent_color),
-            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-          ),
-          Ball.Motion.ANGLE_180: Block(
-            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_XY, config.transparent_color),
-            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-          ),
-          Ball.Motion.ANGLE_270: Block(
-            Image(0, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_X, config.transparent_color),
-            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-          ),
-          Ball.Motion.BURST: Block(
-            Image(0, Coordinate(BALL_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
-            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-          ),
-        },
-        {
-          Ball.Sound.ROLL: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID, 0),
-          Ball.Sound.CRASH: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID, 1),
-          Ball.Sound.BURST: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID, 2),
-        },
-        Ball.Param(2, 1, 10),
-      )
-    ]
+    if level.mode == GAME_LEVEL_BOY:
+      if level.stage == GameLevelAll.NORMAL_1.value.stage or level.stage == GameLevelAll.NORMAL_2.value.stage:
+        return [
+          Ball(
+            {
+              Ball.Motion.ANGLE_0: Block(
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_90: Block(
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_Y, config.transparent_color),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_180: Block(
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_XY, config.transparent_color),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_270: Block(
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_X, config.transparent_color),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.BURST: Block(
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+            },
+            {
+              Ball.Sound.ROLL: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+0),
+              Ball.Sound.CRASH: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+1),
+              Ball.Sound.BURST: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+2),
+            },
+            Ball.Param(2, 1, 10),
+          )
+        ]
+    raise RuntimeError()
 
 GAME_TITLE: dict[int, str] = {
-  GameLevelAll.NORMAL_1.value.mode: 'TITLE_BOY',
+  GameLevelAll.NORMAL_1.value.mode: 'game_title_1',
 }
 SCORE: dict[int, str] = {
-  GameLevelAll.NORMAL_1.value.mode: 'SCORE_BOY',
+  GameLevelAll.NORMAL_1.value.mode: 'score_title_1',
 }
 TEXT_COLOR = pyxel.COLOR_WHITE
 
@@ -144,13 +185,13 @@ class SceneSound(IntEnum):
   RESTART = 6
 
 SCENES_SOUNDS: dict[int, SoundEffect] = {
-  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 0),
-  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 1),
-  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 2),
-  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 3),
-  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 4),
-  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 5),
-  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID, 6),
+  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+0),
+  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+1),
+  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+2),
+  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+3),
+  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+4),
+  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+5),
+  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+6),
 }
 
 
@@ -280,7 +321,7 @@ class OpeningScene(BaseScene):
         ScoreBoard(),
         level,
         GameLevelAll.field(level, config),
-        GameLevelAll.balls(level, config),
+        [],
         GameLevelAll.jumper(level, config),
       ),
     )
@@ -288,8 +329,6 @@ class OpeningScene(BaseScene):
     self.snapshot.load(self.config.path)
     self.title = self.string(GAME_TITLE[self.snapshot.level.mode])
 
-    for ball in self.snapshot.balls:
-      ball.origin = self.ball_start_origin(ball)
     self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
     self.title_text: Text | None = None
@@ -362,19 +401,14 @@ class TitleScene(BaseScene):
       scene.snapshot,
     )
 
-    for ball in self.snapshot.balls:
-      ball.origin = self.ball_start_origin(ball)
-
-    if self.snapshot.jumper.falling_down:
-      self.snapshot.jumper.stop()
-      self.snapshot.jumper.origin = Coordinate(self.jumper_play_x(), self.jumper_start_origin(self.snapshot.jumper).y)
+    self.snapshot.jumper.origin = Coordinate(self.jumper_play_x(), self.jumper_start_origin(self.snapshot.jumper).y)
     self.snapshot.jumper.walk(self.jumper_play_x())
 
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
 
     self.show_start = True
-    self.start_text = self.blink_text(self.string('GAME_START'), 1000, True)
+    self.start_text = self.blink_text(self.string('game_start_text'), 1000, True)
     self.start_text.center = self.menu_middle_center()
 
     self.show_score = False
@@ -423,7 +457,7 @@ class TitleScene(BaseScene):
     score_texts: list[Text] = []
 
     score_center = self.menu_middle_top_center(None)
-    title_text = self.text(self.string('SCORE_RANKING'))
+    title_text = self.text(self.string('score_ranking_title'))
     title_text.center = Coordinate(score_center.x, score_center.y)
     score_texts.append(title_text)
 
@@ -444,7 +478,7 @@ class TitleScene(BaseScene):
         score_texts.append(score_text)
         score_center.y += TextScriber.word_size(score_text.font_size).height
     else:
-      no_score_text = self.text(self.string('NO_SCORE'))
+      no_score_text = self.text(self.string('score_no_text'))
       no_score_text.center = Coordinate(score_center.x, score_center.y)
       score_texts.append(no_score_text)
 
@@ -527,17 +561,18 @@ class BaseStageScene(BaseScene):
     subjects = super().drawing_subjects
 
     if self.show_stage:
-      stage_text = self.text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.level.stage+1))
+      stage_text = self.text('{}.{:02}'.format(self.string('stage_title'), self.snapshot.level.stage+1))
       stage_text.origin = self.menu_left_top_origin()
       subjects.append(stage_text)
 
     if self.play_timer is not None:
+      remain_msec = self.play_timer.limit_msec-self.play_timer.msec
       play_time_text = self.text(
         '{:02}:{:02}.{:03}'.format(
-          int(self.play_timer.sec/60),
-          int(self.play_timer.sec%60),
-          self.play_timer.msec%1000
-        )
+          int(int(remain_msec/1000)/60),
+          int(int(remain_msec/1000)%60),
+          remain_msec%1000,
+        ),
       )
       play_time_text.center = self.menu_middle_top_center(None)
       subjects.append(play_time_text)
@@ -546,18 +581,23 @@ class BaseStageScene(BaseScene):
     score_text.origin = self.menu_right_top_origin(score_text)
     subjects.append(score_text)
 
+    life_text = self.text('{}'.format(self.snapshot.jumper.life))
+    life_text.origin = Coordinate(
+      self.menu_right_top_origin(life_text).x,
+      self.menu_right_top_origin(life_text).y+score_text.size.height,
+    )
+    subjects.append(life_text)
+
     return subjects
 
 
 class ReadyScene(BaseStageScene):
   class Describe(IntEnum):
     STAGE = 0
-    TIME_LIMIT = 1
-    READY = 2
+    READY = 1
 
   DESCRIBE_MSEC: dict[int, int] = {
     Describe.STAGE: 1000,
-    Describe.TIME_LIMIT: 2000,
     Describe.READY: 1000,
   }
   START_MSEC = 3000
@@ -565,11 +605,21 @@ class ReadyScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
+    self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
     for ball in self.snapshot.balls:
-      ball.stop()
       ball.origin = self.ball_start_origin(ball)
 
+    self.snapshot.jumper.life = self.snapshot.jumper.param.max_life
     self.snapshot.jumper.stop()
+
+    print('ready', vars(self.snapshot.level))
+    self.play_timer = Timer.set_msec(
+      self.stopwatch,
+      self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage],
+      False,
+    )
+    for ball in self.snapshot.balls:
+      self.ball_last_directions[ball.id] = ball.rolling_direction
 
     self.show_stage = False
 
@@ -590,6 +640,9 @@ class ReadyScene(BaseStageScene):
       if self.describe is None:
         self.describe = [e for e in self.Describe][0]
       else:
+        if self.describe == self.Describe.STAGE:
+          self.show_stage = True
+
         self.describe += 1
         if self.describe > [e for e in self.Describe][-1]:
           self.describe = None
@@ -611,7 +664,6 @@ class ReadyScene(BaseStageScene):
           for ball in self.snapshot.balls:
             ball.roll()
           self.snapshot.jumper.stand_by()
-          self.show_stage = True
           return True
         else:
           last_sec = int(self.ready_timer.msec/1000)
@@ -634,23 +686,12 @@ class ReadyScene(BaseStageScene):
 
     if self.describe is not None:
       if self.describe == self.Describe.STAGE:
-        describe_text = self.text('{}.{:02}'.format(self.string('STAGE'), self.snapshot.level.stage+1))
-        describe_text.center = self.subtitle_center()
-        subjects.append(describe_text)
-
-      elif self.describe == self.Describe.TIME_LIMIT:
-        describe_text = self.text(
-          '{} {:02} {}'.format(
-            self.string('TIME_LIMIT'),
-            int(self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage]/1000),
-            self.string('SEC'),
-          ),
-        )
+        describe_text = self.text('{}.{:02}'.format(self.string('stage_title'), self.snapshot.level.stage+1))
         describe_text.center = self.subtitle_center()
         subjects.append(describe_text)
 
       elif self.describe == self.Describe.READY:
-        describe_text = self.text(self.string('READY'))
+        describe_text = self.text(self.string('ready_title_1'))
         describe_text.center = self.subtitle_center()
         subjects.append(describe_text)
 
@@ -668,15 +709,6 @@ class PlayScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    if self.play_timer is None:
-      print('play start', vars(self.snapshot.level))
-      self.play_timer = Timer.set_msec(
-        self.stopwatch,
-        self.STAGE_LIMIT_MSEC[self.snapshot.level.mode][self.snapshot.level.stage],
-      )
-      for ball in self.snapshot.balls:
-        self.ball_last_directions[ball.id] = ball.rolling_direction
-
     if self.play_timer is not None:
       self.play_timer.resume()
 
@@ -687,18 +719,43 @@ class PlayScene(BaseStageScene):
         SCENES_SOUNDS[SceneSound.PAUSE].play()
         return PauseScene(self, self.point, self.play_timer, self.ball_last_directions)
 
-      for ball in self.snapshot.balls:
-        if ball.hit(self.snapshot.jumper):
-          self.play_timer.pause()
-          for ball in self.snapshot.balls:
-            ball.stop()
-          self.snapshot.jumper.fall_down()
-          return GameOverScene(self, self.point, self.play_timer, self.ball_last_directions)
+      next_balls = []
+      for ball in [ball for ball in self.snapshot.balls]:
+        if ball.dead:
+          print('ball dead', ball.id)
+          continue
 
+        if ball.rolling_direction:
+          if ball.left >= self.snapshot.field.right:
+            print('ball over', ball.id)
+            continue
         else:
+          if ball.right <= self.snapshot.field.left:
+            print('ball over', ball.id)
+            continue
+
+        next_balls.append(ball)
+
+        if ball.hit(self.snapshot.jumper):
+          if self.snapshot.jumper.jumping and \
+            self.snapshot.jumper.bottom < ball.center.y and \
+            ball.left < self.snapshot.jumper.center.x < ball.right:
+            ball.burst()
+          else:
+            self.snapshot.jumper.damage()
+
+        if not self.snapshot.jumper.falling_down:
           if self.ball_last_directions[ball.id] != ball.rolling_direction:
             self.point += ball.param.defeat_point
             self.ball_last_directions[ball.id] = ball.rolling_direction
+
+      self.snapshot.balls = next_balls
+
+      if self.snapshot.jumper.falling_down:
+        self.play_timer.pause()
+        for ball in self.snapshot.balls:
+          ball.stop()
+        return GameOverScene(self, self.point, self.play_timer, self.ball_last_directions)
 
       if self.play_timer.over:
         self.play_timer.pause()
@@ -707,6 +764,9 @@ class PlayScene(BaseStageScene):
         self.snapshot.jumper.stop()
         SCENES_SOUNDS[SceneSound.TIME_UP].play()
         return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
+
+      if len(self.snapshot.balls) == 0:
+        self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
 
     return super().update()
 
@@ -717,7 +777,7 @@ class PauseScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    self.restart_text = self.blink_text(self.string('RESTART'), 1000, False)
+    self.restart_text = self.blink_text(self.string('game_restart_text'), 1000, False)
     self.restart_text.center = self.menu_middle_center()
 
   @property
@@ -736,7 +796,7 @@ class PauseScene(BaseStageScene):
   def drawing_subjects(self) -> list[Any]:
     subjects = super().drawing_subjects
 
-    pause_text = self.text(self.string('PAUSE'))
+    pause_text = self.text(self.string('game_pause_text'))
     pause_text.center = self.subtitle_center()
     subjects.append(pause_text)
 
@@ -772,6 +832,10 @@ class GameOverScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
+        self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
+        self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
+
+        self.snapshot.save(self.config.path)
         return TitleScene(self)
 
     return super().update()
@@ -781,12 +845,12 @@ class GameOverScene(BaseStageScene):
     subjects = super().drawing_subjects
 
     if self.show_game_over:
-      game_over_text = self.text(self.string('GAME_OVER'))
+      game_over_text = self.text(self.string('game_over_title'))
       game_over_text.center = self.subtitle_center()
       subjects.append(game_over_text)
 
     if self.show_game_end:
-      end_text = self.text(self.string('GAME_END'))
+      end_text = self.text(self.string('game_over_text'))
       end_text.center = self.menu_middle_center()
       subjects.append(end_text)
 
@@ -846,10 +910,7 @@ class StageClearScene(BaseStageScene):
           self.snapshot.level = self.next_level
 
           self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
-          self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
-
-          for ball in self.snapshot.balls:
-            ball.origin = self.ball_start_origin(ball)
+          self.snapshot.balls = []
           self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
           self.snapshot.save(self.config.path)
@@ -862,12 +923,12 @@ class StageClearScene(BaseStageScene):
     subjects = super().drawing_subjects
 
     if self.show_clear:
-      clear_text = self.text(self.string('STAGE_CLEAR'))
+      clear_text = self.text(self.string('stage_clear_title'))
       clear_text.center = self.subtitle_center()
       subjects.append(clear_text)
 
     if self.show_next:
-      next_text = self.text(self.string('STAGE_NEXT'))
+      next_text = self.text(self.string('stage_clear_text'))
       next_text.center = self.menu_middle_center()
       subjects.append(next_text)
 
@@ -919,11 +980,8 @@ class GameClearScene(BaseStageScene):
         self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
 
         self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
-        self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
+        self.snapshot.balls = []
         self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
-
-        for ball in self.snapshot.balls:
-          ball.origin = self.ball_start_origin(ball)
         self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
 
         self.snapshot.save(self.config.path)
@@ -936,12 +994,12 @@ class GameClearScene(BaseStageScene):
     subjects = super().drawing_subjects
 
     if self.show_clear:
-      clear_text = self.text(self.string('GAME_CLEAR' if self.next_level is not None else 'GAME_CLEAR_ALL'))
+      clear_text = self.text(self.string('game_clear_title' if self.next_level is not None else 'game_clear_all_title'))
       clear_text.center = self.subtitle_center()
       subjects.append(clear_text)
 
     if self.show_thanks:
-      thanks_text = self.text(self.string('GAME_CLEAR_THANKS'))
+      thanks_text = self.text(self.string('game_clear_all_text'))
       thanks_text.center = self.menu_middle_center()
       subjects.append(thanks_text)
 

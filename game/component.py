@@ -20,6 +20,22 @@ class Collision:
     self.origin = origin
     self.size = size
 
+  @property
+  def left(self) -> float:
+    return self.origin.x
+
+  @property
+  def right(self) -> float:
+    return self.origin.x+self.size.width
+
+  @property
+  def top(self) -> float:
+    return self.origin.y
+
+  @property
+  def bottom(self) -> float:
+    return self.origin.y+self.size.height
+
   def min(self, center: Coordinate) -> Coordinate:
     return Coordinate(center.x-self.size.width/2+self.origin.x, center.y-self.size.height/2+self.origin.y)
 
@@ -104,14 +120,13 @@ class Sprite(Variation, Subject):
 
 
 class Obstacle:
-  def __init__(self, figure: int, collision: Collision) -> None:
-    self.figure = figure
+  def __init__(self, collision: Collision) -> None:
     self.collision = collision
 
 
 class Field(Variation, Subject):
-  def __init__(self, background_tiles: list[TileMap], obstacles: list[Obstacle], max_size: Size) -> None:
-    self.background_tiles = background_tiles
+  def __init__(self, backgrounds: list[TileMap], obstacles: list[Obstacle], max_size: Size) -> None:
+    self.backgrounds = backgrounds
     self.obstacles = obstacles
     self.max_size = max_size
     self.scroll_pos = Coordinate(0, 0)
@@ -119,20 +134,20 @@ class Field(Variation, Subject):
   def draw(self) -> None:
     pos = Coordinate(0, 0)
     distance = Coordinate(0, 0)
-    for tile in self.background_tiles:
+    for background in self.backgrounds:
       if self.scroll_pos.x <= distance.x and self.scroll_pos.y <= distance.y:
         pyxel.bltm(
           pos.x,
           pos.y,
-          tile.id,
-          tile.origin.x,
-          tile.origin.y,
-          tile.copy_vector.width,
-          tile.copy_vector.height,
-          tile.transparent_color,
+          background.id,
+          background.origin.x,
+          background.origin.y,
+          background.copy_vector.width,
+          background.copy_vector.height,
+          background.transparent_color,
         )
-        pos = Coordinate(pos.x+tile.size.width, pos.y)
-      distance = Coordinate(distance.x+tile.size.width, distance.y)
+        pos = Coordinate(pos.x+background.size.width, pos.y)
+      distance = Coordinate(distance.x+background.size.width, distance.y)
 
 
 class Movable(Variation):

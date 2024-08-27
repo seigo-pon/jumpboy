@@ -1,22 +1,20 @@
 {
   "en": {
-    "TITLE_BOY": "JUMP BOY",
-    "GAME_START": "PUSH START",
-    "SCORE_RANKING": "SCORE RANKING",
-    "NO_SCORE": "--NO SCORE--",
+    "game_title_1": "JUMP BOY",
+    "game_start_text": "PUSH START",
+    "score_ranking_title": "SCORE RANKING",
+    "score_no_text": "--NO SCORE--",
     "SCORE_BOY": "BOY",
-    "STAGE": "STAGE",
-    "TIME_LIMIT": "JUMP UP FOR",
-    "SEC": "SEC",
-    "READY": "READY",
-    "PAUSE": "PAUSE",
-    "RESTART": "PUSH RESTART",
-    "GAME_OVER": "GAME OVER...",
-    "GAME_END": "END",
-    "STAGE_CLEAR": "STAGE CLEAR!",
-    "STAGE_NEXT": "GO TO NEXT STAGE",
-    "GAME_CLEAR": "GAME CLEAR!!",
-    "GAME_CLEAR_ALL": "GAME CLEAR ALL!!",
-    "GAME_CLEAR_THANKS": "CONGRATULATIONS!"
+    "stage_title": "STAGE",
+    "read_text_1": "READY",
+    "game_pause_text": "PAUSE",
+    "game_restart_text": "PUSH RESTART",
+    "game_over_title": "GAME OVER...",
+    "game_over_text": "END",
+    "stage_clear_title": "STAGE CLEAR!",
+    "stage_clear_text": "GO TO NEXT STAGE",
+    "game_clear_title": "GAME CLEAR!!",
+    "game_clear_all_title": "GAME CLEAR ALL!!",
+    "game_clear_all_text": "CONGRATULATIONS!"
   }
 }

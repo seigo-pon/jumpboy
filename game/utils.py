@@ -53,19 +53,19 @@ class Stopwatch:
 class Timer:
   def __init__(self, stopwatch: Stopwatch) -> None:
     self.stopwatch = stopwatch
-    self.start_frame: int | None = None
+    self.first_frame: int | None = None
     self.limit_msec: int | None = None
     self.offset_msec = 0
 
   @classmethod
-  def set_timer(cls, stopwatch: Stopwatch, start: bool = False) -> Self:
+  def set_timer(cls, stopwatch: Stopwatch, start: bool) -> Self:
     timer = cls(stopwatch)
     if start:
       timer.resume()
     return timer
 
   @classmethod
-  def set_msec(cls, stopwatch: Stopwatch, msec: int, start: bool = False) -> Self:
+  def set_msec(cls, stopwatch: Stopwatch, msec: int, start: bool) -> Self:
     timer = cls.set_timer(stopwatch, start)
     timer.limit_msec = msec
     return timer
@@ -73,8 +73,8 @@ class Timer:
   @property
   def msec(self) -> int:
     msec = 0
-    if self.start_frame is not None:
-      msec = self.stopwatch.msec-self.stopwatch.msec_from_frame(self.start_frame)
+    if self.first_frame is not None:
+      msec = self.stopwatch.msec-self.stopwatch.msec_from_frame(self.first_frame)
     return msec+self.offset_msec
 
   @property
@@ -90,19 +90,19 @@ class Timer:
 
   @property
   def running(self) -> bool:
-    return self.start_frame is not None
+    return self.first_frame is not None
 
   def pause(self) -> None:
     if self.msec is not None:
       self.offset_msec += self.msec
-      self.start_frame = None
+      self.first_frame = None
 
   def resume(self) -> None:
-    if self.start_frame is None:
-      self.start_frame = self.stopwatch.frame
+    if self.first_frame is None:
+      self.first_frame = self.stopwatch.frame
 
   def reset(self) -> None:
-    self.start_frame = self.stopwatch.frame
+    self.first_frame = self.stopwatch.frame
     self.offset_msec = 0
 
 

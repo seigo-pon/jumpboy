@@ -24,7 +24,7 @@ class App:
     string_res = StringRes(path)
     config = GameConfig(
       path,
-      string_res.string('TITLE_BOY', Language.EN),
+      string_res.string('game_title_1', Language.EN),
       GAME_WINDOW_SIZE,
       FPS,
       pyxel.COLOR_BLACK,

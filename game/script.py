@@ -56,7 +56,7 @@ class Seq:
     process: Callable[[bool, Timer], bool],
     to_next: Callable[[], Any] | None,
   ) -> None:
-    self.timer = Timer.set_msec(stopwatch, msec)
+    self.timer = Timer.set_msec(stopwatch, msec, False)
     self.started = False
     self.process = process
     self.to_next = to_next
