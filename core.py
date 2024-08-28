@@ -2,9 +2,9 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Any, TypeVar
 from game import (
-  Coordinate, Size, Dice, Stopwatch, Timer,
+  Coordinate, Size, Dice, Stopwatch,
   TileMap, SoundEffect,
-  Sprite, Block, Obstacle, Field as BaseField, TextScriber, Text, GamePad as BaseGamePad, MusicBox,
+  Block, FlashSprite, Obstacle, Field as BaseField, TextScriber, GamePad as BaseGamePad, MusicBox,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
@@ -118,7 +118,7 @@ class Field(BaseField):
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
 TJumper = TypeVar('TJumper', bound='Jumper')
 
-class Jumper(Sprite):
+class Jumper(FlashSprite):
   class Action(IntEnum):
     STOP = 0
     WALK = 1
@@ -141,21 +141,19 @@ class Jumper(Sprite):
     FALL_DOWN = 3
     JOY = 3
 
+  FLASH_PERIOD = 4
+  MAX_FLASH_COUNT = 30
 
   class Param:
     def __init__(
       self,
       max_life: int,
-      flashing_period: int,
-      max_flash_count: int,
       max_accel: int,
       walking_distance: float,
       walking_period: int,
       joying_repeat_count: int,
     ) -> None:
       self.max_life = max_life
-      self.flashing_period = flashing_period
-      self.max_flash_count = max_flash_count
       self.max_accel = max_accel
       self.walking_distance = walking_distance
       self.walking_period = walking_period
@@ -167,15 +165,13 @@ class Jumper(Sprite):
     sounds: dict[int, SoundEffect],
     param: Param,
   ) -> None:
-    super().__init__(motions, sounds)
+    super().__init__(motions, sounds, self.FLASH_PERIOD, self.MAX_FLASH_COUNT)
 
     self.param = param
 
     self.action = self.Action.STOP
     self.life = self.param.max_life
     self.damaging = False
-    self.flashing_interval = 0
-    self.flashed = False
     self.walking_x = 0.0
     self.accel = 0.0
     self.now_accel = 0.0
@@ -185,11 +181,9 @@ class Jumper(Sprite):
     self.joying_count = 0
     self.walking_interval = 0
 
-  def reset(self, all: bool) -> None:
+  def clear(self, all: bool) -> None:
     if all:
       self.damaging = False
-      self.flashing_interval = 0
-      self.flashed = False
     self.walking_x = 0.0
     self.accel = 0.0
     self.now_accel = 0.0
@@ -229,20 +223,20 @@ class Jumper(Sprite):
       self.keeping_jump = False
     else:
       self.action = self.Action.STOP
-      self.reset(True)
+      self.clear(True)
 
   def walk(self, x: float) -> None:
     if self.stopping:
       print('jumper walk', self.id, x)
       self.action = self.Action.WALK
-      self.reset(True)
+      self.clear(True)
       self.walking_x = x
 
   def stand_by(self) -> None:
     if self.stopping:
       print('jumper stand by', self.id)
       self.action = self.Action.STAND_BY
-      self.reset(True)
+      self.clear(True)
 
   @property
   def fuzzy_accel(self) -> int:
@@ -255,7 +249,7 @@ class Jumper(Sprite):
     if self.standing_by:
       print('jumper jump', self.id, self.param.max_accel)
       self.action = self.Action.JUMP
-      self.reset(True)
+      self.clear(True)
       self.accel = self.param.max_accel
       self.now_accel = self.accel
       self.prev_y = self.center.y
@@ -268,25 +262,30 @@ class Jumper(Sprite):
         print('jumper fall down', self.id, self.life)
         self.life = 0
         self.action = self.Action.FALL_DOWN
-        self.reset(True)
+        self.clear(True)
         self.sounds[self.Sound.FALL_DOWN].play()
       else:
         print('jumper damage', self.id, self.life)
         self.damaging = True
-        self.flashing_interval = 0
-        self.flashed = False
+        self.flash()
         self.sounds[self.Sound.DAMAGE].play()
 
   def joy(self) -> None:
     if self.stopping:
       print('jumper joy', self.id)
       self.action = self.Action.JOY
-      self.reset(True)
+      self.clear(True)
       self.accel = self.fuzzy_accel
       self.now_accel = self.accel
       self.prev_y = self.center.y
 
-  def update(self, snapshot: TSnapshot) -> None:
+  def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
+    super().update(stopwatch, snapshot)
+
+    if self.damaging:
+      if not self.flashing:
+        self.damaging = False
+
     if self.stopping:
       self.motion = self.Motion.STOP
 
@@ -304,7 +303,7 @@ class Jumper(Sprite):
       if self.origin.x == self.walking_x:
         print('jumper walk to stop', self.id)
         self.action = self.Action.STOP
-        self.reset(True)
+        self.clear(True)
 
       if self.walking_interval < self.param.walking_period:
         self.walking_interval += 1
@@ -356,7 +355,7 @@ class Jumper(Sprite):
       else:
         print('jumper jump to stand by', self.id)
         self.action = self.Action.STAND_BY
-        self.reset(False)
+        self.clear(False)
 
     elif self.falling_down:
       self.motion = self.Motion.FALL_DOWN
@@ -377,30 +376,15 @@ class Jumper(Sprite):
         if self.joying_count >= self.param.joying_repeat_count:
           print('jumper joy to stop', self.id, self.joying_count, self.param.joying_repeat_count)
           self.action = self.Action.STOP
-          self.reset(True)
+          self.clear(True)
         else:
           print('jumper joy again', self.id, self.joying_count, self.param.joying_repeat_count)
           self.accel = self.fuzzy_accel
           self.now_accel = self.accel
           self.prev_y = self.center.y
 
-    if self.damaging:
-      self.flashing_interval += 1
-      if self.flashing_interval >= self.param.max_flash_count:
-        print('jumper damage finish', self.id, self.flashing_interval, self.param.max_flash_count)
-        self.damaging = False
-        self.flashing_interval = 0
-        self.flashed = False
-      else:
-        if self.flashing_interval%self.param.flashing_period == 0:
-          self.flashed = not self.flashed
 
-  def draw(self) -> None:
-    if not self.flashed:
-      super().draw()
-
-
-class Ball(Sprite):
+class Ball(FlashSprite):
   class Action(IntEnum):
     STOP = 0
     ROLL = 1
@@ -418,8 +402,8 @@ class Ball(Sprite):
     CRASH = 1
     BURST = 2
 
+  FLASH_PERIOD = 2
   MAX_FLASH_COUNT = 30
-  FLASH_PERIOD = 4
 
   class Param:
     def __init__(
@@ -432,16 +416,19 @@ class Ball(Sprite):
       self.rolling_period = rolling_period
       self.default_acquirement_point = default_acquirement_point
 
-  def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect], param: Param) -> None:
-    super().__init__(motions, sounds)
+  def __init__(
+    self,
+    motions: dict[int, Block],
+    sounds: dict[int, SoundEffect],
+    param: Param,
+  ) -> None:
+    super().__init__(motions, sounds, self.FLASH_PERIOD, self.MAX_FLASH_COUNT)
 
     self.param = param
 
     self.action = self.Action.STOP
     self.acquirement_point = 0
     self.dead = False
-    self.flashing_interval = 0
-    self.flashed = False
     self.rolling_direction = True
     self.rolling_interval = 0
 
@@ -473,11 +460,12 @@ class Ball(Sprite):
     if self.rolling:
       print('ball burst', self.id)
       self.action = self.Action.BURST
-      self.flashing_interval = 0
-      self.flashed = False
+      self.flash()
       self.sounds[self.Sound.BURST].play()
 
-  def update(self, snapshot: TSnapshot) -> None:
+  def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
+    super().update(stopwatch, snapshot)
+
     if self.stopping:
       pass
 
@@ -519,52 +507,8 @@ class Ball(Sprite):
     elif self.bursting:
       self.motion = self.Motion.BURST
 
-      self.flashing_interval += 1
-      if self.flashing_interval >= self.MAX_FLASH_COUNT:
-        print('ball burst finish', self.id, self.flashing_interval, self.MAX_FLASH_COUNT)
+      if not self.flashing:
         self.dead = True
-        self.flashing_interval = 0
-        self.flashed = False
-      else:
-        if self.flashing_interval%self.FLASH_PERIOD == 0:
-          self.flashed = not self.flashed
-
-  def draw(self) -> None:
-    if not self.flashed:
-      super().draw()
-
-
-class BlinkText(Text):
-  def __init__(
-    self,
-    string: str,
-    text_color: int,
-    font_size: int,
-    bold: bool,
-    scriber: TextScriber,
-    stopwatch: Stopwatch,
-    msec: int,
-    show: bool,
-  ) -> None:
-    super().__init__(string, text_color, font_size, bold, scriber)
-
-    self.timer = Timer.set_msec(stopwatch, msec, True)
-    self.show = show
-
-  def set_msec(self, msec: int, show: bool) -> None:
-    self.timer = Timer.set_msec(self.timer.stopwatch, msec, True)
-    self.show = show
-
-  def update(self, snapshot: TSnapshot) -> None:
-    if self.timer.over:
-      self.show = not self.show
-      self.timer.reset()
-
-    super().update(snapshot)
-
-  def draw(self) -> None:
-    if self.show:
-      super().draw()
 
 
 class Snapshot(BaseSnapshot):
@@ -579,6 +523,7 @@ class Snapshot(BaseSnapshot):
     jumper: Jumper,
   ) -> None:
     super().__init__()
+
     self.lang = lang
     self.game_pad = game_pad
     self.score_board = score_board
@@ -595,8 +540,6 @@ class Snapshot(BaseSnapshot):
         'stage': score.level.stage,
         'point': score.point,
       } for score in self.score_board.scores],
-      'level': self.level.mode,
-      'stage': self.level.stage,
     }
 
   def from_json(self, data: dict) -> None:
@@ -611,9 +554,6 @@ class Snapshot(BaseSnapshot):
           )
         )
       self.score_board.scores = scores
-
-    if 'level' in data and 'stage' in data:
-      self.level = GameLevel(data['level'], data['stage'])
 
 
 class Scene(BaseScene[Snapshot]):

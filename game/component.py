@@ -1,12 +1,15 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
-from game import Coordinate, Size, Image, TileMap, SoundEffect, Music
+from game import (
+  Coordinate, Size, Stopwatch,
+  Image, TileMap, SoundEffect, Music,
+)
 import pyxel
 import PyxelUniversalFont as puf
 
 
 class Variation:
-  def update(self, snapshot: Any) -> None:
+  def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
     raise RuntimeError()
 
 
@@ -119,6 +122,44 @@ class Sprite(Variation, Subject):
     return self.block.collision.hit(self.center, other.block.collision, other.center)
 
 
+class FlashSprite(Sprite):
+  def __init__(
+    self,
+    motions: dict[int, Block],
+    sounds: dict[int, SoundEffect],
+    flash_period: int,
+    max_flash_count: int,
+  ) -> None:
+    super().__init__(motions, sounds)
+
+    self.flash_period = flash_period
+    self.max_flash_count = max_flash_count
+
+    self.flashing_interval = 0
+    self.flashing = False
+    self.show = True
+
+  def flash(self) -> None:
+    self.flashing_interval = 0
+    self.flashing = True
+    self.show = False
+
+  def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
+    if self.flashing:
+      self.flashing_interval += 1
+      if self.flashing_interval >= self.max_flash_count:
+        self.flashing_interval = 0
+        self.flashing = False
+        self.show = True
+      else:
+        if self.flashing_interval%self.flash_period == 0:
+          self.show = not self.show
+
+  def draw(self) -> None:
+    if self.show:
+      super().draw()
+
+
 class Obstacle:
   def __init__(self, collision: Collision) -> None:
     self.collision = collision
@@ -164,7 +205,7 @@ class Movable(Variation):
     self.moved_center = center
     self.moving_distance = moving_distance
 
-  def update(self, snapshot: Any) -> None:
+  def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
     if self.moved_center is not None:
       distance_x = self.center.x - self.moved_center.x
       if distance_x != 0:
@@ -261,11 +302,46 @@ class Text(Subject, Movable):
     )
 
 
+class BlinkText(Text):
+  def __init__(
+    self,
+    string: str,
+    text_color: int,
+    font_size: int,
+    bold: bool,
+    scriber: TextScriber,
+    blink_period: int,
+    show: bool,
+  ) -> None:
+    super().__init__(string, text_color, font_size, bold, scriber)
+
+    self.blink_period = blink_period
+    self.show = show
+
+    self.blinking_interval = 0
+
+  def update_blink_period(self, blink_period: int, show: bool) -> None:
+    self.blink_period = blink_period
+    self.show = show
+    self.blinking_interval = 0
+
+  def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
+    self.blinking_interval += 1
+    if self.blinking_interval%self.blink_period == 0:
+      self.show = not self.show
+
+    super().update(stopwatch, snapshot)
+
+  def draw(self) -> None:
+    if self.show:
+      super().draw()
+
+
 class Signboard(Subject, Movable):
-  def __init__(self, image: Image | None, texts: list[Text], width: float | None, height: float | None) -> None:
+  def __init__(self, images: list[Image], texts: list[Text], width: float | None, height: float | None) -> None:
     super().__init__()
 
-    self.image = image
+    self.images = images
     self.texts = texts
     self.size = Size(
       width if width is not None else max([text.origin.x+text.size.width for text in self.texts]),
@@ -281,16 +357,16 @@ class Signboard(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self) -> None:
-    if self.image is not None:
+    for image in self.images:
       pyxel.blt(
         self.origin.x,
         self.origin.y,
-        self.image.id,
-        self.image.origin.x,
-        self.image.origin.y,
-        self.image.copy_vector.width,
-        self.image.copy_vector.height,
-        self.image.transparent_color,
+        image.id,
+        image.origin.x,
+        image.origin.y,
+        image.copy_vector.width,
+        image.copy_vector.height,
+        image.transparent_color,
       )
     for text in self.texts:
       draw_text = Text(text.string, text.text_color, text.font_size, text.bold, text.scriber)

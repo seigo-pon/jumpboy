@@ -4,13 +4,13 @@ from typing import Any, Self
 from game import (
   Coordinate, Size, Stopwatch, Timer,
   AssetImage, Image, TileMap, SoundEffect,
-  Collision, Block, Obstacle, TextScriber, Text, Signboard, MusicBox,
+  Collision, Block, Obstacle, TextScriber, Text, BlinkText, Signboard, MusicBox,
   GameConfig, Language, StringRes, Seq, TimeSeq,
 )
 from core import (
   GamePad,
   GameLevel, Score, ScoreBoard,
-  Ball, Jumper, Field, BlinkText,
+  Ball, Jumper, Field,
   Snapshot, Scene,
 )
 import pyxel
@@ -18,25 +18,50 @@ import pyxel
 
 GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
 TEXT_FONT_SIZE = 10
+TEXT_COLOR = pyxel.COLOR_WHITE
 
 TILE_ID = 0
 FIELD_TILE_X = 0
 
 IMAGE_ID = 0
-JUMPER_IMAGE_X = 1
 BALL_IMAGE_X = 0
+JUMPER_IMAGE_X = 1
+LIFE_IMAGE_X = 2
 
 JUMPER_SOUND_CH = 3
 JUMPER_SOUND_ID = 0
 BALL_SOUND_CH = 3
 BALL_SOUND_ID = 10
-SCENE_SOUND_CH = 3
+SCENE_SOUND_CH = 2
 SCENE_SOUND_ID = 20
 
+class SceneSound(IntEnum):
+  START = 0
+  READY = 1
+  PAUSE = 2
+  TIME_UP = 3
+  GAME_OVER = 4
+  STAGE_CLEAR = 5
+  SELECT = 6
+  RESTART = 7
+
+SCENES_SOUNDS: dict[int, SoundEffect] = {
+  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+0),
+  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+1),
+  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+2),
+  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+3),
+  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+4),
+  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+5),
+  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+6),
+  SceneSound.START: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+7),
+}
+
+class GameLevelMode(IntEnum):
+  NORMAL = 0
 
 class GameLevelAll(Enum):
-  NORMAL_1 = GameLevel(0, 0)
-  NORMAL_2 = GameLevel(0, 1)
+  NORMAL_1 = GameLevel(GameLevelMode.NORMAL, 0)
+  NORMAL_2 = GameLevel(GameLevelMode.NORMAL, 1)
 
   @classmethod
   def next(cls, level: GameLevel) -> GameLevel | None:
@@ -53,28 +78,17 @@ class GameLevelAll(Enum):
 
   @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
-    if level.mode in [
-      GameLevelAll.NORMAL_1.value.mode,
-      GameLevelAll.NORMAL_2.value.mode,
-    ]:
+    if level.mode == GameLevelMode.NORMAL:
       if level.stage == GameLevelAll.NORMAL_1.value.stage:
         return Field(
-          [
-            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-          ],
+          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color) for _ in range(3)],
           [],
           config.window_size,
           GROUND_TOP,
         )
       elif level.stage == GameLevelAll.NORMAL_2.value.stage:
         return Field(
-          [
-            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-            TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color),
-          ],
+          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color) for _ in range(3)],
           [
             Obstacle(
               Collision(
@@ -97,11 +111,8 @@ class GameLevelAll(Enum):
 
   @classmethod
   def jumper(cls, level: GameLevel, config: GameConfig) -> Jumper:
-    if level.mode in [
-      GameLevelAll.NORMAL_1.value.mode,
-      GameLevelAll.NORMAL_2.value.mode,
-    ]:
-      return Jumper(
+    if level.mode == GameLevelMode.NORMAL:
+      jumper = Jumper(
         {
           Jumper.Motion.STOP: Block(
             Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
@@ -130,22 +141,20 @@ class GameLevelAll(Enum):
           Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+3),
           Jumper.Sound.DAMAGE: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+4),
         },
-        Jumper.Param(3, 2, 30, -10, 0.5, 4, 3),
+        Jumper.Param(3, -10, 0.5, 4, 3),
       )
+      return jumper
 
     raise RuntimeError()
 
   @classmethod
   def ball(cls, level: GameLevel, config: GameConfig) -> Ball:
-    if level.mode in [
-      GameLevelAll.NORMAL_1.value.mode,
-      GameLevelAll.NORMAL_2.value.mode,
-    ]:
+    if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
       ]:
-        return Ball(
+        ball = Ball(
             {
               Ball.Motion.ANGLE_0: Block(
                 Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
@@ -175,15 +184,13 @@ class GameLevelAll(Enum):
             },
             Ball.Param(2, 1, 10),
           )
+        return ball
 
     raise RuntimeError()
 
   @classmethod
-  def balls(cls, level: GameLevel, config: GameConfig) -> list[Ball]:
-    if level.mode in [
-      GameLevelAll.NORMAL_1.value.mode,
-      GameLevelAll.NORMAL_2.value.mode,
-    ]:
+  def max_ball_count(cls, level: GameLevel, config: GameConfig) -> int:
+    if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
@@ -194,10 +201,7 @@ class GameLevelAll(Enum):
 
   @classmethod
   def play_limit_msec(cls, level: GameLevel) -> int:
-    if level.mode in [
-      GameLevelAll.NORMAL_1.value.mode,
-      GameLevelAll.NORMAL_2.value.mode,
-    ]:
+    if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
@@ -208,32 +212,10 @@ class GameLevelAll(Enum):
 
 
 GAME_TITLE: dict[int, str] = {
-  GameLevelAll.NORMAL_1.value.mode: 'game_title_1',
+  GameLevelMode.NORMAL: 'game_title_1',
 }
 SCORE: dict[int, str] = {
-  GameLevelAll.NORMAL_1.value.mode: 'score_title_1',
-}
-TEXT_COLOR = pyxel.COLOR_WHITE
-
-class SceneSound(IntEnum):
-  START = 0
-  READY = 1
-  PAUSE = 2
-  TIME_UP = 3
-  GAME_OVER = 4
-  STAGE_CLEAR = 5
-  SELECT = 6
-  RESTART = 7
-
-SCENES_SOUNDS: dict[int, SoundEffect] = {
-  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+0),
-  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+1),
-  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+2),
-  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+3),
-  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+4),
-  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+5),
-  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+6),
-  SceneSound.START: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+7),
+  GameLevelMode.NORMAL: 'score_title_1',
 }
 
 
@@ -260,8 +242,8 @@ class BaseScene(Scene):
       (size.height if size is not None else TextScriber.word_size(TEXT_FONT_SIZE).height)/2,
     )
 
-  def menu_right_top_origin(self, text: Text) -> Coordinate:
-    return Coordinate(self.config.window_size.width-text.size.width, 0)
+  def menu_right_top_origin(self, size: Size) -> Coordinate:
+    return Coordinate(self.config.window_size.width-size.width, 0)
 
   def title_center(self) -> Coordinate:
     return Coordinate(
@@ -286,35 +268,42 @@ class BaseScene(Scene):
       +TextScriber.word_size(TEXT_FONT_SIZE).height/2,
     )
 
-  def ball_start_origin(self, ball: Ball) -> Coordinate:
+  def ball_ready_origin(self, ball: Ball, offset_y: float) -> Coordinate:
     return Coordinate(
       self.snapshot.field.left-ball.size.width,
-      self.snapshot.field.bottom-ball.size.height,
+      self.snapshot.field.bottom-ball.size.height-offset_y,
     )
 
-  def jumper_start_origin(self, jumper: Jumper) -> Coordinate:
+  def jumper_ready_origin(self, jumper: Jumper) -> Coordinate:
     return Coordinate(
       self.snapshot.field.right,
       self.snapshot.field.bottom-jumper.size.height,
     )
 
-  def jumper_play_x(self) -> float:
+  def jumper_start_x(self) -> float:
     return self.snapshot.field.right-self.JUMPER_START_X
 
   def text(self, string: str) -> Text:
     return Text(string, TEXT_COLOR, TEXT_FONT_SIZE, False, self.scriber)
 
-  def blink_text(self, string: str, msec: int, show: bool) -> BlinkText:
+  def blink_text(self, string: str, blink_period: int, show: bool) -> BlinkText:
     return BlinkText(
       string,
       TEXT_COLOR,
       TEXT_FONT_SIZE,
       False,
       self.scriber,
-      self.stopwatch,
-      msec,
+      blink_period,
       show,
     )
+
+  def initial_sprites(self) -> None:
+    self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
+
+    self.snapshot.balls = []
+
+    self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
+    self.snapshot.jumper.origin = self.jumper_ready_origin(self.snapshot.jumper)
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -371,23 +360,20 @@ class OpeningScene(BaseScene):
     self.snapshot.load(self.config.path)
     self.title = self.string(GAME_TITLE[self.snapshot.level.mode])
 
-    self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
-    self.snapshot.balls = []
-    self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
-    self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
-
     self.title_text: Text | None = None
 
-    def walk_jumper(start: bool, timer: Timer) -> bool:
+    self.initial_sprites()
+
+    def _walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
-        self.snapshot.jumper.walk(self.jumper_play_x())
+        self.snapshot.jumper.walk(self.jumper_start_x())
       else:
         if not self.snapshot.jumper.walking:
           return True
 
       return False
 
-    def move_title(start: bool, timer: Timer) -> bool:
+    def _move_title(start: bool, timer: Timer) -> bool:
       if self.title_text is None:
         self.title_text = self.text(self.config.title)
         self.title_text.center = Coordinate(
@@ -402,8 +388,8 @@ class OpeningScene(BaseScene):
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 500, walk_jumper, None),
-      Seq(self.stopwatch, 2000, move_title, None),
+      Seq(self.stopwatch, 500, _walk_jumper, None),
+      Seq(self.stopwatch, 2000, _move_title, None),
       Seq(self.stopwatch, 3000, lambda x, y: True, lambda: TitleScene(self)),
     ])
 
@@ -446,13 +432,11 @@ class TitleScene(BaseScene):
       scene.snapshot,
     )
 
-    self.snapshot.jumper.walk(self.jumper_play_x())
-
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
 
     self.show_start = True
-    self.start_text = self.blink_text(self.string('game_start_text'), 1000, True)
+    self.start_text = self.blink_text(self.string('game_start_text'), 30, True)
     self.start_text.center = self.menu_middle_center()
     self.wait_start = False
 
@@ -460,7 +444,11 @@ class TitleScene(BaseScene):
     self.score = self.scoreboard()
     self.score.center = Coordinate(self.menu_middle_top_center(None).x, -self.score.size.height/2)
 
-    def walk_jumper(start: bool, timer: Timer) -> bool:
+    def _walk_jumper(start: bool, timer: Timer) -> bool:
+      self.snapshot.jumper.walk(self.jumper_start_x())
+      return True
+
+    def _escape_jumper(start: bool, timer: Timer) -> bool:
       if start:
         self.snapshot.jumper.walk(self.snapshot.field.right)
       else:
@@ -469,7 +457,7 @@ class TitleScene(BaseScene):
 
       return False
 
-    def show_score(start: bool, timer: Timer):
+    def _show_score(start: bool, timer: Timer):
       if start:
         self.show_score = True
         self.score.move(
@@ -494,8 +482,9 @@ class TitleScene(BaseScene):
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 20000, walk_jumper, None),
-      Seq(self.stopwatch, 1000, show_score, None),
+      Seq(self.stopwatch, 0, _walk_jumper, None),
+      Seq(self.stopwatch, 20000, _escape_jumper, None),
+      Seq(self.stopwatch, 1000, _show_score, None),
     ])
 
   def scoreboard(self) -> Signboard:
@@ -527,7 +516,7 @@ class TitleScene(BaseScene):
       no_score_text.center = Coordinate(score_center.x, score_center.y)
       score_texts.append(no_score_text)
 
-    return Signboard(None, score_texts, self.config.window_size.width, None)
+    return Signboard([], score_texts, self.config.window_size.width, None)
 
   @property
   def updating_variations(self) -> list[Any]:
@@ -543,7 +532,7 @@ class TitleScene(BaseScene):
     if not self.wait_start:
       if self.snapshot.game_pad.enter(False):
         self.wait_start = True
-        self.start_text.set_msec(120, True)
+        self.start_text.update_blink_period(3, True)
         self.time_seq = TimeSeq([
           Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
         ])
@@ -594,14 +583,22 @@ class BaseStageScene(BaseScene):
     self.show_stage = True
 
   def record_score(self) -> None:
-    self.snapshot.score_board.scores.append(
-      Score(
-        datetime.now(),
-        self.snapshot.level,
-        self.point,
-      )
-    )
+    self.snapshot.score_board.scores.append(Score(datetime.now(), self.snapshot.level, self.point))
     print('score record', vars(self.snapshot.score_board.scores[-1]))
+
+  def life_gauge(self, life: int) -> Signboard:
+    return Signboard(
+      [Image(
+        IMAGE_ID,
+        Coordinate(LIFE_IMAGE_X, 0 if index < life else 1),
+        Size(1, 1),
+        Image.Pose.NORMAL,
+        self.config.transparent_color,
+      ) for index in range(3)],
+      [],
+      None,
+      None,
+    )
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -626,15 +623,15 @@ class BaseStageScene(BaseScene):
         subjects.append(play_time_text)
 
     score_text = self.text('{}:{:04}'.format(self.string(SCORE[self.snapshot.level.mode]), self.point))
-    score_text.origin = self.menu_right_top_origin(score_text)
+    score_text.origin = self.menu_right_top_origin(score_text.size)
     subjects.append(score_text)
 
-    life_text = self.text('{}'.format(self.snapshot.jumper.life))
-    life_text.origin = Coordinate(
-      self.menu_right_top_origin(life_text).x,
-      self.menu_right_top_origin(life_text).y+score_text.size.height,
+    life = self.life_gauge(self.snapshot.jumper.life)
+    life.origin = Coordinate(
+      self.menu_right_top_origin(life.size).x,
+      self.menu_right_top_origin(life.size).y+score_text.size.height,
     )
-    subjects.append(life_text)
+    subjects.append(life)
 
     return subjects
 
@@ -659,10 +656,6 @@ class ReadyScene(BaseStageScene):
   ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    self.snapshot.balls = GameLevelAll.balls(self.snapshot.level, self.config)
-    for ball in self.snapshot.balls:
-      ball.origin = self.ball_start_origin(ball)
-
     self.snapshot.jumper.life = self.snapshot.jumper.param.max_life
     self.snapshot.jumper.stop()
 
@@ -679,16 +672,16 @@ class ReadyScene(BaseStageScene):
     self.ready_timer: Timer | None = None
     self.last_sec = -1
 
-    def walk_jumper(start: bool, timer: Timer) -> bool:
+    def _walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
-        self.snapshot.jumper.walk(self.jumper_play_x())
+        self.snapshot.jumper.walk(self.jumper_start_x())
       else:
         if not self.snapshot.jumper.walking:
           return True
 
       return False
 
-    def ready_describe(start: bool, timer: Timer) -> bool:
+    def _ready_describe(start: bool, timer: Timer) -> bool:
       if self.describe is None:
         self.describe = [e for e in self.Describe][0]
         SCENES_SOUNDS[SceneSound.START].play()
@@ -702,16 +695,16 @@ class ReadyScene(BaseStageScene):
           return True
 
       timer.limit_msec = self.DESCRIBE_MSEC[self.describe]
-      timer.reset()
+      timer.reset(self.stopwatch)
 
       return False
 
-    def ready_play(start: bool, timer: Timer) -> bool:
+    def _ready_play(start: bool, timer: Timer) -> bool:
       self.ready_timer = Timer.set_msec(self.stopwatch, self.START_MSEC, True)
       self.last_sec = -1
       return True
 
-    def start_play(start: bool, timer: Timer) -> bool:
+    def _start_play(start: bool, timer: Timer) -> bool:
       if self.ready_timer is not None:
         if self.ready_timer.over:
           for ball in self.snapshot.balls:
@@ -727,10 +720,10 @@ class ReadyScene(BaseStageScene):
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 0, walk_jumper, None),
-      Seq(self.stopwatch, 1000, ready_describe, None),
-      Seq(self.stopwatch, 0, ready_play, None),
-      Seq(self.stopwatch, 0, start_play, lambda: PlayScene(self, self.point, self.play_timer, self.ball_last_directions)),
+      Seq(self.stopwatch, 0, _walk_jumper, None),
+      Seq(self.stopwatch, 1000, _ready_describe, None),
+      Seq(self.stopwatch, 0, _ready_play, None),
+      Seq(self.stopwatch, 0, _start_play, lambda: PlayScene(self, self.point, self.play_timer, self.ball_last_directions)),
     ])
 
   @property
@@ -819,7 +812,6 @@ class PlayScene(BaseStageScene):
 
           self.ball_last_directions[ball.id] = ball.rolling_direction
 
-      erased_ball_count = len(self.snapshot.balls) - len(next_balls)
       self.snapshot.balls = next_balls
 
       if self.snapshot.jumper.falling_down:
@@ -836,12 +828,12 @@ class PlayScene(BaseStageScene):
         SCENES_SOUNDS[SceneSound.TIME_UP].play()
         return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
-      if erased_ball_count > 0:
-        for _ in range(0, erased_ball_count):
-          ball = GameLevelAll.ball(self.snapshot.level, self.config)
-          ball.origin = self.ball_start_origin(ball)
-          ball.roll()
-          self.snapshot.balls.append(ball)
+      diff_ball_count = GameLevelAll.max_ball_count(self.snapshot.level, self.config) - len(self.snapshot.balls)
+      if diff_ball_count > 0:
+        ball = GameLevelAll.ball(self.snapshot.level, self.config)
+        ball.origin = self.ball_ready_origin(ball, 0)
+        ball.roll()
+        self.snapshot.balls.append(ball)
 
     return super().update()
 
@@ -856,7 +848,7 @@ class PauseScene(BaseStageScene):
   ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    self.restart_text = self.blink_text(self.string('game_restart_text'), 1000, True)
+    self.restart_text = self.blink_text(self.string('game_restart_text'), 30, True)
     self.restart_text.center = self.menu_middle_center()
 
   @property
@@ -885,7 +877,13 @@ class PauseScene(BaseStageScene):
 
 
 class GameOverScene(BaseStageScene):
-  def __init__(self, scene: Scene, point: int, play_timer: Timer | None, ball_last_directions: dict[str, bool]) -> None:
+  def __init__(
+    self,
+    scene: Scene,
+    point: int,
+    play_timer: Timer | None,
+    ball_last_directions: dict[str, bool],
+  ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
     self.record_score()
@@ -894,30 +892,25 @@ class GameOverScene(BaseStageScene):
     self.show_game_over = False
     self.show_game_end = False
 
-    def show_game_over(start: bool, timer: Timer) -> bool:
+    def _show_game_over(start: bool, timer: Timer) -> bool:
       self.show_game_over = True
       SCENES_SOUNDS[SceneSound.GAME_OVER].play()
       return True
 
-    def show_game_end(start: bool, timer: Timer) -> bool:
+    def _show_game_end(start: bool, timer: Timer) -> bool:
       self.show_game_end = True
       return True
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 1000, show_game_over, None),
-      Seq(self.stopwatch, 2000, show_game_end, None),
+      Seq(self.stopwatch, 1000, _show_game_over, None),
+      Seq(self.stopwatch, 2000, _show_game_end, None),
     ])
 
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
         self.snapshot.level = GameLevelAll.NORMAL_1.value
-
-        self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
-        self.snapshot.balls = []
-        self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
-        self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
-
+        self.initial_sprites()
         self.snapshot.save(self.config.path)
         return TitleScene(self)
 
@@ -955,7 +948,7 @@ class StageClearScene(BaseStageScene):
     self.show_clear = False
     self.show_next = False
 
-    def wait_jumper(start: bool, timer: Timer) -> bool:
+    def _wait_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.jumping:
         self.record_score()
         self.snapshot.save(self.config.path)
@@ -968,12 +961,12 @@ class StageClearScene(BaseStageScene):
 
       return False
 
-    def show_clear(start: bool, timer: Timer) -> bool:
+    def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       SCENES_SOUNDS[SceneSound.STAGE_CLEAR].play()
       return True
 
-    def show_next(start: bool, timer: Timer) -> bool:
+    def _show_next(start: bool, timer: Timer) -> bool:
       if start:
         self.show_next = True
         self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
@@ -984,26 +977,21 @@ class StageClearScene(BaseStageScene):
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 0, wait_jumper, None),
-      Seq(self.stopwatch, 1000, show_clear, None),
-      Seq(self.stopwatch, 2000, show_next, None),
+      Seq(self.stopwatch, 0, _wait_jumper, None),
+      Seq(self.stopwatch, 1000, _show_clear, None),
+      Seq(self.stopwatch, 2000, _show_next, None),
     ])
 
   def update(self) -> Self | Any:
     if self.next_level is None:
       return GameClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
-    else:
-      if self.time_seq.ended:
-        if self.snapshot.game_pad.enter(False):
-          self.snapshot.level = self.next_level
-
-          self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
-          self.snapshot.balls = []
-          self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
-
-          self.snapshot.save(self.config.path)
-          return ReadyScene(self, self.point, None, {})
+    if self.time_seq.ended:
+      if self.snapshot.game_pad.enter(False):
+        self.snapshot.level = self.next_level
+        self.initial_sprites()
+        self.snapshot.save(self.config.path)
+        return ReadyScene(self, self.point, None, {})
 
     return super().update()
 
@@ -1042,18 +1030,18 @@ class GameClearScene(BaseStageScene):
     self.show_clear = False
     self.show_thanks = False
 
-    def show_clear(start: bool, timer: Timer) -> bool:
+    def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
       return True
 
-    def joy_jumper(start: bool, timer: Timer) -> bool:
+    def _joy_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.joying:
         return True
 
       return False
 
-    def show_next(start: bool, timer: Timer) -> bool:
+    def _show_next(start: bool, timer: Timer) -> bool:
       if start:
         self.show_thanks = True
         self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
@@ -1064,21 +1052,16 @@ class GameClearScene(BaseStageScene):
       return False
 
     self.time_seq = TimeSeq([
-      Seq(self.stopwatch, 2000, show_clear, None),
-      Seq(self.stopwatch, 0, joy_jumper, None),
-      Seq(self.stopwatch, 2000, show_next, None),
+      Seq(self.stopwatch, 2000, _show_clear, None),
+      Seq(self.stopwatch, 0, _joy_jumper, None),
+      Seq(self.stopwatch, 2000, _show_next, None),
     ])
 
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
         self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
-
-        self.snapshot.field = GameLevelAll.field(self.snapshot.level, self.config)
-        self.snapshot.balls = []
-        self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
-        self.snapshot.jumper.origin = self.jumper_start_origin(self.snapshot.jumper)
-
+        self.initial_sprites()
         self.snapshot.save(self.config.path)
         return TitleScene(self)
 

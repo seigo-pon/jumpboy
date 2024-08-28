@@ -52,11 +52,11 @@ class Seq:
   def __init__(
     self,
     stopwatch: Stopwatch,
-    msec: int,
+    wait_msec: int,
     process: Callable[[bool, Timer], bool],
     to_next: Callable[[], Any] | None,
   ) -> None:
-    self.timer = Timer.set_msec(stopwatch, msec, False)
+    self.timer = Timer.set_msec(stopwatch, wait_msec, False)
     self.started = False
     self.process = process
     self.to_next = to_next
@@ -172,7 +172,7 @@ class Scene(Generic[TSnapshot]):
       return res
 
     for variation in self.updating_variations:
-      variation.update(self.snapshot)
+      variation.update(self.stopwatch, self.snapshot)
 
     return self
 
