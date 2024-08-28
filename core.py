@@ -410,11 +410,11 @@ class Ball(FlashSprite):
       self,
       rolling_distance: float,
       rolling_period: int,
-      default_acquirement_point: int,
+      default_acquirement_points: dict[int, int],
     ) -> None:
       self.rolling_distance = rolling_distance
       self.rolling_period = rolling_period
-      self.default_acquirement_point = default_acquirement_point
+      self.default_acquirement_points = default_acquirement_points
 
   def __init__(
     self,
@@ -427,7 +427,7 @@ class Ball(FlashSprite):
     self.param = param
 
     self.action = self.Action.STOP
-    self.acquirement_point = 0
+    self.acquirement_points: dict[int, int] = {}
     self.dead = False
     self.rolling_direction = True
     self.rolling_interval = 0
@@ -453,7 +453,7 @@ class Ball(FlashSprite):
     if self.stopping:
       print('ball roll', self.id)
       self.action = self.Action.ROLL
-      self.acquirement_point = self.param.default_acquirement_point
+      self.acquirement_points = self.param.default_acquirement_points
       self.sounds[self.Sound.ROLL].play()
 
   def burst(self) -> None:
@@ -462,6 +462,16 @@ class Ball(FlashSprite):
       self.action = self.Action.BURST
       self.flash()
       self.sounds[self.Sound.BURST].play()
+
+  def strike(self) -> None:
+    print('ball strike', self.id)
+    self.acquirement_points = {}
+
+  @property
+  def acquirement_point(self) -> int:
+    if self.action in self.acquirement_points:
+      return self.acquirement_points[self.action]
+    return 0
 
   def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
     super().update(stopwatch, snapshot)
@@ -509,6 +519,7 @@ class Ball(FlashSprite):
 
       if not self.flashing:
         self.dead = True
+        self.show = False
 
 
 class Snapshot(BaseSnapshot):

@@ -4,7 +4,9 @@ from typing import Any, Self
 from game import (
   Coordinate, Size, Stopwatch, Timer,
   AssetImage, Image, TileMap, SoundEffect,
-  Collision, Block, Obstacle, TextScriber, Text, BlinkText, Signboard, MusicBox,
+  Collision, Block, Obstacle,
+  TextScriber, Text, BlinkText,
+  SignboardPoster, Signboard, MusicBox,
   GameConfig, Language, StringRes, Seq, TimeSeq,
 )
 from core import (
@@ -26,7 +28,7 @@ FIELD_TILE_X = 0
 IMAGE_ID = 0
 BALL_IMAGE_X = 0
 JUMPER_IMAGE_X = 1
-LIFE_IMAGE_X = 2
+LIFE_IMAGE_X = 3
 
 JUMPER_SOUND_CH = 3
 JUMPER_SOUND_ID = 0
@@ -182,20 +184,27 @@ class GameLevelAll(Enum):
               Ball.Sound.CRASH: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+1),
               Ball.Sound.BURST: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+2),
             },
-            Ball.Param(2, 1, 10),
+            Ball.Param(
+              2,
+              1,
+              {
+                Ball.Action.ROLL: 10,
+                Ball.Action.BURST: 30
+              },
+            ),
           )
         return ball
 
     raise RuntimeError()
 
   @classmethod
-  def max_ball_count(cls, level: GameLevel, config: GameConfig) -> int:
+  def max_ball_count(cls, level: GameLevel) -> int:
     if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
       ]:
-        return [GameLevelAll.ball(level, config)]
+        return 1
 
     raise RuntimeError()
 
@@ -259,6 +268,12 @@ class BaseScene(Scene):
 
   def menu_middle_center(self) -> Coordinate:
     return Coordinate(self.config.window_size.center.x, self.config.window_size.center.y)
+
+  def menu_middle_low_center(self) -> Coordinate:
+    return Coordinate(
+      self.config.window_size.center.x,
+      self.config.window_size.center.y+TextScriber.word_size(TEXT_FONT_SIZE).height*3,
+    )
 
   def menu_middle_bottom_center(self) -> Coordinate:
     return Coordinate(
@@ -436,7 +451,11 @@ class TitleScene(BaseScene):
     self.title_text.center = self.title_center()
 
     self.show_start = True
-    self.start_text = self.blink_text(self.string('game_start_text'), 30, True)
+    self.start_text = self.blink_text(
+      self.string('game_start_text'),
+      self.config.frame_count(1000),
+      False,
+    )
     self.start_text.center = self.menu_middle_center()
     self.wait_start = False
 
@@ -474,8 +493,8 @@ class TitleScene(BaseScene):
         if not self.score.moving:
           self.show_start = True
           self.start_text.center = Coordinate(
-            self.menu_middle_center().x,
-            self.menu_middle_center().y+TextScriber.word_size(TEXT_FONT_SIZE).height*2,
+            self.menu_middle_low_center().x,
+            self.menu_middle_low_center().y-TextScriber.word_size(TEXT_FONT_SIZE).height,
           )
           return True
 
@@ -483,7 +502,7 @@ class TitleScene(BaseScene):
 
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 0, _walk_jumper, None),
-      Seq(self.stopwatch, 20000, _escape_jumper, None),
+      Seq(self.stopwatch, 15000, _escape_jumper, None),
       Seq(self.stopwatch, 1000, _show_score, None),
     ])
 
@@ -532,7 +551,7 @@ class TitleScene(BaseScene):
     if not self.wait_start:
       if self.snapshot.game_pad.enter(False):
         self.wait_start = True
-        self.start_text.update_blink_period(3, True)
+        self.start_text.update_blink_period(self.config.frame_count(100), True)
         self.time_seq = TimeSeq([
           Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None, {})),
         ])
@@ -586,15 +605,24 @@ class BaseStageScene(BaseScene):
     self.snapshot.score_board.scores.append(Score(datetime.now(), self.snapshot.level, self.point))
     print('score record', vars(self.snapshot.score_board.scores[-1]))
 
-  def life_gauge(self, life: int) -> Signboard:
+  def life_gauge(self) -> Signboard:
     return Signboard(
-      [Image(
-        IMAGE_ID,
-        Coordinate(LIFE_IMAGE_X, 0 if index < life else 1),
-        Size(1, 1),
-        Image.Pose.NORMAL,
-        self.config.transparent_color,
-      ) for index in range(3)],
+      [
+        SignboardPoster(
+          Image(
+            IMAGE_ID,
+            Coordinate(
+              LIFE_IMAGE_X,
+              0 if ((self.snapshot.jumper.param.max_life-1)-index) < self.snapshot.jumper.life else 1,
+            ),
+            Size(1, 1),
+            Image.Pose.NORMAL,
+            self.config.transparent_color,
+          ),
+          Coordinate(Image.basic_size().width*index, 0)
+        )
+        for index in range(self.snapshot.jumper.param.max_life)
+      ],
       [],
       None,
       None,
@@ -626,7 +654,7 @@ class BaseStageScene(BaseScene):
     score_text.origin = self.menu_right_top_origin(score_text.size)
     subjects.append(score_text)
 
-    life = self.life_gauge(self.snapshot.jumper.life)
+    life = self.life_gauge()
     life.origin = Coordinate(
       self.menu_right_top_origin(life.size).x,
       self.menu_right_top_origin(life.size).y+score_text.size.height,
@@ -695,7 +723,7 @@ class ReadyScene(BaseStageScene):
           return True
 
       timer.limit_msec = self.DESCRIBE_MSEC[self.describe]
-      timer.reset(self.stopwatch)
+      timer.reset()
 
       return False
 
@@ -791,19 +819,22 @@ class PlayScene(BaseStageScene):
         next_balls.append(ball)
 
         if not self.snapshot.jumper.damaging:
-          if ball.hit(self.snapshot.jumper):
-            attack = False
-            if self.snapshot.jumper.jumping:
-              if self.snapshot.jumper.bottom < ball.center.y:
-                if ball.left < self.snapshot.jumper.center.x < ball.right:
-                  attack = True
+          if ball.rolling:
+            if ball.hit(self.snapshot.jumper):
+              attack = False
+              if self.snapshot.jumper.jumping:
+                if ball.top <= self.snapshot.jumper.bottom <= ball.bottom:
+                  if ball.left <= self.snapshot.jumper.center.x <= ball.right:
+                    print('attack y', ball.top, self.snapshot.jumper.bottom, ball.bottom)
+                    print('attack x', ball.left, self.snapshot.jumper.center.x, ball.right)
+                    attack = True
 
-            if attack:
-              ball.burst()
-              self.point += ball.acquirement_point
-            else:
-              ball.acquirement_point = 0
-              self.snapshot.jumper.damage()
+              if attack:
+                ball.burst()
+                self.point += ball.acquirement_point
+              else:
+                ball.strike()
+                self.snapshot.jumper.damage()
 
           if ball.id in self.ball_last_directions:
             if self.ball_last_directions[ball.id] != ball.rolling_direction:
@@ -828,7 +859,7 @@ class PlayScene(BaseStageScene):
         SCENES_SOUNDS[SceneSound.TIME_UP].play()
         return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
-      diff_ball_count = GameLevelAll.max_ball_count(self.snapshot.level, self.config) - len(self.snapshot.balls)
+      diff_ball_count = GameLevelAll.max_ball_count(self.snapshot.level) - len(self.snapshot.balls)
       if diff_ball_count > 0:
         ball = GameLevelAll.ball(self.snapshot.level, self.config)
         ball.origin = self.ball_ready_origin(ball, 0)
@@ -848,13 +879,15 @@ class PauseScene(BaseStageScene):
   ) -> None:
     super().__init__(scene, point, play_timer, ball_last_directions)
 
-    self.restart_text = self.blink_text(self.string('game_restart_text'), 30, True)
-    self.restart_text.center = self.menu_middle_center()
+    self.pause_text = self.blink_text(
+      self.string('game_pause_text'),
+      self.config.frame_count(1000),
+      True,
+    )
 
   @property
   def updating_variations(self) -> list[Any]:
-    variations: list[Any] = [self.restart_text]
-    return variations
+    return [self.pause_text]
 
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter(False) or self.snapshot.game_pad.cancel():
@@ -867,11 +900,8 @@ class PauseScene(BaseStageScene):
   def drawing_subjects(self) -> list[Any]:
     subjects = super().drawing_subjects
 
-    pause_text = self.text(self.string('game_pause_text'))
-    pause_text.center = self.subtitle_center()
-    subjects.append(pause_text)
-
-    subjects.append(self.restart_text)
+    self.pause_text.center = self.subtitle_center()
+    subjects.append(self.pause_text)
 
     return subjects
 
@@ -892,6 +922,12 @@ class GameOverScene(BaseStageScene):
     self.show_game_over = False
     self.show_game_end = False
 
+    self.restart_text = self.blink_text(
+      self.string('game_restart_text'),
+      self.config.frame_count(1000),
+      False,
+    )
+
     def _show_game_over(start: bool, timer: Timer) -> bool:
       self.show_game_over = True
       SCENES_SOUNDS[SceneSound.GAME_OVER].play()
@@ -905,6 +941,15 @@ class GameOverScene(BaseStageScene):
       Seq(self.stopwatch, 1000, _show_game_over, None),
       Seq(self.stopwatch, 2000, _show_game_end, None),
     ])
+
+  @property
+  def updating_variations(self) -> list[Any]:
+    variations = super().updating_variations
+
+    if self.show_game_end:
+      variations.append(self.restart_text)
+
+    return variations
 
   def update(self) -> Self | Any:
     if self.time_seq.ended:
@@ -929,6 +974,9 @@ class GameOverScene(BaseStageScene):
       end_text = self.text(self.string('game_over_text'))
       end_text.center = self.menu_middle_center()
       subjects.append(end_text)
+
+      self.restart_text.center = self.menu_middle_low_center()
+      subjects.append(self.restart_text)
 
     return subjects
 
@@ -980,18 +1028,18 @@ class StageClearScene(BaseStageScene):
       Seq(self.stopwatch, 0, _wait_jumper, None),
       Seq(self.stopwatch, 1000, _show_clear, None),
       Seq(self.stopwatch, 2000, _show_next, None),
+      Seq(self.stopwatch, 1000, lambda x, y: True, None),
     ])
 
   def update(self) -> Self | Any:
     if self.next_level is None:
       return GameClearScene(self, self.point, self.play_timer, self.ball_last_directions)
 
-    if self.time_seq.ended:
-      if self.snapshot.game_pad.enter(False):
-        self.snapshot.level = self.next_level
-        self.initial_sprites()
-        self.snapshot.save(self.config.path)
-        return ReadyScene(self, self.point, None, {})
+    if self.time_seq.ended or (self.show_next and self.snapshot.game_pad.enter(True)):
+      self.snapshot.level = self.next_level
+      self.initial_sprites()
+      self.snapshot.save(self.config.path)
+      return ReadyScene(self, self.point, None, {})
 
     return super().update()
 
@@ -1029,6 +1077,7 @@ class GameClearScene(BaseStageScene):
 
     self.show_clear = False
     self.show_thanks = False
+    self.show_bye = False
 
     def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
@@ -1047,6 +1096,7 @@ class GameClearScene(BaseStageScene):
         self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
       else:
         if not self.snapshot.jumper.walking:
+          self.show_bye = True
           return True
 
       return False
@@ -1055,15 +1105,15 @@ class GameClearScene(BaseStageScene):
       Seq(self.stopwatch, 2000, _show_clear, None),
       Seq(self.stopwatch, 0, _joy_jumper, None),
       Seq(self.stopwatch, 2000, _show_next, None),
+      Seq(self.stopwatch, 3000, lambda x, y: True, None),
     ])
 
   def update(self) -> Self | Any:
     if self.time_seq.ended:
-      if self.snapshot.game_pad.enter(False):
-        self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
-        self.initial_sprites()
-        self.snapshot.save(self.config.path)
-        return TitleScene(self)
+      self.snapshot.level = self.next_level if self.next_level is not None else GameLevelAll.NORMAL_1.value
+      self.initial_sprites()
+      self.snapshot.save(self.config.path)
+      return TitleScene(self)
 
     return super().update()
 
@@ -1077,8 +1127,13 @@ class GameClearScene(BaseStageScene):
       subjects.append(clear_text)
 
     if self.show_thanks:
-      thanks_text = self.text(self.string('game_clear_all_text'))
+      thanks_text = self.text(self.string('game_clear_all_text_1'))
       thanks_text.center = self.menu_middle_center()
+      subjects.append(thanks_text)
+
+    if self.show_bye:
+      thanks_text = self.text(self.string('game_clear_all_text_2'))
+      thanks_text.center = self.menu_middle_low_center()
       subjects.append(thanks_text)
 
     return subjects

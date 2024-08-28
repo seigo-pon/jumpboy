@@ -28,6 +28,9 @@ class GameConfig:
     self.released_year = released_year
     self.debug = debug
 
+  def frame_count(self, msec: int) -> int:
+    return int((msec/1000)*self.fps)
+
 
 class Language(StrEnum):
   EN = 'en'
@@ -92,6 +95,7 @@ class TimeSeq:
 
 class Snapshot:
   SNAPSHOT_FOLDER = 'snapshot'
+  FILE_MAX_COUNT = 5
 
   def folder(self, path: Path) -> str:
     return os.path.join(path.root, self.SNAPSHOT_FOLDER)
@@ -108,6 +112,15 @@ class Snapshot:
     if not os.path.exists(folder):
       os.mkdir(folder)
 
+    if os.path.exists(folder):
+      files = os.listdir(folder)
+      delta_file_count = len(files)-self.FILE_MAX_COUNT
+      if delta_file_count > 0:
+        files = sorted(files)
+        for index in range(delta_file_count):
+          print('delete snapshot old file', files[index])
+          os.remove(os.path.join(folder, files[index]))
+
     file_path = os.path.join(folder, '{}.json'.format(datetime.now().timestamp()))
     with open(file_path, mode='w') as f:
       json_data = self.to_json()
@@ -118,8 +131,10 @@ class Snapshot:
     files = []
     folder = self.folder(path)
     print('snapshot folder', folder)
+
     if os.path.exists(folder):
       files = os.listdir(folder)
+
     if len(files) > 0:
       files = sorted(files, reverse=True)
       file_path = os.path.join(self.folder(path), files[0])

@@ -9,13 +9,14 @@
     "ready_title_1": "READY",
     "score_title_1": "BOY",
     "game_pause_text": "PAUSE",
-    "game_restart_text": "PUSH RESTART",
     "game_over_title": "GAME OVER...",
     "game_over_text": "END",
+    "game_restart_text": "PUSH RESTART",
     "stage_clear_title": "STAGE CLEAR!",
     "stage_clear_text": "GO TO NEXT STAGE",
     "game_clear_title": "GAME CLEAR!!",
-    "game_clear_all_title": "GAME CLEAR ALL!!",
-    "game_clear_all_text": "CONGRATULATIONS!"
+    "game_clear_all_title": "GAME CLEAR ALL!",
+    "game_clear_all_text_1": "CONGRATULATIONS!",
+    "game_clear_all_text_2": "BYE!"
   }
 }

@@ -337,16 +337,41 @@ class BlinkText(Text):
       super().draw()
 
 
+class SignboardPoster:
+  def __init__(self, image: Image, origin: Coordinate) -> None:
+    self.image = image
+    self.origin = origin
+
+
 class Signboard(Subject, Movable):
-  def __init__(self, images: list[Image], texts: list[Text], width: float | None, height: float | None) -> None:
+  def __init__(self, posters: list[SignboardPoster], texts: list[Text], width: float | None, height: float | None) -> None:
     super().__init__()
 
-    self.images = images
+    if len(posters) == 0 and len(texts) == 0:
+      raise RuntimeError()
+
+    self.posters = posters
     self.texts = texts
-    self.size = Size(
-      width if width is not None else max([text.origin.x+text.size.width for text in self.texts]),
-      height if height is not None else max([text.origin.y+text.size.height for text in self.texts]),
-    )
+
+    max_width = 0.0
+    if width is not None:
+      max_width = width
+    else:
+      if len(self.texts) > 0:
+        max_width = max([text.origin.x+text.size.width for text in self.texts])
+      elif len(self.posters) > 0:
+        max_width = max([poster.origin.x+poster.image.size.width for poster in self.posters])
+
+    max_height = 0.0
+    if height is not None:
+      max_height = height
+    else:
+      if len(self.texts) > 0:
+        max_height = max([text.origin.y+text.size.height for text in self.texts])
+      elif len(self.posters) > 0:
+        max_height = max([poster.origin.y+poster.image.size.height for poster in self.posters])
+
+    self.size = Size(max_width, max_height)
 
   @property
   def origin(self) -> Coordinate:
@@ -357,16 +382,16 @@ class Signboard(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self) -> None:
-    for image in self.images:
+    for poster in self.posters:
       pyxel.blt(
-        self.origin.x,
-        self.origin.y,
-        image.id,
-        image.origin.x,
-        image.origin.y,
-        image.copy_vector.width,
-        image.copy_vector.height,
-        image.transparent_color,
+        poster.origin.x+self.origin.x,
+        poster.origin.y+self.origin.y,
+        poster.image.id,
+        poster.image.origin.x,
+        poster.image.origin.y,
+        poster.image.copy_vector.width,
+        poster.image.copy_vector.height,
+        poster.image.transparent_color,
       )
     for text in self.texts:
       draw_text = Text(text.string, text.text_color, text.font_size, text.bold, text.scriber)
