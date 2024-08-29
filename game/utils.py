@@ -1,6 +1,7 @@
 from random import randint
 from typing import Self
 import os
+import PyxelUniversalFont as puf
 
 
 class Coordinate:
@@ -104,6 +105,46 @@ class Timer:
   def reset(self) -> None:
     self.first_frame = self.stopwatch.frame
     self.offset_msec = 0
+
+
+class TextScriber:
+  FOLDER = 'font'
+  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
+  CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
+    10: {
+      False: 'PixelMplus10-Regular.ttf',
+      True: 'PixelMplus10-Bold.ttf',
+    },
+    12: {
+      False: 'PixelMplus12-Regular.ttf',
+      True: 'PixelMplus12-Bold.ttf',
+    },
+  }
+
+  def __new__(cls, *args, **kwargs):
+    if cls._instance is None:
+      cls._instance = super(TextScriber, cls).__new__(cls)
+      print('text scriber create')
+    return cls._instance
+
+  def __init__(self) -> None:
+    self.writers: dict[str, puf.Writer] = {}
+
+  @classmethod
+  def word_size(cls, font_size: int) -> Size:
+    return Size(font_size/2, font_size)
+
+  def writer(self, font_size: int, bold: bool) -> puf.Writer:
+    font = self.CUSTOM_FONT_FILES[font_size][bold]
+    if font not in puf.get_available_fonts():
+      font = self.DEFAULT_FONT_FILE
+
+    if font not in self.writers:
+      writer = puf.Writer(font)
+      print('new font', font, writer)
+      self.writers[font] = writer
+
+    return self.writers[font]
 
 
 class Dice:

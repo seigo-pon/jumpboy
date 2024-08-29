@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Callable, Generic, Self, TypeVar
-from game import Size, Path, Stopwatch, Timer, TextScriber, MusicBox
+from game import Size, Path, Stopwatch, Timer, MusicBox
 import json
 import os
 import pyxel
@@ -51,6 +51,66 @@ class StringRes:
     return ''
 
 
+class GameDesign:
+  DESIGN_FILE = 'design.json'
+
+  def __init__(self, path: Path) -> None:
+    self.design: dict[str, dict[str, str]] = {}
+    with open(os.path.join(path.asset_path, self.DESIGN_FILE), mode='r') as f:
+      self.design = json.loads(f.read())
+
+
+class Snapshot:
+  SNAPSHOT_FOLDER = 'snapshot'
+  FILE_MAX_COUNT = 5
+
+  def folder(self, path: Path) -> str:
+    return os.path.join(path.root, self.SNAPSHOT_FOLDER)
+
+  def to_json(self) -> dict:
+    raise RuntimeError()
+
+  def from_json(self, data: dict) -> None:
+    raise RuntimeError()
+
+  def save(self, path: Path) -> None:
+    folder = self.folder(path)
+    print('snapshot folder', folder)
+    if not os.path.exists(folder):
+      os.mkdir(folder)
+
+    if os.path.exists(folder):
+      files = os.listdir(folder)
+      delta_file_count = len(files)-self.FILE_MAX_COUNT
+      if delta_file_count > 0:
+        files = sorted(files)
+        for index in range(delta_file_count):
+          print('delete snapshot old file', files[index])
+          os.remove(os.path.join(folder, files[index]))
+
+    file_path = os.path.join(folder, '{}.json'.format(datetime.now().timestamp()))
+    with open(file_path, mode='w') as f:
+      json_data = self.to_json()
+      print('snapshot save', file_path, json_data)
+      json.dump(json_data, f)
+
+  def load(self, path: Path) -> None:
+    files = []
+    folder = self.folder(path)
+    print('snapshot folder', folder)
+
+    if os.path.exists(folder):
+      files = os.listdir(folder)
+
+    if len(files) > 0:
+      files = sorted(files, reverse=True)
+      file_path = os.path.join(self.folder(path), files[0])
+      with open(file_path, mode='r') as f:
+        json_data = json.load(f)
+        print('snapshot save', file_path, json_data)
+        self.from_json(json_data)
+
+
 class Seq:
   def __init__(
     self,
@@ -93,57 +153,6 @@ class TimeSeq:
     return None
 
 
-class Snapshot:
-  SNAPSHOT_FOLDER = 'snapshot'
-  FILE_MAX_COUNT = 5
-
-  def folder(self, path: Path) -> str:
-    return os.path.join(path.root, self.SNAPSHOT_FOLDER)
-
-  def to_json(self) -> dict:
-    return {}
-
-  def from_json(self, data: dict) -> None:
-    pass
-
-  def save(self, path: Path) -> None:
-    folder = self.folder(path)
-    print('snapshot folder', folder)
-    if not os.path.exists(folder):
-      os.mkdir(folder)
-
-    if os.path.exists(folder):
-      files = os.listdir(folder)
-      delta_file_count = len(files)-self.FILE_MAX_COUNT
-      if delta_file_count > 0:
-        files = sorted(files)
-        for index in range(delta_file_count):
-          print('delete snapshot old file', files[index])
-          os.remove(os.path.join(folder, files[index]))
-
-    file_path = os.path.join(folder, '{}.json'.format(datetime.now().timestamp()))
-    with open(file_path, mode='w') as f:
-      json_data = self.to_json()
-      print('snapshot save', file_path, json_data)
-      json.dump(json_data, f)
-
-  def load(self, path: Path) -> None:
-    files = []
-    folder = self.folder(path)
-    print('snapshot folder', folder)
-
-    if os.path.exists(folder):
-      files = os.listdir(folder)
-
-    if len(files) > 0:
-      files = sorted(files, reverse=True)
-      file_path = os.path.join(self.folder(path), files[0])
-      with open(file_path, mode='r') as f:
-        json_data = json.load(f)
-        print('snapshot save', file_path, json_data)
-        self.from_json(json_data)
-
-
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')
 
 class Scene(Generic[TSnapshot]):
@@ -152,14 +161,12 @@ class Scene(Generic[TSnapshot]):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
-    scriber: TextScriber,
     music_box: MusicBox,
     snapshot: TSnapshot,
   ) -> None:
     self.config = config
     self.string_res = string_res
     self.stopwatch = stopwatch
-    self.scriber = scriber
     self.music_box = music_box
     self.snapshot = snapshot
     self.time_seq = TimeSeq([])

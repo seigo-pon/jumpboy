@@ -2,10 +2,10 @@ from datetime import datetime
 from enum import Enum, IntEnum
 from typing import Any, Self
 from game import (
-  Coordinate, Size, Stopwatch, Timer,
+  Coordinate, Size, Stopwatch, Timer, TextScriber,
   AssetImage, Image, TileMap, SoundEffect,
   Collision, Block, Obstacle,
-  TextScriber, Text, BlinkText,
+  Text, BlinkText,
   SignboardPoster, Signboard, MusicBox,
   GameConfig, Language, StringRes, Seq, TimeSeq,
 )
@@ -246,11 +246,10 @@ class BaseScene(Scene):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
-    scriber: TextScriber,
     music_box: MusicBox,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, scriber, music_box, snapshot)
+    super().__init__(config, string_res, stopwatch, music_box, snapshot)
 
   def menu_left_top_origin(self) -> Coordinate:
     return Coordinate(0, 0)
@@ -309,7 +308,7 @@ class BaseScene(Scene):
     return self.snapshot.field.right-self.JUMPER_START_X
 
   def text(self, string: str) -> Text:
-    return Text(string, TEXT_COLOR, TEXT_FONT_SIZE, False, self.scriber)
+    return Text(string, TEXT_COLOR, TEXT_FONT_SIZE, False)
 
   def blink_text(self, string: str, blink_period: int, show: bool) -> BlinkText:
     return BlinkText(
@@ -317,7 +316,6 @@ class BaseScene(Scene):
       TEXT_COLOR,
       TEXT_FONT_SIZE,
       False,
-      self.scriber,
       blink_period,
       show,
     )
@@ -347,7 +345,6 @@ class BaseScene(Scene):
         pyxel.COLOR_BLACK,
         10,
         False,
-        self.scriber,
       )
       stopwatch_text.origin = Coordinate(
         self.config.window_size.width-stopwatch_text.size.width,
@@ -369,7 +366,6 @@ class OpeningScene(BaseScene):
       config,
       string_res,
       stopwatch,
-      TextScriber(),
       MusicBox(),
       Snapshot(
         Language.EN,
@@ -448,14 +444,7 @@ class TitleScene(BaseScene):
   SCORE_RANKING_NUM = 3
 
   def __init__(self, scene: Scene) -> None:
-    super().__init__(
-      scene.config,
-      scene.string_res,
-      scene.stopwatch,
-      scene.scriber,
-      scene.music_box,
-      scene.snapshot,
-    )
+    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.music_box, scene.snapshot)
 
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
@@ -596,14 +585,7 @@ class BaseStageScene(BaseScene):
     play_timer: Timer | None,
     ball_last_directions: dict[str, bool],
   ) -> None:
-    super().__init__(
-      scene.config,
-      scene.string_res,
-      scene.stopwatch,
-      scene.scriber,
-      scene.music_box,
-      scene.snapshot,
-    )
+    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.music_box, scene.snapshot)
 
     self.point = point
     self.play_timer = play_timer

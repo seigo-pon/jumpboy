@@ -1,11 +1,10 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import (
-  Coordinate, Size, Stopwatch,
+  Coordinate, Size, Stopwatch, TextScriber,
   Image, TileMap, SoundEffect, Music,
 )
 import pyxel
-import PyxelUniversalFont as puf
 
 
 class Variation:
@@ -227,42 +226,8 @@ class Movable(Variation):
         self.moved_center = None
 
 
-class TextScriber:
-  FOLDER = 'font'
-  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
-  CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
-    10: {
-      False: 'PixelMplus10-Regular.ttf',
-      True: 'PixelMplus10-Bold.ttf',
-    },
-    12: {
-      False: 'PixelMplus12-Regular.ttf',
-      True: 'PixelMplus12-Bold.ttf',
-    },
-  }
-
-  def __init__(self) -> None:
-    self.writers: dict[str, puf.Writer] = {}
-
-  @classmethod
-  def word_size(cls, font_size: int) -> Size:
-    return Size(font_size/2, font_size)
-
-  def writer(self, font_size: int, bold: bool) -> puf.Writer:
-    font = self.CUSTOM_FONT_FILES[font_size][bold]
-    if font not in puf.get_available_fonts():
-      font = self.DEFAULT_FONT_FILE
-
-    if font not in self.writers:
-      writer = puf.Writer(font)
-      print('new font', font, writer)
-      self.writers[font] = writer
-
-    return self.writers[font]
-
-
 class Text(Subject, Movable):
-  def __init__(self, string: str, text_color: int, font_size: int, bold: bool, scriber: TextScriber) -> None:
+  def __init__(self, string: str, text_color: int, font_size: int, bold: bool) -> None:
     super().__init__()
 
     if string == '':
@@ -272,7 +237,6 @@ class Text(Subject, Movable):
     self.text_color = text_color
     self.font_size = font_size
     self.bold = bold
-    self.scriber = scriber
 
   @property
   def size(self) -> Size:
@@ -290,7 +254,7 @@ class Text(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self) -> None:
-    self.scriber.writer(
+    TextScriber().writer(
       self.font_size,
       self.bold,
     ).draw(
@@ -309,11 +273,10 @@ class BlinkText(Text):
     text_color: int,
     font_size: int,
     bold: bool,
-    scriber: TextScriber,
     blink_period: int,
     show: bool,
   ) -> None:
-    super().__init__(string, text_color, font_size, bold, scriber)
+    super().__init__(string, text_color, font_size, bold)
 
     self.blink_period = blink_period
     self.show = show
@@ -394,7 +357,7 @@ class Signboard(Subject, Movable):
         poster.image.transparent_color,
       )
     for text in self.texts:
-      draw_text = Text(text.string, text.text_color, text.font_size, text.bold, text.scriber)
+      draw_text = Text(text.string, text.text_color, text.font_size, text.bold)
       draw_text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
       draw_text.draw()
 

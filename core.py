@@ -4,7 +4,7 @@ from typing import Any, TypeVar
 from game import (
   Coordinate, Size, Dice, Stopwatch,
   TileMap, SoundEffect,
-  Block, FlashSprite, Obstacle, Field as BaseField, TextScriber, GamePad as BaseGamePad, MusicBox,
+  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
@@ -577,11 +577,10 @@ class Scene(BaseScene[Snapshot]):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
-    scriber: TextScriber,
     music_box: MusicBox,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, scriber, music_box, snapshot)
+    super().__init__(config, string_res, stopwatch, music_box, snapshot)
 
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)
