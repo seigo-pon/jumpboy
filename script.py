@@ -112,6 +112,16 @@ class GameLevelAll(Enum):
     raise RuntimeError()
 
   @classmethod
+  def updated_field(cls, level: GameLevel) -> bool:
+    if level.mode == GameLevelMode.NORMAL:
+      if level.stage == GameLevelAll.NORMAL_1.value.stage:
+        return False
+      elif level.stage == GameLevelAll.NORMAL_2.value.stage:
+        return True
+
+    raise RuntimeError()
+
+  @classmethod
   def jumper(cls, level: GameLevel, config: GameConfig) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
@@ -283,10 +293,10 @@ class BaseScene(Scene):
       +TextScriber.word_size(TEXT_FONT_SIZE).height/2,
     )
 
-  def ball_ready_origin(self, ball: Ball, offset_y: float) -> Coordinate:
+  def ball_ready_origin(self, ball: Ball) -> Coordinate:
     return Coordinate(
       self.snapshot.field.left-ball.size.width,
-      self.snapshot.field.bottom-ball.size.height-offset_y,
+      self.snapshot.field.bottom-ball.size.height,
     )
 
   def jumper_ready_origin(self, jumper: Jumper) -> Coordinate:
@@ -862,7 +872,7 @@ class PlayScene(BaseStageScene):
       diff_ball_count = GameLevelAll.max_ball_count(self.snapshot.level) - len(self.snapshot.balls)
       if diff_ball_count > 0:
         ball = GameLevelAll.ball(self.snapshot.level, self.config)
-        ball.origin = self.ball_ready_origin(ball, 0)
+        ball.origin = self.ball_ready_origin(ball)
         ball.roll()
         self.snapshot.balls.append(ball)
 
@@ -998,6 +1008,8 @@ class StageClearScene(BaseStageScene):
 
     def _wait_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.jumping:
+        self.snapshot.jumper.jumping.stop()
+
         self.record_score()
         self.snapshot.save(self.config.path)
 
@@ -1017,7 +1029,8 @@ class StageClearScene(BaseStageScene):
     def _show_next(start: bool, timer: Timer) -> bool:
       if start:
         self.show_next = True
-        self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
+        if GameLevelAll.updated_field(self.snapshot.level):
+          self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
       else:
         if not self.snapshot.jumper.walking:
           return True

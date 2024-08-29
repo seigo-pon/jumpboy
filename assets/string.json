@@ -1,7 +1,7 @@
 {
   "en": {
     "game_title_1": "JUMP BOY",
-    "game_start_text": "PUSH START",
+    "game_start_text": "PUSH TO START",
     "score_ranking_title": "SCORE RANKING",
     "score_no_text": "--NO SCORE--",
     "SCORE_BOY": "BOY",
@@ -11,10 +11,10 @@
     "game_pause_text": "PAUSE",
     "game_over_title": "GAME OVER...",
     "game_over_text": "END",
-    "game_restart_text": "PUSH RESTART",
+    "game_restart_text": "PUSH TO TITLE",
     "stage_clear_title": "STAGE CLEAR!",
     "stage_clear_text": "GO TO NEXT STAGE",
-    "game_clear_title": "GAME CLEAR!!",
+    "game_clear_title": "GAME CLEAR!",
     "game_clear_all_title": "GAME CLEAR ALL!",
     "game_clear_all_text_1": "CONGRATULATIONS!",
     "game_clear_all_text_2": "BYE!"
