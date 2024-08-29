@@ -14,7 +14,6 @@ class GameConfig:
     title: str,
     window_size: Size,
     fps: int,
-    transparent_color: int,
     copyright: str,
     released_year: int,
     debug: bool,
@@ -23,7 +22,6 @@ class GameConfig:
     self.title = title
     self.window_size = window_size
     self.fps = fps
-    self.transparent_color = transparent_color
     self.copyright = copyright
     self.released_year = released_year
     self.debug = debug
@@ -49,15 +47,6 @@ class StringRes:
     if language in self.strings and key in self.strings[language]:
       return self.strings[language][key]
     return ''
-
-
-class GameDesign:
-  DESIGN_FILE = 'design.json'
-
-  def __init__(self, path: Path) -> None:
-    self.design: dict[str, dict[str, str]] = {}
-    with open(os.path.join(path.asset_path, self.DESIGN_FILE), mode='r') as f:
-      self.design = json.loads(f.read())
 
 
 class Snapshot:
@@ -192,8 +181,8 @@ class Scene(Generic[TSnapshot]):
   def drawing_subjects(self) -> list[Any]:
     raise RuntimeError()
 
-  def draw(self) -> None:
-    pyxel.cls(self.config.transparent_color)
+  def draw(self, transparent_color: int) -> None:
+    pyxel.cls(transparent_color)
 
     for subject in self.drawing_subjects:
-      subject.draw()
+      subject.draw(transparent_color)

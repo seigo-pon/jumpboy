@@ -10,12 +10,11 @@ class AssetImage:
     MIRROR_Y = 2
     MIRROR_XY = 3
 
-  def __init__(self, id: int, address: Coordinate, scale: Size, pose: Pose, transparent_color: int) -> None:
+  def __init__(self, id: int, address: Coordinate, scale: Size, pose: Pose) -> None:
     self.id = id
     self.address = address
     self.scale = scale
     self.pose = pose
-    self.transparent_color = transparent_color
 
   @classmethod
   def basic_size(cls) -> Size:

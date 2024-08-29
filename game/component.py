@@ -13,7 +13,7 @@ class Variation:
 
 
 class Subject:
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     raise RuntimeError()
 
 
@@ -105,7 +105,7 @@ class Sprite(Variation, Subject):
   def bottom(self) -> float:
     return self.top+self.size.height
 
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     pyxel.blt(
       self.center.x-self.block.image.size.width/2,
       self.center.y-self.block.image.size.height/2,
@@ -114,7 +114,7 @@ class Sprite(Variation, Subject):
       self.block.image.origin.y,
       self.block.image.copy_vector.width,
       self.block.image.copy_vector.height,
-      self.block.image.transparent_color,
+      transparent_color,
     )
 
   def hit(self, other: TSprite) -> bool:
@@ -154,9 +154,9 @@ class FlashSprite(Sprite):
         if self.flashing_interval%self.flash_period == 0:
           self.show = not self.show
 
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     if self.show:
-      super().draw()
+      super().draw(transparent_color)
 
 
 class Obstacle:
@@ -171,7 +171,7 @@ class Field(Variation, Subject):
     self.max_size = max_size
     self.scroll_pos = Coordinate(0, 0)
 
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     pos = Coordinate(0, 0)
     distance = Coordinate(0, 0)
     for background in self.backgrounds:
@@ -184,7 +184,7 @@ class Field(Variation, Subject):
           background.origin.y,
           background.copy_vector.width,
           background.copy_vector.height,
-          background.transparent_color,
+          transparent_color,
         )
         pos = Coordinate(pos.x+background.size.width, pos.y)
       distance = Coordinate(distance.x+background.size.width, distance.y)
@@ -253,7 +253,7 @@ class Text(Subject, Movable):
   def origin(self, value: Coordinate) -> None:
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     TextScriber().writer(
       self.font_size,
       self.bold,
@@ -295,9 +295,9 @@ class BlinkText(Text):
 
     super().update(stopwatch, snapshot)
 
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     if self.show:
-      super().draw()
+      super().draw(transparent_color)
 
 
 class SignboardPoster:
@@ -344,7 +344,7 @@ class Signboard(Subject, Movable):
   def origin(self, value: Coordinate) -> None:
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
-  def draw(self) -> None:
+  def draw(self, transparent_color: int) -> None:
     for poster in self.posters:
       pyxel.blt(
         poster.origin.x+self.origin.x,
@@ -354,12 +354,12 @@ class Signboard(Subject, Movable):
         poster.image.origin.y,
         poster.image.copy_vector.width,
         poster.image.copy_vector.height,
-        poster.image.transparent_color,
+        transparent_color,
       )
     for text in self.texts:
       draw_text = Text(text.string, text.text_color, text.font_size, text.bold)
       draw_text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
-      draw_text.draw()
+      draw_text.draw(transparent_color)
 
 
 class GamePad:

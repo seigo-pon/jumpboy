@@ -16,6 +16,7 @@ GAME_WINDOW_SIZE = Size(160, 120)
 FPS = 30
 ASSET_FOLDER = 'assets'
 ASSET_FILE = 'jumpboy.pyxres'
+TRANSPARENT_COLOR = pyxel.COLOR_BLACK
 
 
 class App:
@@ -27,7 +28,6 @@ class App:
       string_res.string('game_title_1', Language.EN),
       GAME_WINDOW_SIZE,
       FPS,
-      pyxel.COLOR_BLACK,
       COPYRIGHT,
       RELEASED_YEAR,
       DEBUG,
@@ -49,7 +49,7 @@ class App:
     self.scene = self.scene.update()
 
   def draw(self) -> None:
-    self.scene.draw()
+    self.scene.draw(TRANSPARENT_COLOR)
 
 
 # start game

@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum, IntEnum
 from typing import Any, Self
 from game import (
-  Coordinate, Size, Stopwatch, Timer, TextScriber,
+  Coordinate, Size, Stopwatch, Timer, TextScriber, Dice,
   AssetImage, Image, TileMap, SoundEffect,
   Collision, Block, Obstacle,
   Text, BlinkText,
@@ -31,11 +31,11 @@ JUMPER_IMAGE_X = 1
 LIFE_IMAGE_X = 3
 
 JUMPER_SOUND_CH = 3
-JUMPER_SOUND_ID = 0
+JUMPER_SOUND_ID_START = 0
 BALL_SOUND_CH = 3
-BALL_SOUND_ID = 10
+BALL_SOUND_ID_START = 10
 SCENE_SOUND_CH = 2
-SCENE_SOUND_ID = 20
+SCENE_SOUND_ID_START = 20
 
 class SceneSound(IntEnum):
   START = 0
@@ -48,15 +48,19 @@ class SceneSound(IntEnum):
   RESTART = 7
 
 SCENES_SOUNDS: dict[int, SoundEffect] = {
-  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+0),
-  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+1),
-  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+2),
-  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+3),
-  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+4),
-  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+5),
-  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+6),
-  SceneSound.START: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID+7),
+  SceneSound.READY: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+0),
+  SceneSound.PAUSE: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+1),
+  SceneSound.TIME_UP: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+2),
+  SceneSound.GAME_OVER: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+3),
+  SceneSound.STAGE_CLEAR: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+4),
+  SceneSound.SELECT: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+5),
+  SceneSound.RESTART: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+6),
+  SceneSound.START: SoundEffect(SCENE_SOUND_CH, SCENE_SOUND_ID_START+7),
 }
+
+class FieldSurface(IntEnum):
+  NORMAL = 0
+  FENCE = 1
 
 class GameLevelMode(IntEnum):
   NORMAL = 0
@@ -64,6 +68,10 @@ class GameLevelMode(IntEnum):
 class GameLevelAll(Enum):
   NORMAL_1 = GameLevel(GameLevelMode.NORMAL, 0)
   NORMAL_2 = GameLevel(GameLevelMode.NORMAL, 1)
+  NORMAL_3 = GameLevel(GameLevelMode.NORMAL, 2)
+  NORMAL_4 = GameLevel(GameLevelMode.NORMAL, 3)
+  NORMAL_5 = GameLevel(GameLevelMode.NORMAL, 4)
+  NORMAL_6 = GameLevel(GameLevelMode.NORMAL, 5)
 
   @classmethod
   def next(cls, level: GameLevel) -> GameLevel | None:
@@ -75,22 +83,30 @@ class GameLevelAll(Enum):
       return next_level
     except:
       print('next level none')
-
     return None
 
   @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
     if level.mode == GameLevelMode.NORMAL:
-      if level.stage == GameLevelAll.NORMAL_1.value.stage:
-        return Field(
-          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(2.5, 2), AssetImage.Pose.NORMAL, config.transparent_color)],
+      if level.stage in [
+        GameLevelAll.NORMAL_1.value.stage,
+        GameLevelAll.NORMAL_2.value.stage,
+        GameLevelAll.NORMAL_3.value.stage,
+      ]:
+        field = Field(
+          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(2.5, 2), AssetImage.Pose.NORMAL)],
           [],
           config.window_size,
+          FieldSurface.NORMAL,
           GROUND_TOP,
         )
-      elif level.stage == GameLevelAll.NORMAL_2.value.stage:
-        return Field(
-          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(2.5, 2), AssetImage.Pose.NORMAL, config.transparent_color)],
+      elif level.stage in [
+        GameLevelAll.NORMAL_4.value.stage,
+        GameLevelAll.NORMAL_5.value.stage,
+        GameLevelAll.NORMAL_6.value.stage,
+      ]:
+        field = Field(
+          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(2.5, 2), AssetImage.Pose.NORMAL)],
           [
             Obstacle(
               Collision(
@@ -106,96 +122,85 @@ class GameLevelAll(Enum):
             ),
           ],
           config.window_size,
+          FieldSurface.FENCE,
           GROUND_TOP,
         )
-
-    raise RuntimeError()
-
-  @classmethod
-  def updated_field(cls, level: GameLevel) -> bool:
-    if level.mode == GameLevelMode.NORMAL:
-      if level.stage == GameLevelAll.NORMAL_1.value.stage:
-        return False
-      elif level.stage == GameLevelAll.NORMAL_2.value.stage:
-        return True
-
-    raise RuntimeError()
+    return field
 
   @classmethod
-  def jumper(cls, level: GameLevel, config: GameConfig) -> Jumper:
+  def jumper(cls, level: GameLevel) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
         {
           Jumper.Motion.STOP: Block(
-            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
           Jumper.Motion.WALK: Block(
-            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Jumper.Motion.JUMP: Block(
-            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 2), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 2), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Jumper.Motion.FALL_DOWN: Block(
-            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 3), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 3), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Jumper.Motion.JOY: Block(
-            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 4), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+            Image(IMAGE_ID, Coordinate(JUMPER_IMAGE_X, 4), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
         },
         {
-          Jumper.Sound.WALK: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+0),
-          Jumper.Sound.JUMP: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+1),
-          Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+2),
-          Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+3),
-          Jumper.Sound.DAMAGE: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID+4),
+          Jumper.Sound.WALK: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID_START+0),
+          Jumper.Sound.JUMP: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID_START+1),
+          Jumper.Sound.FALL_DOWN: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID_START+2),
+          Jumper.Sound.JOY: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID_START+3),
+          Jumper.Sound.DAMAGE: SoundEffect(JUMPER_SOUND_CH, JUMPER_SOUND_ID_START+4),
         },
         Jumper.Param(3, -10, 0.5, 4, 3),
       )
-      return jumper
-
-    raise RuntimeError()
+    return jumper
 
   @classmethod
-  def ball(cls, level: GameLevel, config: GameConfig) -> Ball:
+  def ball(cls, level: GameLevel) -> Ball:
     if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
+        GameLevelAll.NORMAL_3.value.stage,
       ]:
         ball = Ball(
             {
               Ball.Motion.ANGLE_0: Block(
-                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.NORMAL),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
               Ball.Motion.ANGLE_90: Block(
-                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_Y, config.transparent_color),
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_Y),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
               Ball.Motion.ANGLE_180: Block(
-                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_XY, config.transparent_color),
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_XY),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
               Ball.Motion.ANGLE_270: Block(
-                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_X, config.transparent_color),
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 0), Size(1, 1), Image.Pose.MIRROR_X),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
               Ball.Motion.BURST: Block(
-                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL, config.transparent_color),
+                Image(IMAGE_ID, Coordinate(BALL_IMAGE_X, 1), Size(1, 1), Image.Pose.NORMAL),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
             },
             {
-              Ball.Sound.ROLL: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+0),
-              Ball.Sound.CRASH: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+1),
-              Ball.Sound.BURST: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID+2),
+              Ball.Sound.ROLL: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID_START+0),
+              Ball.Sound.CRASH: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID_START+1),
+              Ball.Sound.BURST: SoundEffect(BALL_SOUND_CH, BALL_SOUND_ID_START+2),
             },
             Ball.Param(
-              2,
+              2 if level.stage == GameLevelAll.NORMAL_1.value.stage else Dice.roll(3)+1,
               1,
               {
                 Ball.Action.ROLL: 10,
@@ -203,20 +208,24 @@ class GameLevelAll(Enum):
               },
             ),
           )
-        return ball
-
-    raise RuntimeError()
+    return ball
 
   @classmethod
-  def max_ball_count(cls, level: GameLevel) -> int:
+  def next_ball_frame_count(cls, level: GameLevel, config: GameConfig) -> int:
     if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
+        GameLevelAll.NORMAL_4.value.stage,
+        GameLevelAll.NORMAL_5.value.stage,
       ]:
-        return 1
-
-    raise RuntimeError()
+        next_frame = config.frame_count(2000)
+      elif level.stage in [
+        GameLevelAll.NORMAL_3.value.stage,
+        GameLevelAll.NORMAL_6.value.stage,
+      ]:
+        next_frame = config.frame_count((Dice.roll(3)+1)*1000)
+    return next_frame
 
   @classmethod
   def play_limit_msec(cls, level: GameLevel) -> int:
@@ -224,10 +233,16 @@ class GameLevelAll(Enum):
       if level.stage in [
         GameLevelAll.NORMAL_1.value.stage,
         GameLevelAll.NORMAL_2.value.stage,
+        GameLevelAll.NORMAL_3.value.stage,
       ]:
-        return 15000
-
-    raise RuntimeError()
+        limit_msec = 15000
+      elif level.stage in [
+        GameLevelAll.NORMAL_4.value.stage,
+        GameLevelAll.NORMAL_5.value.stage,
+        GameLevelAll.NORMAL_6.value.stage,
+      ]:
+        limit_msec = 30000
+    raise limit_msec
 
 
 GAME_TITLE: dict[int, str] = {
@@ -325,7 +340,7 @@ class BaseScene(Scene):
 
     self.snapshot.balls = []
 
-    self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level, self.config)
+    self.snapshot.jumper = GameLevelAll.jumper(self.snapshot.level)
     self.snapshot.jumper.origin = self.jumper_ready_origin(self.snapshot.jumper)
 
   @property
@@ -374,7 +389,7 @@ class OpeningScene(BaseScene):
         level,
         GameLevelAll.field(level, config),
         [],
-        GameLevelAll.jumper(level, config),
+        GameLevelAll.jumper(level),
       ),
     )
 
@@ -444,7 +459,13 @@ class TitleScene(BaseScene):
   SCORE_RANKING_NUM = 3
 
   def __init__(self, scene: Scene) -> None:
-    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.music_box, scene.snapshot)
+    super().__init__(
+      scene.config,
+      scene.string_res,
+      scene.stopwatch,
+      scene.music_box,
+      scene.snapshot,
+    )
 
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
@@ -578,18 +599,17 @@ class TitleScene(BaseScene):
 
 
 class BaseStageScene(BaseScene):
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.music_box, scene.snapshot)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(
+      scene.config,
+      scene.string_res,
+      scene.stopwatch,
+      scene.music_box,
+      scene.snapshot,
+    )
 
     self.point = point
     self.play_timer = play_timer
-    self.ball_last_directions = ball_last_directions
 
     self.show_stage = True
 
@@ -667,14 +687,8 @@ class ReadyScene(BaseStageScene):
   }
   START_MSEC = 3000
 
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene, point, play_timer, ball_last_directions)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(scene, point, play_timer)
 
     self.snapshot.jumper.life = self.snapshot.jumper.param.max_life
     self.snapshot.jumper.stop()
@@ -743,7 +757,7 @@ class ReadyScene(BaseStageScene):
       Seq(self.stopwatch, 0, _walk_jumper, None),
       Seq(self.stopwatch, 1000, _ready_describe, None),
       Seq(self.stopwatch, 0, _ready_play, None),
-      Seq(self.stopwatch, 0, _start_play, lambda: PlayScene(self, self.point, self.play_timer, self.ball_last_directions)),
+      Seq(self.stopwatch, 0, _start_play, lambda: PlayScene(self, self.point, self.play_timer)),
     ])
 
   @property
@@ -772,14 +786,8 @@ class ReadyScene(BaseStageScene):
 
 
 class PlayScene(BaseStageScene):
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene, point, play_timer, ball_last_directions)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(scene, point, play_timer)
 
     if self.play_timer is not None:
       self.play_timer.resume()
@@ -789,10 +797,13 @@ class PlayScene(BaseStageScene):
       if self.snapshot.game_pad.cancel():
         self.play_timer.pause()
         SCENES_SOUNDS[SceneSound.PAUSE].play()
-        return PauseScene(self, self.point, self.play_timer, self.ball_last_directions)
+        return PauseScene(self, self.point, self.play_timer)
 
       next_balls = []
       for ball in [ball for ball in self.snapshot.balls]:
+        last_ball_bounced = ball.bounced
+        ball.bounced = False
+
         if ball.dead:
           print('ball dead', ball.id)
           continue
@@ -828,12 +839,10 @@ class PlayScene(BaseStageScene):
                 ball.strike()
                 self.snapshot.jumper.damage()
 
-          if ball.id in self.ball_last_directions:
-            if self.ball_last_directions[ball.id] != ball.rolling_direction:
-              if not self.snapshot.jumper.falling_down:
-                self.point += ball.acquirement_point
-
-          self.ball_last_directions[ball.id] = ball.rolling_direction
+          if not self.snapshot.jumper.falling_down:
+            if last_ball_bounced:
+              print('ball bounced')
+              self.point += ball.acquirement_point
 
       self.snapshot.balls = next_balls
 
@@ -841,7 +850,7 @@ class PlayScene(BaseStageScene):
         self.play_timer.pause()
         for ball in self.snapshot.balls:
           ball.stop()
-        return GameOverScene(self, self.point, self.play_timer, self.ball_last_directions)
+        return GameOverScene(self, self.point, self.play_timer)
 
       if self.play_timer.over:
         self.play_timer.pause()
@@ -849,11 +858,11 @@ class PlayScene(BaseStageScene):
           ball.stop()
         self.snapshot.jumper.stop()
         SCENES_SOUNDS[SceneSound.TIME_UP].play()
-        return StageClearScene(self, self.point, self.play_timer, self.ball_last_directions)
+        return StageClearScene(self, self.point, self.play_timer)
 
-      diff_ball_count = GameLevelAll.max_ball_count(self.snapshot.level) - len(self.snapshot.balls)
-      if diff_ball_count > 0:
-        ball = GameLevelAll.ball(self.snapshot.level, self.config)
+      balls = sorted(self.snapshot.balls, key=lambda x: x.living_frame, reverse=True)
+      if len(balls) == 0 or balls[0].living_frame >= GameLevelAll.next_ball_frame_count(self.snapshot.level, self.config):
+        ball = GameLevelAll.ball(self.snapshot.level)
         ball.origin = self.ball_ready_origin(ball)
         ball.roll()
         self.snapshot.balls.append(ball)
@@ -862,14 +871,8 @@ class PlayScene(BaseStageScene):
 
 
 class PauseScene(BaseStageScene):
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene, point, play_timer, ball_last_directions)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(scene, point, play_timer)
 
     self.pause_text = self.blink_text(
       self.string('game_pause_text'),
@@ -884,7 +887,7 @@ class PauseScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter(False) or self.snapshot.game_pad.cancel():
       SCENES_SOUNDS[SceneSound.RESTART].play()
-      return PlayScene(self, self.point, self.play_timer, self.ball_last_directions)
+      return PlayScene(self, self.point, self.play_timer)
 
     return super().update()
 
@@ -899,14 +902,8 @@ class PauseScene(BaseStageScene):
 
 
 class GameOverScene(BaseStageScene):
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene, point, play_timer, ball_last_directions)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(scene, point, play_timer)
 
     self.record_score()
     self.snapshot.save(self.config.path)
@@ -974,14 +971,8 @@ class GameOverScene(BaseStageScene):
 
 
 class StageClearScene(BaseStageScene):
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene, point, play_timer, ball_last_directions)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(scene, point, play_timer)
 
     self.next_level: GameLevel | None = self.snapshot.level
 
@@ -1011,7 +1002,7 @@ class StageClearScene(BaseStageScene):
     def _show_next(start: bool, timer: Timer) -> bool:
       if start:
         self.show_next = True
-        if GameLevelAll.updated_field(self.snapshot.level):
+        if self.snapshot.field.surface != GameLevelAll.field(self.next_level, self.config).surface:
           self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
       else:
         if not self.snapshot.jumper.walking:
@@ -1028,7 +1019,7 @@ class StageClearScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.next_level is None:
-      return GameClearScene(self, self.point, self.play_timer, self.ball_last_directions)
+      return GameClearScene(self, self.point, self.play_timer)
 
     if self.time_seq.ended or (self.show_next and self.snapshot.game_pad.enter(True)):
       self.snapshot.level = self.next_level
@@ -1056,14 +1047,8 @@ class StageClearScene(BaseStageScene):
 
 
 class GameClearScene(BaseStageScene):
-  def __init__(
-    self,
-    scene: Scene,
-    point: int,
-    play_timer: Timer | None,
-    ball_last_directions: dict[str, bool],
-  ) -> None:
-    super().__init__(scene, point, play_timer, ball_last_directions)
+  def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
+    super().__init__(scene, point, play_timer)
 
     self.record_score()
     self.snapshot.save(self.config.path)

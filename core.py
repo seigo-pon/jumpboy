@@ -7,6 +7,7 @@ from game import (
   Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
+from game.utils import Path
 import pyxel
 
 
@@ -69,9 +70,12 @@ class Field(BaseField):
     background_tiles: list[TileMap],
     obstacles: list[Obstacle],
     max_size: Size,
+    surface: int,
     ground_height: float,
   ) -> None:
     super().__init__(background_tiles, obstacles, max_size)
+
+    self.surface = surface
     self.ground_height = ground_height
 
   @property
@@ -426,11 +430,13 @@ class Ball(FlashSprite):
 
     self.param = param
 
+    self.living_frame = 0
     self.action = self.Action.STOP
     self.acquirement_points: dict[int, int] = {}
     self.dead = False
     self.rolling_direction = True
     self.rolling_interval = 0
+    self.bounced = False
 
   @property
   def stopping(self) -> bool:
@@ -475,6 +481,7 @@ class Ball(FlashSprite):
 
   def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
     super().update(stopwatch, snapshot)
+    self.living_frame += 1
 
     if self.stopping:
       pass
@@ -487,6 +494,7 @@ class Ball(FlashSprite):
           if next_x <= left_end:
             next_x = left_end
             self.rolling_direction = True
+            self.bounced = True
             print('ball roll direction +', self.id, self.rolling_direction)
             self.sounds[self.Sound.CRASH].play()
       else:
@@ -496,6 +504,7 @@ class Ball(FlashSprite):
           if next_x >= right_end:
             next_x = right_end
             self.rolling_direction = False
+            self.bounced = True
             print('ball roll direction -', self.id, self.rolling_direction)
             self.sounds[self.Sound.CRASH].play()
 
