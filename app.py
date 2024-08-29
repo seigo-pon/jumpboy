@@ -40,9 +40,7 @@ class App:
       update=self.update,
       draw=self.draw,
     )
-
     self.scene = OpeningScene(config, string_res)
-
     self.engine.run()
 
   def update(self) -> None:

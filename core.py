@@ -4,10 +4,9 @@ from typing import Any, TypeVar
 from game import (
   Coordinate, Size, Dice, Stopwatch,
   TileMap, SoundEffect,
-  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,
+  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
-from game.utils import Path
 import pyxel
 
 
@@ -430,7 +429,7 @@ class Ball(FlashSprite):
 
     self.param = param
 
-    self.living_frame = 0
+    self.frame = 0
     self.action = self.Action.STOP
     self.acquirement_points: dict[int, int] = {}
     self.dead = False
@@ -481,7 +480,8 @@ class Ball(FlashSprite):
 
   def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
     super().update(stopwatch, snapshot)
-    self.living_frame += 1
+
+    self.frame += 1
 
     if self.stopping:
       pass
@@ -586,10 +586,9 @@ class Scene(BaseScene[Snapshot]):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
-    music_box: MusicBox,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, music_box, snapshot)
+    super().__init__(config, string_res, stopwatch, snapshot)
 
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)

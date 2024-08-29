@@ -107,7 +107,7 @@ class Timer:
     self.offset_msec = 0
 
 
-class TextScriber:
+class TextScriber():
   FOLDER = 'font'
   DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
   CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
@@ -121,14 +121,14 @@ class TextScriber:
     },
   }
 
+  _instance: Self | None = None
+  _writers: dict[str, puf.Writer] = {}
+
   def __new__(cls, *args, **kwargs):
     if cls._instance is None:
       cls._instance = super(TextScriber, cls).__new__(cls)
-      print('text scriber create')
+      print('text scriber create', cls._instance)
     return cls._instance
-
-  def __init__(self) -> None:
-    self.writers: dict[str, puf.Writer] = {}
 
   @classmethod
   def word_size(cls, font_size: int) -> Size:
@@ -139,12 +139,12 @@ class TextScriber:
     if font not in puf.get_available_fonts():
       font = self.DEFAULT_FONT_FILE
 
-    if font not in self.writers:
+    if font not in self._writers:
       writer = puf.Writer(font)
-      print('new font', font, writer)
-      self.writers[font] = writer
+      print('new font', font, writer, self._writers)
+      self._writers[font] = writer
 
-    return self.writers[font]
+    return self._writers[font]
 
 
 class Dice:

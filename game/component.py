@@ -2,7 +2,7 @@ from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import (
   Coordinate, Size, Stopwatch, TextScriber,
-  Image, TileMap, SoundEffect, Music,
+  Image, TileMap, SoundEffect,
 )
 import pyxel
 
@@ -379,19 +379,3 @@ class GamePad:
         return True
 
     return False
-
-
-class MusicBox:
-  def __init__(self) -> None:
-    self.music: Music | None = None
-
-  def play(self, music: Music) -> None:
-    if self.music is not None:
-      self.music.stop()
-
-    self.music = music
-    self.music.play()
-
-  def stop(self) -> None:
-    if self.music is not None:
-      self.music.stop()
