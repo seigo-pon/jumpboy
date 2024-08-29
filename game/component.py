@@ -296,7 +296,7 @@ class Text(Subject, Movable):
     ).draw(
       self.origin.x,
       self.origin.y,
-      self.string,
+      self.string.upper(),
       self.font_size,
       self.text_color,
     )

@@ -551,6 +551,7 @@ class Snapshot(BaseSnapshot):
         'stage': score.level.stage,
         'point': score.point,
       } for score in self.score_board.scores],
+      'level': self.level.mode,
     }
 
   def from_json(self, data: dict) -> None:
@@ -565,6 +566,9 @@ class Snapshot(BaseSnapshot):
           )
         )
       self.score_board.scores = scores
+
+    if 'level' in data:
+      self.level = GameLevel(int(data['level']), 0)
 
 
 class Scene(BaseScene[Snapshot]):

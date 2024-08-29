@@ -165,16 +165,6 @@ class Scene(Generic[TSnapshot]):
     self.time_seq = TimeSeq([])
 
   @property
-  def title(self) -> str:
-    return self.config.title
-
-  @title.setter
-  def title(self, value: str) -> None:
-    self.config.title = value
-    pyxel.title(self.config.title)
-    print('title', self.config.title)
-
-  @property
   def updating_variations(self) -> list[Any]:
     raise RuntimeError()
 

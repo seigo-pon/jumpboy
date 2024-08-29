@@ -83,14 +83,14 @@ class GameLevelAll(Enum):
     if level.mode == GameLevelMode.NORMAL:
       if level.stage == GameLevelAll.NORMAL_1.value.stage:
         return Field(
-          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color) for _ in range(3)],
+          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(2.5, 2), AssetImage.Pose.NORMAL, config.transparent_color)],
           [],
           config.window_size,
           GROUND_TOP,
         )
       elif level.stage == GameLevelAll.NORMAL_2.value.stage:
         return Field(
-          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(1, 2), AssetImage.Pose.NORMAL, config.transparent_color) for _ in range(3)],
+          [TileMap(TILE_ID, Coordinate(FIELD_TILE_X, 0), Size(2.5, 2), AssetImage.Pose.NORMAL, config.transparent_color)],
           [
             Obstacle(
               Collision(
@@ -373,7 +373,7 @@ class OpeningScene(BaseScene):
     )
 
     self.snapshot.load(self.config.path)
-    self.title = self.string(GAME_TITLE[self.snapshot.level.mode])
+    self.config.title = self.string(GAME_TITLE[self.snapshot.level.mode])
 
     self.title_text: Text | None = None
 
@@ -571,7 +571,7 @@ class TitleScene(BaseScene):
     if self.show_start:
       subjects.append(self.start_text)
 
-    copyright_text = self.text('© {} {}'.format(self.config.released_year, self.config.copyright))
+    copyright_text = self.text('© {} {}'.format(self.config.released_year, self.config.copyright.upper))
     copyright_text.center = self.menu_middle_bottom_center()
     subjects.append(copyright_text)
 
