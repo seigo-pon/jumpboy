@@ -3,6 +3,12 @@ from game import Coordinate, Size
 import pyxel
 
 
+class AssetId:
+  def __init__(self, id: int, x: int) -> None:
+    self.id = id
+    self.x = x
+
+
 class AssetImage:
   class Pose(IntEnum):
     NORMAL = 0

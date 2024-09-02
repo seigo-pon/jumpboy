@@ -481,6 +481,7 @@ class Ball(FlashSprite):
   def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
     super().update(stopwatch, snapshot)
 
+    self.bounced = False
     self.frame += 1
 
     if self.stopping:
@@ -488,6 +489,7 @@ class Ball(FlashSprite):
 
     elif self.rolling:
       next_x = self.origin.x + self.param.rolling_distance * (1 if self.rolling_direction else -1)
+
       if not self.rolling_direction:
         left_end = snapshot.field.left_end(Coordinate(next_x, self.origin.y))
         if left_end is not None:
@@ -495,7 +497,7 @@ class Ball(FlashSprite):
             next_x = left_end
             self.rolling_direction = True
             self.bounced = True
-            print('ball roll direction +', self.id, self.rolling_direction)
+            print('ball roll direction', self.id, self.rolling_direction, next_x)
             self.sounds[self.Sound.CRASH].play()
       else:
         right_end = snapshot.field.right_end(Coordinate(next_x, self.origin.y))
@@ -505,7 +507,7 @@ class Ball(FlashSprite):
             next_x = right_end
             self.rolling_direction = False
             self.bounced = True
-            print('ball roll direction -', self.id, self.rolling_direction)
+            print('ball roll direction', self.id, self.rolling_direction, next_x)
             self.sounds[self.Sound.CRASH].play()
 
       self.origin = Coordinate(next_x, self.origin.y)
