@@ -14,7 +14,7 @@ class ImageId:
 
 class SoundCh:
   JUMPER = 2
-  BALL = 2
+  BALL = 3
   SCENE = 3
 
 

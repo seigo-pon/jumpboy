@@ -39,7 +39,7 @@ class GameDesign:
         GameLevelStage.STAGE_3,
       ]:
         field = Field(
-          [TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 2), Image.Pose.NORMAL)],
+          [TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
           [],
           config.window_size,
           cls.FieldSurface.NORMAL,
@@ -52,17 +52,17 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         field = Field(
-          [TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 2), Image.Pose.NORMAL)],
+          [TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
           [
             Obstacle(
               Collision(
-                Coordinate(0, cls.GROUND_TOP-Image.basic_size().height),
+                Coordinate(0, cls.GROUND_TOP-Image.basic_size().height*2),
                 Size(0, Image.basic_size().height),
               ),
             ),
             Obstacle(
               Collision(
-                Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height),
+                Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height*2),
                 Size(0, Image.basic_size().height),
               ),
             ),
@@ -116,89 +116,17 @@ class GameDesign:
     if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelStage.STAGE_1,
-      ]:
-        ball = Ball(
-            {
-              Ball.Motion.ANGLE_0: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.NORMAL),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.ANGLE_90: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.MIRROR_Y),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.ANGLE_180: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.MIRROR_XY),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.ANGLE_270: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.MIRROR_X),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.BURST: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 1), Size(1, 1), Image.Pose.NORMAL),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-            },
-            {
-              Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
-              Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
-              Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
-            },
-            Ball.Param(
-              2,
-              1,
-              {
-                Ball.Action.ROLL: 10,
-                Ball.Action.BURST: 30
-              },
-            ),
-          )
-
-      elif level.stage in [
         GameLevelStage.STAGE_2,
-      ]:
-        ball = Ball(
-            {
-              Ball.Motion.ANGLE_0: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.NORMAL),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.ANGLE_90: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.MIRROR_Y),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.ANGLE_180: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.MIRROR_XY),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.ANGLE_270: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.MIRROR_X),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-              Ball.Motion.BURST: Block(
-                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 1), Size(1, 1), Image.Pose.NORMAL),
-                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
-              ),
-            },
-            {
-              Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
-              Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
-              Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
-            },
-            Ball.Param(
-              Dice.roll(1)+2,
-              1,
-              {
-                Ball.Action.ROLL: 10,
-                Ball.Action.BURST: 30
-              },
-            ),
-          )
-
-      elif level.stage in [
         GameLevelStage.STAGE_3,
       ]:
+        distance = 1
+        if level.stage == GameLevelStage.STAGE_1:
+          distance = 2
+        elif level.stage == GameLevelStage.STAGE_2:
+          distance = Dice.roll(1)+2
+        elif level.stage == GameLevelStage.STAGE_3:
+          distance = Dice.roll(2)+1
+
         ball = Ball(
             {
               Ball.Motion.ANGLE_0: Block(
@@ -228,11 +156,62 @@ class GameDesign:
               Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
             },
             Ball.Param(
-              Dice.roll(2)+1,
+              distance,
               1,
               {
                 Ball.Action.ROLL: 10,
                 Ball.Action.BURST: 30
+              },
+            ),
+          )
+
+      elif level.stage in [
+        GameLevelStage.STAGE_4,
+        GameLevelStage.STAGE_5,
+        GameLevelStage.STAGE_6,
+      ]:
+        distance = 1
+        if level.stage == GameLevelStage.STAGE_4:
+          distance = 2
+        elif level.stage == GameLevelStage.STAGE_5:
+          distance = Dice.roll(1)+2
+        elif level.stage == GameLevelStage.STAGE_6:
+          distance = Dice.roll(2)+1
+
+        ball = Ball(
+            {
+              Ball.Motion.ANGLE_0: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.NORMAL),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_90: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.MIRROR_Y),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_180: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.MIRROR_XY),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_270: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.MIRROR_X),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.BURST: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 1), Size(1, 1), Image.Pose.NORMAL),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+            },
+            {
+              Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
+              Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
+              Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
+            },
+            Ball.Param(
+              distance,
+              1,
+              {
+                Ball.Action.ROLL: 20,
+                Ball.Action.BURST: 40
               },
             ),
           )
