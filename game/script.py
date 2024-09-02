@@ -5,6 +5,13 @@ from game import Size, Path, Stopwatch, Timer, Music
 import json
 import os
 import pyxel
+try:
+  import js
+  print('pyodide loaded')
+  js_import = True
+except:
+  js_import = False
+  print('pyodide no loaded')
 
 
 class GameConfig:
@@ -50,11 +57,11 @@ class StringRes:
 
 
 class Snapshot:
-  SNAPSHOT_FOLDER = 'snapshot'
+  SNAPSHOT_NAME = 'snapshot'
   FILE_MAX_COUNT = 5
 
   def folder(self, path: Path) -> str:
-    return os.path.join(path.root, self.SNAPSHOT_FOLDER)
+    return os.path.join(path.root, self.SNAPSHOT_NAME)
 
   def to_json(self) -> dict:
     raise RuntimeError()
@@ -63,41 +70,53 @@ class Snapshot:
     raise RuntimeError()
 
   def save(self, path: Path) -> None:
-    folder = self.folder(path)
-    print('snapshot folder', folder)
-    if not os.path.exists(folder):
-      os.mkdir(folder)
-
-    if os.path.exists(folder):
-      files = os.listdir(folder)
-      delta_file_count = len(files)-self.FILE_MAX_COUNT
-      if delta_file_count > 0:
-        files = sorted(files)
-        for index in range(delta_file_count):
-          print('delete snapshot old file', files[index])
-          os.remove(os.path.join(folder, files[index]))
-
-    file_path = os.path.join(folder, '{}.json'.format(datetime.now().timestamp()))
-    with open(file_path, mode='w') as f:
+    if js_import:
       json_data = self.to_json()
-      print('snapshot save', file_path, json_data)
-      json.dump(json_data, f)
+      print('snapshot save', json_data)
+      js.window.localStorage.setItem(self.SNAPSHOT_NAME, json.dumps(json_data))
+    else:
+      folder = self.folder(path)
+      print('snapshot folder', folder)
+      if not os.path.exists(folder):
+        os.mkdir(folder)
+
+      if os.path.exists(folder):
+        files = os.listdir(folder)
+        delta_file_count = len(files)-self.FILE_MAX_COUNT
+        if delta_file_count > 0:
+          files = sorted(files)
+          for index in range(delta_file_count):
+            print('delete snapshot old file', files[index])
+            os.remove(os.path.join(folder, files[index]))
+
+      file_path = os.path.join(folder, '{}.json'.format(datetime.now().timestamp()))
+      with open(file_path, mode='w') as f:
+        json_data = self.to_json()
+        print('snapshot save', file_path, json_data)
+        json.dump(json_data, f)
 
   def load(self, path: Path) -> None:
-    files = []
-    folder = self.folder(path)
-    print('snapshot folder', folder)
-
-    if os.path.exists(folder):
-      files = os.listdir(folder)
-
-    if len(files) > 0:
-      files = sorted(files, reverse=True)
-      file_path = os.path.join(self.folder(path), files[0])
-      with open(file_path, mode='r') as f:
-        json_data = json.load(f)
-        print('snapshot save', file_path, json_data)
+    if js_import:
+      json_str = js.window.localStorage.getItem(self.SNAPSHOT_NAME)
+      if json_str is not None and json_str != '':
+        json_data = json.loads(json_str)
+        print('snapshot load', json_data)
         self.from_json(json_data)
+    else:
+      files = []
+      folder = self.folder(path)
+      print('snapshot folder', folder)
+
+      if os.path.exists(folder):
+        files = os.listdir(folder)
+
+      if len(files) > 0:
+        files = sorted(files, reverse=True)
+        file_path = os.path.join(self.folder(path), files[0])
+        with open(file_path, mode='r') as f:
+          json_data = json.load(f)
+          print('snapshot load', file_path, json_data)
+          self.from_json(json_data)
 
 
 class Seq:

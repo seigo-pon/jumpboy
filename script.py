@@ -30,14 +30,14 @@ SCORE: dict[int, str] = {
 }
 
 class SceneSound:
-  READY = SoundEffect(SoundCh.SCENE, SoundId.SCENE+0),
-  PAUSE = SoundEffect(SoundCh.SCENE, SoundId.SCENE+1),
-  TIME_UP = SoundEffect(SoundCh.SCENE, SoundId.SCENE+2),
-  GAME_OVER = SoundEffect(SoundCh.SCENE, SoundId.SCENE+3),
-  STAGE_CLEAR = SoundEffect(SoundCh.SCENE, SoundId.SCENE+4),
-  SELECT = SoundEffect(SoundCh.SCENE, SoundId.SCENE+5),
-  RESTART = SoundEffect(SoundCh.SCENE, SoundId.SCENE+6),
-  START = SoundEffect(SoundCh.SCENE, SoundId.SCENE+7),
+  READY = SoundEffect(SoundCh.SCENE, SoundId.SCENE+0)
+  PAUSE = SoundEffect(SoundCh.SCENE, SoundId.SCENE+1)
+  TIME_UP = SoundEffect(SoundCh.SCENE, SoundId.SCENE+2)
+  GAME_OVER = SoundEffect(SoundCh.SCENE, SoundId.SCENE+3)
+  STAGE_CLEAR = SoundEffect(SoundCh.SCENE, SoundId.SCENE+4)
+  SELECT = SoundEffect(SoundCh.SCENE, SoundId.SCENE+5)
+  RESTART = SoundEffect(SoundCh.SCENE, SoundId.SCENE+6)
+  START = SoundEffect(SoundCh.SCENE, SoundId.SCENE+7)
 
 
 class BaseScene(Scene):
@@ -135,14 +135,23 @@ class BaseScene(Scene):
     self.snapshot.jumper.origin = self.jumper_ready_origin(self.snapshot.jumper)
 
   def to_next_level(cls, level: GameLevel) -> GameLevel | None:
-    levels = [e.value for e in GameLevelStage]
-    for (index, value) in enumerate(levels):
-      if value.mode == level.mode and value.stage == level.stage:
+    stages = [e for e in GameLevelStage]
+    for (index, stage) in enumerate(stages):
+      if stage == level.stage:
+        index += 1
+        if index < len(stages):
+          next_stage = stages[index]
+          print('next stage', next_stage)
+          return GameLevel(level.mode, next_stage)
+
+    levels = [e for e in GameLevelMode]
+    for (index, mode) in enumerate(levels):
+      if mode == level.mode:
         index += 1
         if index < len(levels):
           next_level = levels[index]
-          print('next level', next_level)
-          return next_level
+          print('next stage', next_level)
+          return GameLevel(next_level, GameLevelStage.STAGE_1)
 
     print('next level none')
     return None
@@ -179,7 +188,7 @@ class OpeningScene(BaseScene):
 
   def __init__(self, config: GameConfig, string_res: StringRes) -> None:
     stopwatch = Stopwatch(config.fps)
-    level = GameLevelStage.NORMAL_1.value
+    level = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
     super().__init__(
       config,
@@ -643,6 +652,8 @@ class PlayScene(BaseStageScene):
               print('ball bounced')
               self.point += ball.acquirement_point
 
+      self.snapshot.balls = next_balls
+
       if self.snapshot.jumper.falling_down:
         self.play_timer.pause()
         for ball in self.snapshot.balls:
@@ -739,7 +750,7 @@ class GameOverScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
-        self.snapshot.level = GameLevelStage.NORMAL_1.value
+        self.snapshot.level = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
         self.initial_sprites()
         self.snapshot.save(self.config.path)
         return TitleScene(self)
@@ -775,6 +786,7 @@ class StageClearScene(BaseStageScene):
 
     self.show_clear = False
     self.show_next = False
+    self.walked_jumper = False
 
     def _wait_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.jumping:
@@ -807,6 +819,10 @@ class StageClearScene(BaseStageScene):
             self.snapshot.jumper.walk(self.snapshot.field.left-self.snapshot.jumper.size.width)
       else:
         if not self.snapshot.jumper.walking:
+          if not self.same_surface and not self.walked_jumper:
+            timer.limit_msec = 3000
+            timer.reset()
+            self.walked_jumper = True
           return True
 
       return False
@@ -815,7 +831,6 @@ class StageClearScene(BaseStageScene):
       Seq(self.stopwatch, 0, _wait_jumper, None),
       Seq(self.stopwatch, 1000, _show_clear, None),
       Seq(self.stopwatch, 2000, _show_next, None),
-      Seq(self.stopwatch, 3000, lambda x, y: True, None),
     ])
 
   def update(self) -> Self | Any:
@@ -843,7 +858,7 @@ class StageClearScene(BaseStageScene):
       clear_text.center = self.subtitle_center()
       subjects.append(clear_text)
 
-    if self.show_next:
+    if self.show_next and not self.same_surface:
       next_text = self.text(self.string('stage_clear_text'))
       next_text.center = self.menu_middle_center()
       subjects.append(next_text)
@@ -898,7 +913,7 @@ class GameClearScene(BaseStageScene):
       if self.next_level is not None:
         self.snapshot.level = self.next_level
       else:
-        self.snapshot.level = GameLevelStage.NORMAL_1.value
+        self.snapshot.level = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
       self.initial_sprites()
       self.snapshot.save(self.config.path)
       return TitleScene(self)
