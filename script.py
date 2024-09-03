@@ -653,14 +653,16 @@ class PlayScene(BaseStageScene):
 
       stopped = False
       if len(self.snapshot.balls) > 0:
-        balls = filter(lambda x: x.stopping, [ball for ball in self.snapshot.balls])
+        last_ball: Ball | None = None
         balls = sorted([ball for ball in self.snapshot.balls], key=lambda x: x.living_msec, reverse=True)
         for ball in balls:
           if ball.stopping:
-            if ball.rolled_timer.over:
+            if GameDesign.can_roll_ball(self.snapshot.level, self.snapshot.field, ball, last_ball):
               ball.roll()
             else:
               stopped = True
+          else:
+            last_ball = ball
 
       if not stopped:
         next_msec = GameDesign.next_ball_msec(self.snapshot.level, self.snapshot.balls)

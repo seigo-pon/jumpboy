@@ -256,6 +256,42 @@ class GameDesign:
     return msec
 
   @classmethod
+  def can_roll_ball(cls, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
+    roll = False
+    if ball.rolled_timer.over:
+      roll = True
+
+    if last_ball is not None:
+      if last_ball.param.rolling_distance < ball.param.rolling_distance:
+        if level.mode == GameLevelMode.NORMAL:
+          if level.stage in [
+            GameLevelStage.STAGE_1,
+            GameLevelStage.STAGE_2,
+          ]:
+            distance = field.max_size.width/2
+
+          elif level.stage in [
+            GameLevelStage.STAGE_3,
+          ]:
+            distance = field.max_size.width/3
+
+          elif level.stage in [
+            GameLevelStage.STAGE_4,
+            GameLevelStage.STAGE_5,
+          ]:
+            distance = field.max_size.width/2
+
+          elif level.stage in [
+            GameLevelStage.STAGE_6,
+          ]:
+            distance = field.max_size.width/3
+
+        if last_ball.origin.x < distance:
+          roll = False
+
+    return roll
+
+  @classmethod
   def play_limit_msec(cls, level: GameLevel) -> int:
     if level.mode == GameLevelMode.NORMAL:
       if level.stage in [

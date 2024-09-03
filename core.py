@@ -466,8 +466,8 @@ class Ball(FlashSprite):
 
   def roll_msec(self, stopwatch: Stopwatch, rolled_msec: int) -> None:
     if self.stopping:
-      print('ball roll', self.id, rolled_msec)
       if rolled_msec > 0:
+        print('ball roll wait', self.id, rolled_msec)
         self.rolled_timer = Timer.set_msec(stopwatch, rolled_msec, True)
       else:
         self.roll()
