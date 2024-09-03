@@ -18,6 +18,9 @@
 ### Sound effect
 - [8bit_taste_game_se](https://booth.pm/ja/items/2576189)
 
+### BGM
+- [8bit-bgm-generator](https://github.com/shiromofufactory/8bit-bgm-generator?tab=readme-ov-file)
+
 ## Getting start
 ```bash
 # Install library.

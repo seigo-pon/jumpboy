@@ -13,6 +13,7 @@ from assetid import TileId, ImageId, SoundCh, SoundId
 
 class GameLevelMode(IntEnum):
   NORMAL = 0
+  HARD = 0
 
 class GameLevelStage(IntEnum):
   STAGE_1 = 0
@@ -106,6 +107,47 @@ class GameDesign:
           Jumper.Sound.FALL_DOWN: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+2),
           Jumper.Sound.JOY: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+3),
           Jumper.Sound.DAMAGE: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+4),
+        },
+        stopwatch=stopwatch,
+        param=Jumper.Param(
+          max_life=3,
+          max_accel=-10,
+          walking_distance=0.5,
+          walking_period=4,
+          joying_repeat_count=3,
+        ),
+      )
+
+    elif level.mode == GameLevelMode.HARD:
+      jumper = Jumper(
+        motions={
+          Jumper.Motion.STOP: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 5), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.WALK: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 6), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JUMP: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 7), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.FALL_DOWN: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 8), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JOY: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 9), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+        },
+        sounds={
+          Jumper.Sound.WALK: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+5),
+          Jumper.Sound.JUMP: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+6),
+          Jumper.Sound.FALL_DOWN: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+7),
+          Jumper.Sound.JOY: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+8),
+          Jumper.Sound.DAMAGE: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+9),
         },
         stopwatch=stopwatch,
         param=Jumper.Param(
