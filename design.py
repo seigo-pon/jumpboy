@@ -1,6 +1,6 @@
 from enum import IntEnum
 from game import (
-  Coordinate, Size, Dice,
+  Coordinate, Size, Stopwatch, Dice,
   Image, TileMap, SoundEffect,
   Collision, Block, Obstacle,
   GameConfig,
@@ -39,11 +39,11 @@ class GameDesign:
         GameLevelStage.STAGE_3,
       ]:
         field = Field(
-          [TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
-          [],
-          config.window_size,
-          cls.FieldSurface.NORMAL,
-          cls.GROUND_TOP,
+          background_tiles=[TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
+          obstacles=[],
+          max_size=config.window_size,
+          surface=cls.FieldSurface.NORMAL,
+          ground_height=cls.GROUND_TOP,
         )
 
       elif level.stage in [
@@ -52,33 +52,33 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         field = Field(
-          [TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
-          [
+          background_tiles=[TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
+          obstacles=[
             Obstacle(
               Collision(
                 Coordinate(0, cls.GROUND_TOP-Image.basic_size().height*2),
-                Size(0, Image.basic_size().height),
+                Size(1, Image.basic_size().height*2),
               ),
             ),
             Obstacle(
               Collision(
                 Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height*2),
-                Size(0, Image.basic_size().height),
+                Size(1, Image.basic_size().height*2),
               ),
             ),
           ],
-          config.window_size,
-          cls.FieldSurface.FENCE,
-          cls.GROUND_TOP,
+          max_size=config.window_size,
+          surface=cls.FieldSurface.FENCE,
+          ground_height=cls.GROUND_TOP,
         )
 
     return field
 
   @classmethod
-  def jumper(cls, level: GameLevel) -> Jumper:
+  def jumper(cls, level: GameLevel, stopwatch: Stopwatch) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
-        {
+        motions={
           Jumper.Motion.STOP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 0), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
@@ -99,20 +99,27 @@ class GameDesign:
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
         },
-        {
+        sounds={
           Jumper.Sound.WALK: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+0),
           Jumper.Sound.JUMP: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+1),
           Jumper.Sound.FALL_DOWN: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+2),
           Jumper.Sound.JOY: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+3),
           Jumper.Sound.DAMAGE: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+4),
         },
-        Jumper.Param(3, -10, 0.5, 4, 3),
+        stopwatch=stopwatch,
+        param=Jumper.Param(
+          max_life=3,
+          max_accel=-10,
+          walking_distance=0.5,
+          walking_period=4,
+          joying_repeat_count=3,
+        ),
       )
 
     return jumper
 
   @classmethod
-  def ball(cls, level: GameLevel) -> Ball:
+  def ball(cls, level: GameLevel, stopwatch: Stopwatch) -> Ball:
     if level.mode == GameLevelMode.NORMAL:
       if level.stage in [
         GameLevelStage.STAGE_1,
@@ -128,7 +135,7 @@ class GameDesign:
           distance = Dice.roll(2)+1
 
         ball = Ball(
-            {
+            motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.NORMAL),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
@@ -150,15 +157,16 @@ class GameDesign:
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
             },
-            {
+            sounds={
               Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
               Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
               Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
             },
-            Ball.Param(
-              distance,
-              1,
-              {
+            stopwatch=stopwatch,
+            param=Ball.Param(
+              rolling_distance=distance,
+              rolling_period=1,
+              default_acquirement_points={
                 Ball.Action.ROLL: 10,
                 Ball.Action.BURST: 30
               },
@@ -179,7 +187,7 @@ class GameDesign:
           distance = Dice.roll(2)+1
 
         ball = Ball(
-            {
+            motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.NORMAL),
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
@@ -201,15 +209,15 @@ class GameDesign:
                 Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
               ),
             },
-            {
+            sounds={
               Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
               Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
               Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
             },
-            Ball.Param(
-              distance,
-              1,
-              {
+            param=Ball.Param(
+              rolling_distance=distance,
+              rolling_period=1,
+              default_acquirement_points={
                 Ball.Action.ROLL: 20,
                 Ball.Action.BURST: 40
               },
@@ -219,44 +227,33 @@ class GameDesign:
     return ball
 
   @classmethod
-  def next_ball(cls, level: GameLevel, config: GameConfig, balls: list[Ball]) -> bool:
-    next_ball = False
+  def next_ball_msec(cls, level: GameLevel, balls: list[Ball]) -> int:
+    msec = 0
     if len(balls) > 0:
-      balls = sorted([ball for ball in balls], key=lambda x: x.frame)
-    else:
-      next_ball = True
-
-    if not next_ball:
       if level.mode == GameLevelMode.NORMAL:
         if level.stage in [
           GameLevelStage.STAGE_1,
           GameLevelStage.STAGE_2,
         ]:
-          if balls[0].frame >= config.frame_count(2000):
-            next_ball = True
+          msec = 2000
 
         elif level.stage in [
           GameLevelStage.STAGE_3,
         ]:
-          if balls[0].frame >= config.frame_count((Dice.roll(1)+2)*1000):
-            next_ball = True
+          msec = (Dice.roll(1)+2)*1000
 
         elif level.stage in [
           GameLevelStage.STAGE_4,
           GameLevelStage.STAGE_5,
         ]:
-          if len(balls) < 2:
-            if balls[0].frame >= config.frame_count(2000):
-              next_ball = True
+          msec = 2000
 
         elif level.stage in [
           GameLevelStage.STAGE_6,
         ]:
-          if len(balls) < 3:
-            if balls[0].frame >= config.frame_count((Dice.roll(2)+1)*1000):
-              next_ball = True
+          msec = (Dice.roll(2)+1)*1000
 
-    return next_ball
+    return msec
 
   @classmethod
   def play_limit_msec(cls, level: GameLevel) -> int:

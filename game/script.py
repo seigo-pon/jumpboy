@@ -33,9 +33,6 @@ class GameConfig:
     self.released_year = released_year
     self.debug = debug
 
-  def frame_count(self, msec: int) -> int:
-    return int((msec/1000)*self.fps)
-
 
 class Language(StrEnum):
   EN = 'en'

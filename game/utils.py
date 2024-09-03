@@ -94,9 +94,10 @@ class Timer:
     return self.first_frame is not None
 
   def pause(self) -> None:
-    if self.msec is not None:
-      self.offset_msec = self.msec
-      self.first_frame = None
+    if self.first_frame is not None:
+      if self.msec is not None:
+        self.offset_msec = self.msec
+        self.first_frame = None
 
   def resume(self) -> None:
     if self.first_frame is None:

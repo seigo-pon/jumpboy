@@ -116,13 +116,14 @@ class BaseScene(Scene):
   def text(self, string: str) -> Text:
     return Text(string, TEXT_COLOR, TEXT_FONT_SIZE, False)
 
-  def blink_text(self, string: str, blink_period: int, show: bool) -> BlinkText:
+  def blink_text(self, string: str, blinked_msec: int, show: bool) -> BlinkText:
     return BlinkText(
       string,
       TEXT_COLOR,
       TEXT_FONT_SIZE,
       False,
-      blink_period,
+      self.stopwatch,
+      blinked_msec,
       show,
     )
 
@@ -131,7 +132,7 @@ class BaseScene(Scene):
 
     self.snapshot.balls = []
 
-    self.snapshot.jumper = GameDesign.jumper(self.snapshot.level)
+    self.snapshot.jumper = GameDesign.jumper(self.snapshot.level, self.stopwatch)
     self.snapshot.jumper.origin = self.jumper_ready_origin(self.snapshot.jumper)
 
   def to_next_level(cls, level: GameLevel) -> GameLevel | None:
@@ -191,17 +192,17 @@ class OpeningScene(BaseScene):
     level = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
     super().__init__(
-      config,
-      string_res,
-      stopwatch,
-      Snapshot(
+      config=config,
+      string_res=string_res,
+      stopwatch=stopwatch,
+      snapshot=Snapshot(
         Language.EN,
         GamePad(),
         ScoreBoard(),
         level,
         GameDesign.field(level, config),
         [],
-        GameDesign.jumper(level),
+        GameDesign.jumper(level, self.stopwatch),
       ),
     )
 
@@ -271,22 +272,13 @@ class TitleScene(BaseScene):
   SCORE_RANKING_NUM = 3
 
   def __init__(self, scene: Scene) -> None:
-    super().__init__(
-      scene.config,
-      scene.string_res,
-      scene.stopwatch,
-      scene.snapshot,
-    )
+    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.snapshot)
 
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
 
     self.show_start = True
-    self.start_text = self.blink_text(
-      self.string('game_start_text'),
-      self.config.frame_count(1000),
-      False,
-    )
+    self.start_text = self.blink_text(self.string('game_start_text'), 1000, False)
     self.start_text.center = self.menu_middle_center()
     self.wait_start = False
 
@@ -384,7 +376,7 @@ class TitleScene(BaseScene):
     if not self.wait_start:
       if self.snapshot.game_pad.enter(False):
         self.wait_start = True
-        self.start_text.update_blink_period(self.config.frame_count(100), True)
+        self.start_text.update_blinked_msec(100, True)
         self.time_seq = TimeSeq([
           Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None)),
         ])
@@ -413,12 +405,7 @@ class TitleScene(BaseScene):
 
 class BaseStageScene(BaseScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
-    super().__init__(
-      scene.config,
-      scene.string_res,
-      scene.stopwatch,
-      scene.snapshot,
-    )
+    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.snapshot)
 
     self.point = point
     self.play_timer = play_timer
@@ -600,13 +587,16 @@ class PlayScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
+    for ball in self.snapshot.balls:
+      ball.resume()
+    self.snapshot.jumper.resume()
+
     if self.play_timer is not None:
       self.play_timer.resume()
 
   def update(self) -> Self | Any:
     if self.play_timer is not None:
       if self.snapshot.game_pad.cancel():
-        self.play_timer.pause()
         SceneSound.PAUSE.play()
         return PauseScene(self, self.point, self.play_timer)
 
@@ -655,24 +645,29 @@ class PlayScene(BaseStageScene):
       self.snapshot.balls = next_balls
 
       if self.snapshot.jumper.falling_down:
-        self.play_timer.pause()
-        for ball in self.snapshot.balls:
-          ball.stop()
         return GameOverScene(self, self.point, self.play_timer)
 
       if self.play_timer.over:
-        self.play_timer.pause()
-        for ball in self.snapshot.balls:
-          ball.stop()
-        self.snapshot.jumper.stop()
         SceneSound.TIME_UP.play()
         return StageClearScene(self, self.point, self.play_timer)
 
-      if GameDesign.next_ball(self.snapshot.level, self.config, self.snapshot.balls):
-        ball = GameDesign.ball(self.snapshot.level)
-        ball.origin = self.ball_ready_origin(ball)
-        ball.roll()
-        self.snapshot.balls.append(ball)
+      stopped = False
+      if len(self.snapshot.balls) > 0:
+        balls = filter(lambda x: x.stopping, [ball for ball in self.snapshot.balls])
+        balls = sorted([ball for ball in self.snapshot.balls], key=lambda x: x.living_msec, reverse=True)
+        for ball in balls:
+          if ball.stopping:
+            if ball.rolled_timer.over:
+              ball.roll()
+            else:
+              stopped = True
+
+      if not stopped:
+        next_msec = GameDesign.next_ball_msec(self.snapshot.level, self.snapshot.balls)
+        stopping_ball = GameDesign.ball(self.snapshot.level, self.stopwatch)
+        stopping_ball.origin = self.ball_ready_origin(stopping_ball)
+        stopping_ball.roll_msec(self.stopwatch, next_msec)
+        self.snapshot.balls.append(stopping_ball)
 
     return super().update()
 
@@ -681,11 +676,12 @@ class PauseScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
-    self.pause_text = self.blink_text(
-      self.string('game_pause_text'),
-      self.config.frame_count(1000),
-      True,
-    )
+    self.play_timer.pause()
+    for ball in self.snapshot.balls:
+      ball.pause()
+    self.snapshot.jumper.pause()
+
+    self.pause_text = self.blink_text(self.string('game_pause_text'), 1000, True)
 
   @property
   def updating_variations(self) -> list[Any]:
@@ -712,17 +708,17 @@ class GameOverScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
+    self.play_timer.pause()
+    for ball in self.snapshot.balls:
+      ball.stop()
+
     self.record_score()
     self.snapshot.save(self.config.path)
 
     self.show_game_over = False
     self.show_game_end = False
 
-    self.restart_text = self.blink_text(
-      self.string('game_restart_text'),
-      self.config.frame_count(1000),
-      False,
-    )
+    self.restart_text = self.blink_text(self.string('game_restart_text'), 1000, False)
 
     def _show_game_over(start: bool, timer: Timer) -> bool:
       self.show_game_over = True
@@ -780,6 +776,11 @@ class GameOverScene(BaseStageScene):
 class StageClearScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
+
+    self.play_timer.pause()
+    for ball in self.snapshot.balls:
+      ball.stop()
+    self.snapshot.jumper.stop()
 
     self.next_level: GameLevel | None = self.snapshot.level
     self.same_surface = False

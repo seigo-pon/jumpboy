@@ -24,13 +24,13 @@ class App:
     path = Path(__file__, ASSET_FOLDER)
     string_res = StringRes(path)
     config = GameConfig(
-      path,
-      string_res.string('game_title_1', Language.EN),
-      GAME_WINDOW_SIZE,
-      FPS,
-      COPYRIGHT,
-      RELEASED_YEAR,
-      DEBUG,
+      path=path,
+      title=string_res.string('game_title_1', Language.EN),
+      window_size=GAME_WINDOW_SIZE,
+      fps=FPS,
+      copyright=COPYRIGHT,
+      released_year=RELEASED_YEAR,
+      debug=DEBUG,
     )
 
     self.engine = GameEngine(

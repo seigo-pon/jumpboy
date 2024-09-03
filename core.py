@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Any, TypeVar
 from game import (
-  Coordinate, Size, Dice, Stopwatch,
+  Coordinate, Size, Dice, Stopwatch, Timer,
   TileMap, SoundEffect,
   Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad,
   GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
@@ -144,8 +144,8 @@ class Jumper(FlashSprite):
     FALL_DOWN = 3
     JOY = 3
 
-  FLASH_PERIOD = 4
-  MAX_FLASH_COUNT = 30
+  FLASH_MSEC = 150
+  MAX_FLASH_COUNT = 5
 
   class Param:
     def __init__(
@@ -166,9 +166,10 @@ class Jumper(FlashSprite):
     self,
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
+    stopwatch: Stopwatch,
     param: Param,
   ) -> None:
-    super().__init__(motions, sounds, self.FLASH_PERIOD, self.MAX_FLASH_COUNT)
+    super().__init__(motions, sounds, stopwatch, self.FLASH_MSEC, self.MAX_FLASH_COUNT)
 
     self.param = param
 
@@ -405,8 +406,8 @@ class Ball(FlashSprite):
     CRASH = 1
     BURST = 2
 
-  FLASH_PERIOD = 2
-  MAX_FLASH_COUNT = 30
+  FLASH_MSEC = 50
+  MAX_FLASH_COUNT = 5
 
   class Param:
     def __init__(
@@ -423,14 +424,15 @@ class Ball(FlashSprite):
     self,
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
+    stopwatch: Stopwatch,
     param: Param,
   ) -> None:
-    super().__init__(motions, sounds, self.FLASH_PERIOD, self.MAX_FLASH_COUNT)
+    super().__init__(motions, sounds, stopwatch, self.FLASH_MSEC, self.MAX_FLASH_COUNT)
 
     self.param = param
 
-    self.frame = 0
     self.action = self.Action.STOP
+    self.rolled_timer: Timer | None = None
     self.acquirement_points: dict[int, int] = {}
     self.dead = False
     self.rolling_direction = True
@@ -458,8 +460,17 @@ class Ball(FlashSprite):
     if self.stopping:
       print('ball roll', self.id)
       self.action = self.Action.ROLL
+      self.rolled_timer = None
       self.acquirement_points = self.param.default_acquirement_points
       self.sounds[self.Sound.ROLL].play()
+
+  def roll_msec(self, stopwatch: Stopwatch, rolled_msec: int) -> None:
+    if self.stopping:
+      print('ball roll', self.id, rolled_msec)
+      if rolled_msec > 0:
+        self.rolled_timer = Timer.set_msec(stopwatch, rolled_msec, True)
+      else:
+        self.roll()
 
   def burst(self) -> None:
     if self.rolling:
@@ -482,7 +493,6 @@ class Ball(FlashSprite):
     super().update(stopwatch, snapshot)
 
     self.bounced = False
-    self.frame += 1
 
     if self.stopping:
       pass

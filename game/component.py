@@ -1,7 +1,7 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import (
-  Coordinate, Size, Stopwatch, TextScriber,
+  Coordinate, Size, Stopwatch, Timer, TextScriber,
   Image, TileMap, SoundEffect,
 )
 import pyxel
@@ -65,13 +65,24 @@ class Block:
 TSprite = TypeVar('TSprite', bound='Sprite')
 
 class Sprite(Variation, Subject):
-  def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect]) -> None:
+  def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect], stopwatch: Stopwatch) -> None:
     self.motions = motions
     self.sounds = sounds
+    self.living_timer = Timer(stopwatch)
 
     self.id = str(uuid())
     self.motion = list(self.motions.keys())[0]
     self.center = Coordinate(0, 0)
+
+  @property
+  def living_msec(self) -> int:
+    return self.living_timer.msec
+
+  def pause(self) -> None:
+    self.living_timer.pause()
+
+  def resume(self) -> None:
+    self.living_timer.resume()
 
   @property
   def block(self) -> Block:
@@ -126,32 +137,34 @@ class FlashSprite(Sprite):
     self,
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
-    flash_period: int,
+    stopwatch: Stopwatch,
+    flashed_msec: int,
     max_flash_count: int,
   ) -> None:
-    super().__init__(motions, sounds)
+    super().__init__(motions, sounds, stopwatch)
 
-    self.flash_period = flash_period
+    self.flashing_timer = Timer.set_msec(stopwatch, flashed_msec, False)
     self.max_flash_count = max_flash_count
 
-    self.flashing_interval = 0
     self.flashing = False
+    self.flashing_count = 0
     self.show = True
 
   def flash(self) -> None:
-    self.flashing_interval = 0
+    self.flashing_timer.resume()
     self.flashing = True
     self.show = False
 
   def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
     if self.flashing:
-      self.flashing_interval += 1
-      if self.flashing_interval >= self.max_flash_count:
-        self.flashing_interval = 0
+      if self.flashing_count >= self.max_flash_count:
         self.flashing = False
+        self.flashing_count = 0
         self.show = True
       else:
-        if self.flashing_interval%self.flash_period == 0:
+        if self.flashing_timer.over:
+          self.flashing_timer.reset()
+          self.flashing_count += 1
           self.show = not self.show
 
   def draw(self, transparent_color: int) -> None:
@@ -273,24 +286,29 @@ class BlinkText(Text):
     text_color: int,
     font_size: int,
     bold: bool,
-    blink_period: int,
+    stopwatch: Stopwatch,
+    blinked_msec: int,
     show: bool,
   ) -> None:
     super().__init__(string, text_color, font_size, bold)
 
-    self.blink_period = blink_period
+    self.blinking_timer = Timer.set_msec(stopwatch, blinked_msec, True)
     self.show = show
 
-    self.blinking_interval = 0
-
-  def update_blink_period(self, blink_period: int, show: bool) -> None:
-    self.blink_period = blink_period
+  def update_blinked_msec(self, blinked_msec: int, show: bool) -> None:
+    self.blinking_timer.limit_msec = blinked_msec
+    self.blinking_timer.reset()
     self.show = show
-    self.blinking_interval = 0
 
+  def pause(self) -> None:
+    self.blinking_timer.pause()
+
+  def resume(self) -> None:
+    self.blinking_timer.resume()
+    
   def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
-    self.blinking_interval += 1
-    if self.blinking_interval%self.blink_period == 0:
+    if self.blinking_timer.over:
+      self.blinking_timer.reset()
       self.show = not self.show
 
     super().update(stopwatch, snapshot)
