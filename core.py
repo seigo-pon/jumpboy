@@ -405,6 +405,7 @@ class Ball(FlashSprite):
     ROLL = 0
     CRASH = 1
     BURST = 2
+    JUMP = 3
 
   FLASH_MSEC = 50
   MAX_FLASH_COUNT = 5
@@ -413,10 +414,12 @@ class Ball(FlashSprite):
     def __init__(
       self,
       rolling_distance: float,
+      max_accel: int,
       rolling_period: int,
       default_acquirement_points: dict[int, int],
     ) -> None:
       self.rolling_distance = rolling_distance
+      self.max_accel = max_accel
       self.rolling_period = rolling_period
       self.default_acquirement_points = default_acquirement_points
 
@@ -436,6 +439,9 @@ class Ball(FlashSprite):
     self.acquirement_points: dict[int, int] = {}
     self.dead = False
     self.rolling_direction = True
+    self.accel = 0.0
+    self.now_accel = 0.0
+    self.prev_y = 0.0
     self.rolling_interval = 0
     self.bounced = False
 
@@ -461,6 +467,11 @@ class Ball(FlashSprite):
       print('ball roll', self.id)
       self.action = self.Action.ROLL
       self.rolled_timer = None
+      if self.param.max_accel > 0:
+        print('ball jump', self.id, self.param.max_accel)
+        self.accel = self.param.max_accel
+        self.now_accel = self.accel
+        self.prev_y = self.origin.y
       self.acquirement_points = self.param.default_acquirement_points
       self.sounds[self.Sound.ROLL].play()
 
@@ -520,7 +531,32 @@ class Ball(FlashSprite):
             print('ball roll direction', self.id, self.rolling_direction, next_x)
             self.sounds[self.Sound.CRASH].play()
 
-      self.origin = Coordinate(next_x, self.origin.y)
+      next_y = self.origin.y
+      if self.accel != 0:
+        if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
+          if self.accel == self.now_accel:
+            self.sounds[self.Sound.JUMP].play()
+
+          origin_y = next_y
+
+          min_y = snapshot.field.top+self.size.height/2
+          max_y = snapshot.field.bottom-self.size.height/2
+
+          new_y = next_y + (next_y - self.prev_y) + self.accel
+          if new_y < min_y:
+            new_y = min_y
+          if new_y > max_y:
+            new_y = max_y
+
+          self.prev_y = origin_y
+          self.accel = 1
+        else:
+          print('ball jump to next', self.id)
+          self.accel = self.param.max_accel
+          self.now_accel = self.accel
+          self.prev_y = self.origin.y
+
+      self.origin = Coordinate(next_x, next_y)
 
       if self.rolling_interval < self.param.rolling_period:
         self.rolling_interval += 1

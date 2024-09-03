@@ -165,6 +165,7 @@ class GameDesign:
             stopwatch=stopwatch,
             param=Ball.Param(
               rolling_distance=distance,
+              max_accel=0,
               rolling_period=1,
               default_acquirement_points={
                 Ball.Action.ROLL: 10,
@@ -216,6 +217,7 @@ class GameDesign:
             },
             param=Ball.Param(
               rolling_distance=distance,
+              max_accel=0,
               rolling_period=1,
               default_acquirement_points={
                 Ball.Action.ROLL: 20,
