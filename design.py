@@ -56,14 +56,14 @@ class GameDesign:
           obstacles=[
             Obstacle(
               Collision(
-                Coordinate(0, cls.GROUND_TOP-Image.basic_size().height*2),
-                Size(1, Image.basic_size().height*2),
+                Coordinate(0, cls.GROUND_TOP-Image.basic_size().height),
+                Size(1, Image.basic_size().height),
               ),
             ),
             Obstacle(
               Collision(
-                Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height*2),
-                Size(1, Image.basic_size().height*2),
+                Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height),
+                Size(1, Image.basic_size().height),
               ),
             ),
           ],
@@ -81,7 +81,8 @@ class GameDesign:
         motions={
           Jumper.Motion.STOP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 0), Size(1, 1), Image.Pose.NORMAL),
-            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height))),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
           Jumper.Motion.WALK: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 1), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
@@ -161,6 +162,7 @@ class GameDesign:
               Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
               Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
               Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
+              Ball.Sound.LEAP: SoundEffect(SoundCh.BALL, SoundId.BALL+3),
             },
             stopwatch=stopwatch,
             param=Ball.Param(
@@ -215,6 +217,7 @@ class GameDesign:
               Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
               Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
             },
+            stopwatch=stopwatch,
             param=Ball.Param(
               rolling_distance=distance,
               max_accel=0,
@@ -242,7 +245,7 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_3,
         ]:
-          msec = (Dice.roll(1)+2)*1000
+          msec = (Dice.roll(2)+1)*1000
 
         elif level.stage in [
           GameLevelStage.STAGE_4,
@@ -253,43 +256,42 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_6,
         ]:
-          msec = (Dice.roll(2)+1)*1000
+          msec = (Dice.roll(1)+1)*1000
 
     return msec
 
   @classmethod
   def can_roll_ball(cls, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
     roll = False
-    if ball.rolled_timer.over:
+    if ball.rolled_timer is None or ball.rolled_timer.over:
       roll = True
 
     if last_ball is not None:
-      if last_ball.param.rolling_distance < ball.param.rolling_distance:
-        if level.mode == GameLevelMode.NORMAL:
-          if level.stage in [
-            GameLevelStage.STAGE_1,
-            GameLevelStage.STAGE_2,
-          ]:
-            distance = field.max_size.width/2
+      if level.mode == GameLevelMode.NORMAL:
+        if level.stage in [
+          GameLevelStage.STAGE_1,
+          GameLevelStage.STAGE_2,
+        ]:
+          distance = field.max_size.width/2
 
-          elif level.stage in [
-            GameLevelStage.STAGE_3,
-          ]:
-            distance = field.max_size.width/3
+        elif level.stage in [
+          GameLevelStage.STAGE_3,
+        ]:
+          distance = field.max_size.width/3
 
-          elif level.stage in [
-            GameLevelStage.STAGE_4,
-            GameLevelStage.STAGE_5,
-          ]:
-            distance = field.max_size.width/2
+        elif level.stage in [
+          GameLevelStage.STAGE_4,
+          GameLevelStage.STAGE_5,
+        ]:
+          distance = field.max_size.width/2
 
-          elif level.stage in [
-            GameLevelStage.STAGE_6,
-          ]:
-            distance = field.max_size.width/3
+        elif level.stage in [
+          GameLevelStage.STAGE_6,
+        ]:
+          distance = field.max_size.width/3
 
-        if last_ball.origin.x < distance:
-          roll = False
+      if last_ball.left < distance:
+        roll = False
 
     return roll
 
@@ -299,13 +301,21 @@ class GameDesign:
       if level.stage in [
         GameLevelStage.STAGE_1,
         GameLevelStage.STAGE_2,
-        GameLevelStage.STAGE_3,
       ]:
         limit_msec = 15000
 
       elif level.stage in [
+        GameLevelStage.STAGE_3,
+      ]:
+        limit_msec = 30000
+
+      elif level.stage in [
         GameLevelStage.STAGE_4,
         GameLevelStage.STAGE_5,
+      ]:
+        limit_msec = 15000
+
+      elif level.stage in [
         GameLevelStage.STAGE_6,
       ]:
         limit_msec = 30000

@@ -118,14 +118,14 @@ class Sprite(Variation, Subject):
 
   def draw(self, transparent_color: int) -> None:
     pyxel.blt(
-      self.center.x-self.block.image.size.width/2,
-      self.center.y-self.block.image.size.height/2,
-      self.block.image.id,
-      self.block.image.origin.x,
-      self.block.image.origin.y,
-      self.block.image.copy_vector.width,
-      self.block.image.copy_vector.height,
-      transparent_color,
+      x=self.center.x-self.block.image.size.width/2,
+      y=self.center.y-self.block.image.size.height/2,
+      img=self.block.image.id,
+      u=self.block.image.origin.x,
+      v=self.block.image.origin.y,
+      w=self.block.image.copy_vector.width,
+      h=self.block.image.copy_vector.height,
+      colkey=transparent_color,
     )
 
   def hit(self, other: TSprite) -> bool:
@@ -164,8 +164,9 @@ class FlashSprite(Sprite):
       else:
         if self.flashing_timer.over:
           self.flashing_timer.reset()
-          self.flashing_count += 1
           self.show = not self.show
+          if self.show:
+            self.flashing_count += 1
 
   def draw(self, transparent_color: int) -> None:
     if self.show:
@@ -190,14 +191,14 @@ class Field(Variation, Subject):
     for background in self.backgrounds:
       if self.scroll_pos.x <= distance.x and self.scroll_pos.y <= distance.y:
         pyxel.bltm(
-          pos.x,
-          pos.y,
-          background.id,
-          background.origin.x,
-          background.origin.y,
-          background.copy_vector.width,
-          background.copy_vector.height,
-          transparent_color,
+          x=pos.x,
+          y=pos.y,
+          tm=background.id,
+          u=background.origin.x,
+          v=background.origin.y,
+          w=background.copy_vector.width,
+          h=background.copy_vector.height,
+          colkey=transparent_color,
         )
         pos = Coordinate(pos.x+background.size.width, pos.y)
       distance = Coordinate(distance.x+background.size.width, distance.y)
@@ -267,15 +268,12 @@ class Text(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self, transparent_color: int) -> None:
-    TextScriber().writer(
-      self.font_size,
-      self.bold,
-    ).draw(
-      self.origin.x,
-      self.origin.y,
-      self.string.upper(),
-      self.font_size,
-      self.text_color,
+    TextScriber().writer(self.font_size,self.bold).draw(
+      x=self.origin.x,
+      y=self.origin.y,
+      text=self.string.upper(),
+      font_size=self.font_size,
+      font_color=self.text_color,
     )
 
 
@@ -292,7 +290,7 @@ class BlinkText(Text):
   ) -> None:
     super().__init__(string, text_color, font_size, bold)
 
-    self.blinking_timer = Timer.set_msec(stopwatch, blinked_msec, True)
+    self.blinking_timer = Timer.set_msec(stopwatch, blinked_msec, False)
     self.show = show
 
   def update_blinked_msec(self, blinked_msec: int, show: bool) -> None:
@@ -365,14 +363,14 @@ class Signboard(Subject, Movable):
   def draw(self, transparent_color: int) -> None:
     for poster in self.posters:
       pyxel.blt(
-        poster.origin.x+self.origin.x,
-        poster.origin.y+self.origin.y,
-        poster.image.id,
-        poster.image.origin.x,
-        poster.image.origin.y,
-        poster.image.copy_vector.width,
-        poster.image.copy_vector.height,
-        transparent_color,
+        x=poster.origin.x+self.origin.x,
+        y=poster.origin.y+self.origin.y,
+        img=poster.image.id,
+        u=poster.image.origin.x,
+        v=poster.image.origin.y,
+        w=poster.image.copy_vector.width,
+        h=poster.image.copy_vector.height,
+        colkey=transparent_color,
       )
     for text in self.texts:
       draw_text = Text(text.string, text.text_color, text.font_size, text.bold)

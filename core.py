@@ -86,11 +86,10 @@ class Field(BaseField):
     for obstacle in self.obstacles:
       if obstacle.collision.top-self.scroll_pos.y <= origin.y <= obstacle.collision.bottom-self.scroll_pos.y:
         right = obstacle.collision.right-self.scroll_pos.x
-        if right <= origin.x:
-          if min_x is None:
-            min_x = right
-          else:
-            min_x = min(min_x, right)
+        if min_x is None:
+          min_x = right
+        else:
+          min_x = min(min_x, right)
     return min_x
 
   @property
@@ -102,11 +101,10 @@ class Field(BaseField):
     for obstacle in self.obstacles:
       if obstacle.collision.top-self.scroll_pos.y <= origin.y <= obstacle.collision.bottom-self.scroll_pos.y:
         left = obstacle.collision.left-self.scroll_pos.x
-        if origin.x <= left:
-          if max_x is None:
-            max_x = left
-          else:
-            max_x = max(max_x, left)
+        if max_x is None:
+          max_x = left
+        else:
+          max_x = max(max_x, left)
     return max_x
 
   @property
@@ -144,8 +142,8 @@ class Jumper(FlashSprite):
     FALL_DOWN = 3
     JOY = 3
 
-  FLASH_MSEC = 150
-  MAX_FLASH_COUNT = 5
+  FLASH_MSEC = 100
+  MAX_FLASH_COUNT = 4
 
   class Param:
     def __init__(
@@ -212,6 +210,10 @@ class Jumper(FlashSprite):
   @property
   def jumping(self) -> bool:
     return self.action == self.Action.JUMP
+
+  @property
+  def jumping_down(self) -> bool:
+    return self.action == self.Action.JUMP and self.center.y > self.prev_y
 
   @property
   def falling_down(self) -> bool:
@@ -405,10 +407,10 @@ class Ball(FlashSprite):
     ROLL = 0
     CRASH = 1
     BURST = 2
-    JUMP = 3
+    LEAP = 3
 
-  FLASH_MSEC = 50
-  MAX_FLASH_COUNT = 5
+  FLASH_MSEC = 40
+  MAX_FLASH_COUNT = 4
 
   class Param:
     def __init__(
@@ -468,7 +470,7 @@ class Ball(FlashSprite):
       self.action = self.Action.ROLL
       self.rolled_timer = None
       if self.param.max_accel > 0:
-        print('ball jump', self.id, self.param.max_accel)
+        print('ball leap', self.id, self.param.max_accel)
         self.accel = self.param.max_accel
         self.now_accel = self.accel
         self.prev_y = self.origin.y
@@ -535,7 +537,7 @@ class Ball(FlashSprite):
       if self.accel != 0:
         if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
           if self.accel == self.now_accel:
-            self.sounds[self.Sound.JUMP].play()
+            self.sounds[self.Sound.LEAP].play()
 
           origin_y = next_y
 
@@ -551,7 +553,7 @@ class Ball(FlashSprite):
           self.prev_y = origin_y
           self.accel = 1
         else:
-          print('ball jump to next', self.id)
+          print('ball leap to next', self.id)
           self.accel = self.param.max_accel
           self.now_accel = self.accel
           self.prev_y = self.origin.y

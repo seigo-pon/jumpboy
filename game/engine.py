@@ -18,8 +18,8 @@ class GameEngine:
     self.draw = draw
 
     pyxel.init(
-      int(config.window_size.width),
-      int(config.window_size.height),
+      width=int(config.window_size.width),
+      height=int(config.window_size.height),
       title=config.title,
       fps=config.fps,
       quit_key=quit_key,
