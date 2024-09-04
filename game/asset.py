@@ -1,9 +1,11 @@
 from enum import IntEnum
-from game import Coordinate, Size
+from game import Coordinate, Size, Path
+import json
+import os
 import pyxel
 
 
-class AssetId:
+class AssetImageId:
   def __init__(self, id: int, x: int) -> None:
     self.id = id
     self.x = x
@@ -56,7 +58,8 @@ class TileMap(AssetImage):
 
 
 class AssetSound:
-  pass
+  def play(self) -> None:
+    pass
 
 
 class SoundEffect(AssetSound):
@@ -68,18 +71,20 @@ class SoundEffect(AssetSound):
     pyxel.play(self.channel, self.id, resume=True)
 
 
-class Music(AssetSound):
+class AssetMusic(AssetSound):
+  def __init__(self, name: str) -> None:
+    self.name = name
+
+  def stop(self) -> None:
+    pass
+
+
+class Music(AssetMusic):
   def __init__(self, id: int, channels: list[int]) -> None:
+    super().__init__(str(id))
+
     self.id = id
     self.channels = channels
-
-  @property
-  def playing(self) -> bool:
-    for channel in self.channels:
-      if pyxel.play_pos(channel) is not None:
-        return True
-
-    return False
 
   def play(self) -> None:
     pyxel.playm(self.id, loop=True)
@@ -87,3 +92,36 @@ class Music(AssetSound):
   def stop(self) -> None:
     for channel in self.channels:
       pyxel.stop(channel)
+
+
+class Bgm8BitMusic(AssetMusic):
+  BGM_FOLDER_NAME = 'bgm'
+
+  def __init__(self, filename: str, path: Path, offset_id: int, un_play_channels: list[int]) -> None:
+    super().__init__(filename)
+
+    self.bgm: dict = {}
+    file_path = os.path.join(path.asset_path, self.BGM_FOLDER_NAME, '{}.json'.format(filename))
+    with open(file_path, mode='r') as f:
+      self.bgm = json.loads(f.read())
+    self.offset_id = offset_id
+    self.un_play_channels = un_play_channels
+
+    self.channels: list[int] = []
+
+  def play(self) -> None:
+    if len(self.channels) == 0:
+      for (ch, sound) in enumerate(self.bgm):
+        if ch in self.un_play_channels:
+          continue
+
+        pyxel.sounds[self.offset_id+ch].set(*sound)
+        pyxel.play(ch, self.offset_id+ch, loop=True)
+        self.channels.append(ch)
+      print('bgm 8bit play', self.channels)
+
+  def stop(self) -> None:
+    for channel in self.channels:
+      pyxel.stop(channel)
+    print('bgm 8bit stop', self.channels)
+    self.channels = []

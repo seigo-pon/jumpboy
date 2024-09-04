@@ -75,20 +75,20 @@ class Sprite(Variation, Subject):
     self.id = '{}_{}'.format(name, str(uuid()))
     self.motions = motions
     self.sounds = sounds
-    self.living_timer = Timer(stopwatch)
+    self.elapsed_timer = Timer(stopwatch)
 
     self.motion = list(self.motions.keys())[0]
     self.center = Coordinate(0, 0)
 
   @property
-  def living_msec(self) -> int:
-    return self.living_timer.msec
+  def elapsed_msec(self) -> int:
+    return self.elapsed_timer.msec
 
   def pause(self) -> None:
-    self.living_timer.pause()
+    self.elapsed_timer.pause()
 
   def resume(self) -> None:
-    self.living_timer.resume()
+    self.elapsed_timer.resume()
 
   @property
   def block(self) -> Block:
@@ -145,7 +145,7 @@ class FlashSprite(Sprite):
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
     stopwatch: Stopwatch,
-    flashed_msec: int,
+    flash_msec: int,
     max_flash_count: int,
   ) -> None:
     super().__init__(
@@ -155,30 +155,30 @@ class FlashSprite(Sprite):
       stopwatch=stopwatch,
     )
 
-    self.flashing_timer = Timer.set_msec(stopwatch, flashed_msec, False)
+    self.flash_timer = Timer.set_msec(stopwatch, flash_msec, False)
     self.max_flash_count = max_flash_count
 
     self.flashing = False
-    self.flashing_count = 0
+    self.flash_count = 0
     self.show = True
 
   def flash(self) -> None:
-    self.flashing_timer.resume()
+    self.flash_timer.resume()
     self.flashing = True
     self.show = False
 
   def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
     if self.flashing:
-      if self.flashing_count >= self.max_flash_count:
+      if self.flash_count >= self.max_flash_count:
         self.flashing = False
-        self.flashing_count = 0
+        self.flash_count = 0
         self.show = True
       else:
-        if self.flashing_timer.over:
-          self.flashing_timer.reset()
+        if self.flash_timer.over:
+          self.flash_timer.reset()
           self.show = not self.show
           if self.show:
-            self.flashing_count += 1
+            self.flash_count += 1
 
   def draw(self, transparent_color: int) -> None:
     if self.show:
@@ -226,37 +226,37 @@ class Field(Variation, Subject):
 class Movable(Variation):
   def __init__(self) -> None:
     self.center = Coordinate(0, 0)
-    self.moved_center: Coordinate | None = None
-    self.moving_distance = 1.0
+    self.move_center: Coordinate | None = None
+    self.move_distance = 1.0
 
   @property
   def moving(self) -> bool:
-    return self.moved_center is not None
+    return self.move_center is not None
 
-  def move(self, center: Coordinate, moving_distance: float) -> None:
-    self.moved_center = center
-    self.moving_distance = moving_distance
+  def move(self, center: Coordinate, move_distance: float) -> None:
+    self.move_center = center
+    self.move_distance = move_distance
 
   def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
-    if self.moved_center is not None:
-      distance_x = self.center.x - self.moved_center.x
+    if self.move_center is not None:
+      distance_x = self.center.x - self.move_center.x
       if distance_x != 0:
-        if abs(distance_x) < self.moving_distance:
-          distance_x = self.moving_distance if distance_x >= 0 else self.moving_distance*-1
+        if abs(distance_x) < self.move_distance:
+          distance_x = self.move_distance if distance_x >= 0 else self.move_distance*-1
         else:
-          distance_x = self.moving_distance
+          distance_x = self.move_distance
 
-      distance_y = self.center.y - self.moved_center.y
+      distance_y = self.center.y - self.move_center.y
       if distance_y != 0:
-        if abs(distance_y) < self.moving_distance:
-          distance_y = self.moving_distance if distance_y >= 0 else self.moving_distance*-1
+        if abs(distance_y) < self.move_distance:
+          distance_y = self.move_distance if distance_y >= 0 else self.move_distance*-1
         else:
-          distance_y = self.moving_distance
+          distance_y = self.move_distance
 
       self.center = Coordinate(self.center.x+distance_x, self.center.y+distance_y)
 
-      if self.center.x == self.moved_center.x and self.center.y == self.moved_center.y:
-        self.moved_center = None
+      if self.center.x == self.move_center.x and self.center.y == self.move_center.y:
+        self.move_center = None
 
 
 class Text(Subject, Movable):
@@ -304,7 +304,7 @@ class BlinkText(Text):
     font_size: int,
     bold: bool,
     stopwatch: Stopwatch,
-    blinked_msec: int,
+    blink_msec: int,
     show: bool,
   ) -> None:
     super().__init__(
@@ -314,23 +314,23 @@ class BlinkText(Text):
       bold=bold,
     )
 
-    self.blinking_timer = Timer.set_msec(stopwatch, blinked_msec, False)
+    self.blink_timer = Timer.set_msec(stopwatch, blink_msec, False)
     self.show = show
 
-  def update_blinked_msec(self, blinked_msec: int, show: bool) -> None:
-    self.blinking_timer.limit_msec = blinked_msec
-    self.blinking_timer.reset()
+  def update_blink_msec(self, blink_msec: int, show: bool) -> None:
+    self.blink_timer.limit_msec = blink_msec
+    self.blink_timer.reset()
     self.show = show
 
   def pause(self) -> None:
-    self.blinking_timer.pause()
+    self.blink_timer.pause()
 
   def resume(self) -> None:
-    self.blinking_timer.resume()
+    self.blink_timer.resume()
     
   def update(self, stopwatch: Stopwatch, snapshot: Any) -> None:
-    if self.blinking_timer.over:
-      self.blinking_timer.reset()
+    if self.blink_timer.over:
+      self.blink_timer.reset()
       self.show = not self.show
 
     super().update(stopwatch, snapshot)
@@ -409,18 +409,18 @@ class Signboard(Subject, Movable):
 
 
 class GamePad:
-  def __init__(self, watching_buttons: dict[int, list[int]]) -> None:
-    self.watching_buttons: dict[int, list[int]] = watching_buttons
+  def __init__(self, watch_buttons: dict[int, list[int]]) -> None:
+    self.watch_buttons: dict[int, list[int]] = watch_buttons
 
   def push(self, button: int) -> bool:
-    for key in self.watching_buttons[button]:
+    for key in self.watch_buttons[button]:
       if pyxel.btnp(key):
         return True
 
     return False
 
   def pushing(self, button: int) -> bool:
-    for key in self.watching_buttons[button]:
+    for key in self.watch_buttons[button]:
       if pyxel.btn(key):
         return True
 

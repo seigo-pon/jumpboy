@@ -13,7 +13,7 @@ from assetid import TileId, ImageId, SoundCh, SoundId
 
 class GameLevelMode(IntEnum):
   NORMAL = 0
-  HARD = 0
+  HARD = 1
 
 class GameLevelStage(IntEnum):
   STAGE_1 = 0
@@ -22,6 +22,8 @@ class GameLevelStage(IntEnum):
   STAGE_4 = 3
   STAGE_5 = 4
   STAGE_6 = 5
+
+FIRST_LEVEL = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
 
 class GameDesign:
@@ -40,7 +42,7 @@ class GameDesign:
         GameLevelStage.STAGE_3,
       ]:
         field = Field(
-          name='road',
+          name='road_field',
           background_tiles=[
             TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 1.875), Image.Pose.NORMAL),
           ],
@@ -56,7 +58,7 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         field = Field(
-          name='grass',
+          name='grass_field',
           background_tiles=[
             TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL),
           ],
@@ -85,7 +87,7 @@ class GameDesign:
   def jumper(cls, level: GameLevel, stopwatch: Stopwatch) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
-        name='boy',
+        name='boy_jumper',
         motions={
           Jumper.Motion.STOP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 0), Size(1, 1), Image.Pose.NORMAL),
@@ -104,7 +106,7 @@ class GameDesign:
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Jumper.Motion.JUMP_DOWN: Block(
-            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 0), Size(1, 1), Image.Pose.NORMAL),
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 2), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Jumper.Motion.FALL_DOWN: Block(
@@ -127,16 +129,16 @@ class GameDesign:
         param=Jumper.Param(
           max_life=3,
           max_accel=-10,
-          walking_distance=0.5,
-          walking_period=4,
+          walk_distance=0.5,
+          walk_period=4,
           keep_jump_height=Image.basic_size().height,
-          joying_repeat_count=3,
+          joy_repeat_count=3,
         ),
       )
 
     elif level.mode == GameLevelMode.HARD:
       jumper = Jumper(
-        'girl',
+        'girl_jumper',
         motions={
           Jumper.Motion.STOP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 5), Size(1, 1), Image.Pose.NORMAL),
@@ -178,10 +180,10 @@ class GameDesign:
         param=Jumper.Param(
           max_life=3,
           max_accel=-10,
-          walking_distance=0.5,
-          walking_period=4,
+          walk_distance=0.5,
+          walk_period=4,
           keep_jump_height=Image.basic_size().height/2,
-          joying_repeat_count=3,
+          joy_repeat_count=3,
         ),
       )
 
@@ -204,7 +206,7 @@ class GameDesign:
           distance = Dice.roll(2)+1
 
         ball = Ball(
-            name='straight',
+            name='straight_ball',
             motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.NORMAL),
@@ -235,9 +237,9 @@ class GameDesign:
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              rolling_distance=distance,
+              roll_distance=distance,
               max_accel=0,
-              rolling_period=1,
+              roll_period=1,
               default_acquirement_points={
                 Ball.Action.ROLL: 10,
                 Ball.Action.BURST: 30
@@ -259,7 +261,7 @@ class GameDesign:
           distance = Dice.roll(2)+1
 
         ball = Ball(
-            name='bound',
+            name='bound_ball',
             motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.NORMAL),
@@ -289,9 +291,9 @@ class GameDesign:
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              rolling_distance=distance,
+              roll_distance=distance,
               max_accel=0,
-              rolling_period=1,
+              roll_period=1,
               default_acquirement_points={
                 Ball.Action.ROLL: 20,
                 Ball.Action.BURST: 40
@@ -391,3 +393,13 @@ class GameDesign:
         limit_msec = 30000
 
     return limit_msec
+
+  @classmethod
+  def recovery_life_count(cls, level: GameLevel) -> int:
+    if level.mode == GameLevelMode.NORMAL:
+      life = 2
+
+    elif level.mode == GameLevelMode.HARD:
+      life = 1
+
+    return life

@@ -1,19 +1,19 @@
 
-from game import AssetId
+from game import AssetImageId
 
 
 class TileId:
-  FIELD = AssetId(0, 0)
+  FIELD = AssetImageId(0, 0)
 
 
 class ImageId:
-  BALL = AssetId(0, 0)
-  JUMPER = AssetId(0, 1)
-  LIFE = AssetId(0, 3)
+  BALL = AssetImageId(0, 0)
+  JUMPER = AssetImageId(0, 1)
+  LIFE = AssetImageId(0, 3)
 
 
 class SoundCh:
-  JUMPER = 2
+  JUMPER = 3
   BALL = 3
   SCENE = 3
 
@@ -22,3 +22,4 @@ class SoundId:
   JUMPER = 0
   BALL = 10
   SCENE = 20
+  BGM = 60

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Callable, Generic, Self, TypeVar
-from game import Size, Path, Stopwatch, Timer, Music
+from game import Size, Path, Stopwatch, Timer, AssetMusic
 import json
 import os
 import pyxel
@@ -159,25 +159,31 @@ class TimeSeq:
 
 
 class MusicBox:
+  _instance: Self | None = None
+  _music: AssetMusic | None = None
+
   def __new__(cls, *args, **kwargs):
     if cls._instance is None:
       cls._instance = super(MusicBox, cls).__new__(cls)
-      print('music box create')
+      print('music box create', cls._instance)
     return cls._instance
 
-  def __init__(self) -> None:
-    self.music: Music | None = None
+  def play(self, music: AssetMusic) -> None:
+    if self._music is not None:
+      if self._music.name == music.name:
+        print('bgm already play', self._music.name)
+        return
+      self._music.stop()
 
-  def play(self, music: Music) -> None:
-    if self.music is not None:
-      self.music.stop()
-
-    self.music = music
-    self.music.play()
+    self._music = music
+    self._music.play()
+    print('bgm play', self._music.name)
 
   def stop(self) -> None:
-    if self.music is not None:
-      self.music.stop()
+    if self._music is not None:
+      self._music.stop()
+      print('bgm stop', self._music.name)
+    self._music = None
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')

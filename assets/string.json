@@ -1,6 +1,7 @@
 {
   "en": {
     "game_title_1": "JUMP BOY",
+    "game_title_2": "JUMP GIRL",
     "game_start_text": "PUSH TO START",
     "score_ranking_title": "SCORE RANKING",
     "score_no_text": "--NO SCORE--",
@@ -8,6 +9,7 @@
     "stage_title": "STAGE",
     "ready_title_1": "READY",
     "score_title_1": "BOY",
+    "score_title_2": "GIRL",
     "game_pause_text": "PAUSE",
     "game_over_title": "GAME OVER...",
     "game_over_text": "END",

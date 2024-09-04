@@ -109,7 +109,6 @@ class Timer:
 
 
 class TextScriber:
-  FOLDER = 'font'
   DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
   CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
     10: {
