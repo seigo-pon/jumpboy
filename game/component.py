@@ -65,12 +65,18 @@ class Block:
 TSprite = TypeVar('TSprite', bound='Sprite')
 
 class Sprite(Variation, Subject):
-  def __init__(self, motions: dict[int, Block], sounds: dict[int, SoundEffect], stopwatch: Stopwatch) -> None:
+  def __init__(
+    self,
+    name: str,
+    motions: dict[int, Block],
+    sounds: dict[int, SoundEffect],
+    stopwatch: Stopwatch,
+  ) -> None:
+    self.id = '{}_{}'.format(name, str(uuid()))
     self.motions = motions
     self.sounds = sounds
     self.living_timer = Timer(stopwatch)
 
-    self.id = str(uuid())
     self.motion = list(self.motions.keys())[0]
     self.center = Coordinate(0, 0)
 
@@ -135,13 +141,19 @@ class Sprite(Variation, Subject):
 class FlashSprite(Sprite):
   def __init__(
     self,
+    name: str,
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
     stopwatch: Stopwatch,
     flashed_msec: int,
     max_flash_count: int,
   ) -> None:
-    super().__init__(motions, sounds, stopwatch)
+    super().__init__(
+      name=name,
+      motions=motions,
+      sounds=sounds,
+      stopwatch=stopwatch,
+    )
 
     self.flashing_timer = Timer.set_msec(stopwatch, flashed_msec, False)
     self.max_flash_count = max_flash_count
@@ -179,7 +191,14 @@ class Obstacle:
 
 
 class Field(Variation, Subject):
-  def __init__(self, backgrounds: list[TileMap], obstacles: list[Obstacle], max_size: Size) -> None:
+  def __init__(
+    self,
+    name: str,
+    backgrounds: list[TileMap],
+    obstacles: list[Obstacle],
+    max_size: Size,
+  ) -> None:
+    self.id = '{}_{}'.format(name, str(uuid()))
     self.backgrounds = backgrounds
     self.obstacles = obstacles
     self.max_size = max_size
@@ -288,7 +307,12 @@ class BlinkText(Text):
     blinked_msec: int,
     show: bool,
   ) -> None:
-    super().__init__(string, text_color, font_size, bold)
+    super().__init__(
+      string=string,
+      text_color=text_color,
+      font_size=font_size,
+      bold=bold,
+    )
 
     self.blinking_timer = Timer.set_msec(stopwatch, blinked_msec, False)
     self.show = show
@@ -316,14 +340,20 @@ class BlinkText(Text):
       super().draw(transparent_color)
 
 
-class SignboardPoster:
+class Poster:
   def __init__(self, image: Image, origin: Coordinate) -> None:
     self.image = image
     self.origin = origin
 
 
 class Signboard(Subject, Movable):
-  def __init__(self, posters: list[SignboardPoster], texts: list[Text], width: float | None, height: float | None) -> None:
+  def __init__(
+    self,
+    posters: list[Poster],
+    texts: list[Text],
+    width: float | None,
+    height: float | None,
+  ) -> None:
     super().__init__()
 
     if len(posters) == 0 and len(texts) == 0:

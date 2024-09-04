@@ -5,7 +5,7 @@ from game import (
   Coordinate, Size, Stopwatch, Timer, TextScriber,
   Image, SoundEffect,
   Text, BlinkText,
-  SignboardPoster, Signboard,
+  Poster, Signboard,
   GameConfig, Language, StringRes, Seq, TimeSeq,
 )
 from core import (
@@ -50,7 +50,12 @@ class BaseScene(Scene):
     stopwatch: Stopwatch,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, snapshot)
+    super().__init__(
+      config=config,
+      string_res=string_res,
+      stopwatch=stopwatch,
+      snapshot=snapshot,
+    )
 
   def menu_left_top_origin(self) -> Coordinate:
     return Coordinate(0, 0)
@@ -114,25 +119,32 @@ class BaseScene(Scene):
     return self.snapshot.field.right-self.JUMPER_START_X
 
   def text(self, string: str) -> Text:
-    return Text(string, TEXT_COLOR, TEXT_FONT_SIZE, False)
+    return Text(
+      string=string,
+      text_color=TEXT_COLOR,
+      font_size=TEXT_FONT_SIZE,
+      bold=False,
+    )
 
   def blink_text(self, string: str, blinked_msec: int, show: bool) -> BlinkText:
     return BlinkText(
-      string,
-      TEXT_COLOR,
-      TEXT_FONT_SIZE,
-      False,
-      self.stopwatch,
-      blinked_msec,
-      show,
+      string=string,
+      text_color=TEXT_COLOR,
+      font_size=TEXT_FONT_SIZE,
+      bold=False,
+      stopwatch=self.stopwatch,
+      blinked_msec=blinked_msec,
+      show=show,
     )
 
   def initial_sprites(self) -> None:
     self.snapshot.field = GameDesign.field(self.snapshot.level, self.config)
+    print('field', self.snapshot.field.id)
 
     self.snapshot.balls = []
 
     self.snapshot.jumper = GameDesign.jumper(self.snapshot.level, self.stopwatch)
+    print('jumper', self.snapshot.jumper.id)
     self.snapshot.jumper.origin = self.jumper_ready_origin(self.snapshot.jumper)
 
   def to_next_level(cls, level: GameLevel) -> GameLevel | None:
@@ -165,15 +177,15 @@ class BaseScene(Scene):
 
     if self.config.debug:
       stopwatch_text = Text(
-        '{:02}:{:02}:{:02}:{:03}'.format(
+        string='{:02}:{:02}:{:02}:{:03}'.format(
           int(self.stopwatch.sec/60/60),
           int(self.stopwatch.sec/60%60),
           int(self.stopwatch.sec%60),
           self.stopwatch.msec%1000,
         ),
-        pyxel.COLOR_BLACK,
-        10,
-        False,
+        text_color=pyxel.COLOR_BLACK,
+        font_size=10,
+        bold=False,
       )
       stopwatch_text.origin = Coordinate(
         self.config.window_size.width-stopwatch_text.size.width,
@@ -229,7 +241,7 @@ class OpeningScene(BaseScene):
           self.title_center().x,
           -TextScriber.word_size(TEXT_FONT_SIZE).height,
         )
-        self.title_text.move(self.title_center(), 0.5)
+        self.title_text.move(center=self.title_center(), moving_distance=0.5)
       else:
         if self.title_text.moving:
           return True
@@ -272,7 +284,12 @@ class TitleScene(BaseScene):
   SCORE_RANKING_NUM = 3
 
   def __init__(self, scene: Scene) -> None:
-    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.snapshot)
+    super().__init__(
+      config=scene.config,
+      string_res=scene.string_res,
+      stopwatch=scene.stopwatch,
+      snapshot=scene.snapshot,
+    )
 
     self.title_text = self.text(self.config.title)
     self.title_text.center = self.title_center()
@@ -303,13 +320,13 @@ class TitleScene(BaseScene):
       if start:
         self.show_score = True
         self.score.move(
-          self.menu_middle_top_center(
+          center=self.menu_middle_top_center(
             Size(
               self.score.size.width,
               self.score.size.height+TextScriber.word_size(TEXT_FONT_SIZE).height*2,
             )
           ),
-          0.5,
+          moving_distance=0.5,
         )
         self.show_start = False
       else:
@@ -359,7 +376,12 @@ class TitleScene(BaseScene):
       no_score_text.center = Coordinate(score_center.x, score_center.y)
       score_texts.append(no_score_text)
 
-    return Signboard([], score_texts, self.config.window_size.width, None)
+    return Signboard(
+      posters=[],
+      texts=score_texts,
+      width=self.config.window_size.width,
+      height=None,
+    )
 
   @property
   def updating_variations(self) -> list[Any]:
@@ -404,7 +426,12 @@ class TitleScene(BaseScene):
 
 class BaseStageScene(BaseScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
-    super().__init__(scene.config, scene.string_res, scene.stopwatch, scene.snapshot)
+    super().__init__(
+      config=scene.config,
+      string_res=scene.string_res,
+      stopwatch=scene.stopwatch,
+      snapshot=scene.snapshot,
+    )
 
     self.point = point
     self.play_timer = play_timer
@@ -412,14 +439,20 @@ class BaseStageScene(BaseScene):
     self.show_stage = True
 
   def record_score(self) -> None:
-    self.snapshot.score_board.scores.append(Score(datetime.now(), self.snapshot.level, self.point))
+    self.snapshot.score_board.scores.append(
+      Score(
+        created_at=datetime.now(),
+        level=self.snapshot.level,
+        point=self.point,
+      )
+    )
     print('score record', vars(self.snapshot.score_board.scores[-1]))
 
   def life_gauge(self) -> Signboard:
     return Signboard(
-      [
-        SignboardPoster(
-          Image(
+      posters=[
+        Poster(
+          image=Image(
             ImageId.LIFE.id,
             Coordinate(
               ImageId.LIFE.x,
@@ -428,13 +461,13 @@ class BaseStageScene(BaseScene):
             Size(1, 1),
             Image.Pose.NORMAL,
           ),
-          Coordinate(Image.basic_size().width*index, 0)
+          origin=Coordinate(Image.basic_size().width*index, 0)
         )
         for index in range(self.snapshot.jumper.param.max_life)
       ],
-      [],
-      None,
-      None,
+      texts=[],
+      width=None,
+      height=None,
     )
 
   @property
@@ -492,9 +525,9 @@ class ReadyScene(BaseStageScene):
 
     print('ready', vars(self.snapshot.level))
     self.play_timer = Timer.set_msec(
-      self.stopwatch,
-      GameDesign.play_limit_msec(self.snapshot.level),
-      False,
+      stopwatch=self.stopwatch,
+      msec=GameDesign.play_limit_msec(self.snapshot.level),
+      start=False,
     )
 
     self.show_stage = False
@@ -620,7 +653,7 @@ class PlayScene(BaseStageScene):
           if ball.rolling:
             if ball.hit(self.snapshot.jumper):
               attack = False
-              if self.snapshot.jumper.jumping_down:
+              if self.snapshot.jumper.jumping(up=False):
                 if ball.top <= self.snapshot.jumper.bottom <= ball.bottom:
                   if ball.left <= self.snapshot.jumper.center.x <= ball.right:
                     print('attack y', ball.top, self.snapshot.jumper.bottom, ball.bottom)
@@ -795,7 +828,7 @@ class StageClearScene(BaseStageScene):
     self.walked_jumper = False
 
     def _wait_jumper(start: bool, timer: Timer) -> bool:
-      if not self.snapshot.jumper.jumping:
+      if not self.snapshot.jumper.jumping(None):
         self.snapshot.jumper.stop()
 
         self.record_score()

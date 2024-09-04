@@ -17,7 +17,7 @@ class GamePad(BaseGamePad):
 
   def __init__(self) -> None:
     super().__init__(
-      {
+      watching_buttons={
         self.Button.ENTER: [
           pyxel.KEY_RETURN,
           pyxel.MOUSE_BUTTON_LEFT,
@@ -66,13 +66,19 @@ class ScoreBoard:
 class Field(BaseField):
   def __init__(
     self,
+    name: str,
     background_tiles: list[TileMap],
     obstacles: list[Obstacle],
     max_size: Size,
     surface: int,
     ground_height: float,
   ) -> None:
-    super().__init__(background_tiles, obstacles, max_size)
+    super().__init__(
+      name=name,
+      backgrounds=background_tiles,
+      obstacles=obstacles,
+      max_size=max_size,
+    )
 
     self.surface = surface
     self.ground_height = ground_height
@@ -86,10 +92,11 @@ class Field(BaseField):
     for obstacle in self.obstacles:
       if obstacle.collision.top-self.scroll_pos.y <= origin.y <= obstacle.collision.bottom-self.scroll_pos.y:
         right = obstacle.collision.right-self.scroll_pos.x
-        if min_x is None:
-          min_x = right
-        else:
-          min_x = min(min_x, right)
+        if right <= origin.x:
+          if min_x is None:
+            min_x = right
+          else:
+            min_x = min(min_x, right)
     return min_x
 
   @property
@@ -101,10 +108,11 @@ class Field(BaseField):
     for obstacle in self.obstacles:
       if obstacle.collision.top-self.scroll_pos.y <= origin.y <= obstacle.collision.bottom-self.scroll_pos.y:
         left = obstacle.collision.left-self.scroll_pos.x
-        if max_x is None:
-          max_x = left
-        else:
-          max_x = max(max_x, left)
+        if origin.x <= left:
+          if max_x is None:
+            max_x = left
+          else:
+            max_x = max(max_x, left)
     return max_x
 
   @property
@@ -130,10 +138,12 @@ class Jumper(FlashSprite):
 
   class Motion(IntEnum):
     STOP = 0
-    WALK = 1
-    JUMP = 2
-    FALL_DOWN = 3
-    JOY = 4
+    WALK_LEFT = 1
+    WALK_RIGHT = 2
+    JUMP_UP = 3
+    JUMP_DOWN = 4
+    FALL_DOWN = 5
+    JOY = 6
 
   class Sound(IntEnum):
     WALK = 0
@@ -152,22 +162,32 @@ class Jumper(FlashSprite):
       max_accel: int,
       walking_distance: float,
       walking_period: int,
+      keep_jump_height: int,
       joying_repeat_count: int,
     ) -> None:
       self.max_life = max_life
       self.max_accel = max_accel
       self.walking_distance = walking_distance
       self.walking_period = walking_period
+      self.keep_jump_height = keep_jump_height
       self.joying_repeat_count = joying_repeat_count
 
   def __init__(
     self,
+    name: str,
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
     stopwatch: Stopwatch,
     param: Param,
   ) -> None:
-    super().__init__(motions, sounds, stopwatch, self.FLASH_MSEC, self.MAX_FLASH_COUNT)
+    super().__init__(
+      name=name,
+      motions=motions,
+      sounds=sounds,
+      stopwatch=stopwatch,
+      flashed_msec=self.FLASH_MSEC,
+      max_flash_count=self.MAX_FLASH_COUNT,
+    )
 
     self.param = param
 
@@ -207,13 +227,16 @@ class Jumper(FlashSprite):
   def standing_by(self) -> bool:
     return self.action == self.Action.STAND_BY
 
-  @property
-  def jumping(self) -> bool:
-    return self.action == self.Action.JUMP
-
-  @property
-  def jumping_down(self) -> bool:
-    return self.action == self.Action.JUMP and self.center.y > self.prev_y
+  def jumping(self, up: bool | None) -> bool:
+    jump = self.action == self.Action.JUMP
+    if jump and up is not None:
+      if up:
+        if self.center.y < self.prev_y:
+          jump = False
+      else:
+        if self.center.y > self.prev_y:
+          jump = False
+    return jump
 
   @property
   def falling_down(self) -> bool:
@@ -262,7 +285,7 @@ class Jumper(FlashSprite):
       self.keeping_jump = True
 
   def damage(self) -> None:
-    if self.standing_by or self.jumping:
+    if self.standing_by or self.jumping(None):
       self.life -= 1
       if self.life <= 0:
         print('jumper fall down', self.id, self.life)
@@ -315,10 +338,10 @@ class Jumper(FlashSprite):
         self.walking_interval += 1
       else:
         self.walking_interval = 0
-        if self.motion == self.Motion.WALK:
+        if self.motion == self.Motion.WALK_LEFT or self.motion == self.Motion.WALK_RIGHT:
           self.motion = self.Motion.STOP
         else:
-          self.motion = self.Motion.WALK
+          self.motion = self.Motion.WALK_LEFT if distance <= 0 else self.Motion.WALK_RIGHT
           self.sounds[self.Sound.WALK].play()
 
     elif self.standing_by:
@@ -326,9 +349,7 @@ class Jumper(FlashSprite):
       if snapshot.game_pad.enter(False):
         self.jump()
 
-    elif self.jumping:
-      self.motion = self.Motion.JUMP
-
+    elif self.jumping(None):
       if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
         if self.accel == self.now_accel:
           self.sounds[self.Sound.JUMP].play()
@@ -345,12 +366,13 @@ class Jumper(FlashSprite):
           new_y = max_y
 
         self.center.y = new_y
-
         self.prev_y = center_y
+
+        self.motion = self.Motion.JUMP_UP if new_y < center_y else self.Motion.JUMP_DOWN
 
         self.accel = 1
         if center_y < self.center.y:
-          if self.center.y < self.top_y+self.size.height:
+          if self.center.y < self.top_y+self.param.keep_jump_height:
             if self.keeping_jump:
               if snapshot.game_pad.enter(True):
                 self.accel = 0
@@ -427,12 +449,20 @@ class Ball(FlashSprite):
 
   def __init__(
     self,
+    name: str,
     motions: dict[int, Block],
     sounds: dict[int, SoundEffect],
     stopwatch: Stopwatch,
     param: Param,
   ) -> None:
-    super().__init__(motions, sounds, stopwatch, self.FLASH_MSEC, self.MAX_FLASH_COUNT)
+    super().__init__(
+      name=name,
+      motions=motions,
+      sounds=sounds,
+      stopwatch=stopwatch,
+      flashed_msec=self.FLASH_MSEC,
+      max_flash_count=self.MAX_FLASH_COUNT,
+    )
 
     self.param = param
 
@@ -514,7 +544,7 @@ class Ball(FlashSprite):
       next_x = self.origin.x + self.param.rolling_distance * (1 if self.rolling_direction else -1)
 
       if not self.rolling_direction:
-        left_end = snapshot.field.left_end(Coordinate(next_x, self.origin.y))
+        left_end = snapshot.field.left_end(self.origin)
         if left_end is not None:
           if next_x <= left_end:
             next_x = left_end
@@ -523,7 +553,7 @@ class Ball(FlashSprite):
             print('ball roll direction', self.id, self.rolling_direction, next_x)
             self.sounds[self.Sound.CRASH].play()
       else:
-        right_end = snapshot.field.right_end(Coordinate(next_x, self.origin.y))
+        right_end = snapshot.field.right_end(self.origin)
         if right_end is not None:
           right_end -= self.size.width
           if next_x >= right_end:
@@ -638,7 +668,12 @@ class Scene(BaseScene[Snapshot]):
     stopwatch: Stopwatch,
     snapshot: Snapshot,
   ) -> None:
-    super().__init__(config, string_res, stopwatch, snapshot)
+    super().__init__(
+      config=config,
+      string_res=string_res,
+      stopwatch=stopwatch,
+      snapshot=snapshot,
+    )
 
   def string(self, key: str) -> str:
     return self.string_res.string(key, self.snapshot.lang)

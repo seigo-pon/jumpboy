@@ -40,7 +40,10 @@ class GameDesign:
         GameLevelStage.STAGE_3,
       ]:
         field = Field(
-          background_tiles=[TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
+          name='road',
+          background_tiles=[
+            TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 0), Size(2.5, 1.875), Image.Pose.NORMAL),
+          ],
           obstacles=[],
           max_size=config.window_size,
           surface=cls.FieldSurface.NORMAL,
@@ -53,18 +56,21 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         field = Field(
-          background_tiles=[TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL)],
+          name='grass',
+          background_tiles=[
+            TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL),
+          ],
           obstacles=[
             Obstacle(
               Collision(
                 Coordinate(0, cls.GROUND_TOP-Image.basic_size().height),
-                Size(1, Image.basic_size().height),
+                Size(0, Image.basic_size().height),
               ),
             ),
             Obstacle(
               Collision(
                 Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height),
-                Size(1, Image.basic_size().height),
+                Size(0, Image.basic_size().height),
               ),
             ),
           ],
@@ -79,17 +85,26 @@ class GameDesign:
   def jumper(cls, level: GameLevel, stopwatch: Stopwatch) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
+        name='boy',
         motions={
           Jumper.Motion.STOP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 0), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
-          Jumper.Motion.WALK: Block(
+          Jumper.Motion.WALK_LEFT: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 1), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
-          Jumper.Motion.JUMP: Block(
+          Jumper.Motion.WALK_RIGHT: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 1), Size(1, 1), Image.Pose.MIRROR_X),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JUMP_UP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 2), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JUMP_DOWN: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 0), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
           Jumper.Motion.FALL_DOWN: Block(
@@ -114,31 +129,41 @@ class GameDesign:
           max_accel=-10,
           walking_distance=0.5,
           walking_period=4,
+          keep_jump_height=Image.basic_size().height,
           joying_repeat_count=3,
         ),
       )
 
     elif level.mode == GameLevelMode.HARD:
       jumper = Jumper(
+        'girl',
         motions={
           Jumper.Motion.STOP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 5), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
-          Jumper.Motion.WALK: Block(
+          Jumper.Motion.WALK_LEFT: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 6), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
-          Jumper.Motion.JUMP: Block(
+          Jumper.Motion.WALK_RIGHT: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 6), Size(1, 1), Image.Pose.MIRROR_X),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JUMP_UP: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 7), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
-          Jumper.Motion.FALL_DOWN: Block(
+          Jumper.Motion.JUMP_DOWN: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 8), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
-          Jumper.Motion.JOY: Block(
+          Jumper.Motion.FALL_DOWN: Block(
             Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 9), Size(1, 1), Image.Pose.NORMAL),
+            Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+          ),
+          Jumper.Motion.JOY: Block(
+            Image(ImageId.JUMPER.id, Coordinate(ImageId.JUMPER.x, 10), Size(1, 1), Image.Pose.NORMAL),
             Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
           ),
         },
@@ -155,6 +180,7 @@ class GameDesign:
           max_accel=-10,
           walking_distance=0.5,
           walking_period=4,
+          keep_jump_height=Image.basic_size().height/2,
           joying_repeat_count=3,
         ),
       )
@@ -178,6 +204,7 @@ class GameDesign:
           distance = Dice.roll(2)+1
 
         ball = Ball(
+            name='straight',
             motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 0), Size(1, 1), Image.Pose.NORMAL),
@@ -232,6 +259,7 @@ class GameDesign:
           distance = Dice.roll(2)+1
 
         ball = Ball(
+            name='bound',
             motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.NORMAL),
