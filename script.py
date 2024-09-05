@@ -257,6 +257,7 @@ class OpeningScene(BaseScene):
     print('snapshot', vars(self.snapshot), vars(self.snapshot.level))
 
     self.title_text: Text | None = None
+    self.play_title = False
 
     self.initial_sprites(True)
 
@@ -284,9 +285,15 @@ class OpeningScene(BaseScene):
 
       return False
 
+    def _play_title(start: bool, timer: Timer) -> bool:
+      self.play_title = True
+      self.snapshot.music_box.play_se(SceneSound.TITLE)
+      return True
+
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 500, _walk_jumper, None),
       Seq(self.stopwatch, 2000, _move_title, None),
+      Seq(self.stopwatch, 500, _play_title, None),
       Seq(self.stopwatch, 500, lambda x, y: True, lambda: TitleScene(self)),
     ])
 
@@ -301,6 +308,8 @@ class OpeningScene(BaseScene):
 
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter(False):
+      if not self.play_title:
+        self.snapshot.music_box.play_se(SceneSound.TITLE)
       return TitleScene(self)
 
     return super().update()
@@ -341,7 +350,6 @@ class TitleScene(BaseScene):
     self.score.center = Coordinate(self.menu_middle_top_center(None).x, -self.score.size.height/2)
 
     self.snapshot.music_box.play_raw_bgm(TITLE_BGM[self.snapshot.level.mode])
-    self.snapshot.music_box.play_se(SceneSound.TITLE)
 
     def _walk_jumper(start: bool, timer: Timer) -> bool:
       self.snapshot.jumper.walk(self.jumper_start_x())
@@ -571,11 +579,12 @@ class ReadyScene(BaseStageScene):
 
     self.snapshot.jumper.stop()
 
-    self.new_life = 0
+    self.max_add_life = 0
     if self.snapshot.jumper.life < self.snapshot.jumper.param.max_life:
-      self.new_life = GameDesign.recovery_life_count(self.snapshot.level)
-      self.new_life = min(self.new_life, self.snapshot.jumper.param.max_life-self.snapshot.jumper.life)
-    print('recovery life', self.new_life, self.snapshot.jumper.life, self.snapshot.jumper.param.max_life)
+      self.max_add_life = GameDesign.recovery_life_count(self.snapshot.level)
+      self.max_add_life = min(self.max_add_life, self.snapshot.jumper.param.max_life-self.snapshot.jumper.life)
+    print('recovery life', self.max_add_life, self.snapshot.jumper.life, self.snapshot.jumper.param.max_life)
+    self.add_life = 0
 
     self.show_stage = False
 
@@ -594,13 +603,14 @@ class ReadyScene(BaseStageScene):
 
     def _recovery_life(start: bool, timer: Timer) -> bool:
       if start:
-        if self.new_life == 0:
+        if self.max_add_life == 0:
           return True
       else:
-        if self.snapshot.jumper.life == self.new_life:
+        if self.add_life == self.max_add_life:
           return True
 
         self.snapshot.jumper.life += 1
+        self.add_life += 1
         self.snapshot.music_box.play_se(SceneSound.RECOVER_LIFE)
 
       timer.limit_msec = 1000
@@ -762,10 +772,11 @@ class PlayScene(BaseStageScene):
 
       if not stopped:
         next_msec = GameDesign.next_ball_msec(self.snapshot.level, self.snapshot.balls)
-        stopping_ball = GameDesign.ball(self.snapshot.level, self.stopwatch)
-        stopping_ball.origin = self.ball_ready_origin(stopping_ball)
-        stopping_ball.roll_msec(self.stopwatch, next_msec)
-        self.snapshot.balls.append(stopping_ball)
+        if next_msec is not  None:
+          stopping_ball = GameDesign.ball(self.snapshot.level, self.stopwatch)
+          stopping_ball.origin = self.ball_ready_origin(stopping_ball)
+          stopping_ball.roll_msec(self.stopwatch, next_msec)
+          self.snapshot.balls.append(stopping_ball)
 
     return super().update()
 

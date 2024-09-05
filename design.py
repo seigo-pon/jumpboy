@@ -305,8 +305,8 @@ class GameDesign:
     return ball
 
   @classmethod
-  def next_ball_msec(cls, level: GameLevel, balls: list[Ball]) -> int:
-    msec = 0
+  def next_ball_msec(cls, level: GameLevel, balls: list[Ball]) -> int | None:
+    msec: int | None = 0
     if len(balls) > 0:
       if level.mode == GameLevelMode.NORMAL:
         if level.stage in [
@@ -322,14 +322,27 @@ class GameDesign:
 
         elif level.stage in [
           GameLevelStage.STAGE_4,
+        ]:
+          if len(balls) <= 2:
+            msec = 2000
+          else:
+            msec = None
+
+        elif level.stage in [
           GameLevelStage.STAGE_5,
         ]:
-          msec = 2000
+          if len(balls) <= 4:
+            msec = 2000
+          else:
+            msec = None
 
         elif level.stage in [
           GameLevelStage.STAGE_6,
         ]:
-          msec = (Dice.roll(1)+1)*1000
+          if len(balls) <= 6:
+            msec = (Dice.roll(1)+1)*1000
+          else:
+            msec = None
 
     return msec
 
@@ -380,7 +393,7 @@ class GameDesign:
       elif level.stage in [
         GameLevelStage.STAGE_3,
       ]:
-        limit_msec = 30000
+        limit_msec = 15000
 
       elif level.stage in [
         GameLevelStage.STAGE_4,
@@ -391,7 +404,7 @@ class GameDesign:
       elif level.stage in [
         GameLevelStage.STAGE_6,
       ]:
-        limit_msec = 30000
+        limit_msec = 20000
 
     return limit_msec
 
