@@ -202,9 +202,9 @@ class GameDesign:
         if level.stage == GameLevelStage.STAGE_1:
           distance = 2
         elif level.stage == GameLevelStage.STAGE_2:
-          distance = Dice.roll(1)+2
+          distance = 3
         elif level.stage == GameLevelStage.STAGE_3:
-          distance = Dice.roll(2)+1
+          distance = Dice.roll(1)+2
 
         ball = Ball(
             name='straight_ball',
@@ -257,7 +257,7 @@ class GameDesign:
         if level.stage == GameLevelStage.STAGE_4:
           distance = 2
         elif level.stage == GameLevelStage.STAGE_5:
-          distance = Dice.roll(1)+2
+          distance = 3
         elif level.stage == GameLevelStage.STAGE_6:
           distance = Dice.roll(2)+1
 
@@ -393,7 +393,7 @@ class GameDesign:
       elif level.stage in [
         GameLevelStage.STAGE_3,
       ]:
-        limit_msec = 15000
+        limit_msec = 20000
 
       elif level.stage in [
         GameLevelStage.STAGE_4,
