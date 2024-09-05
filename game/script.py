@@ -1,7 +1,6 @@
 from datetime import datetime
-from enum import StrEnum
 from typing import Any, Callable, Generic, Self, TypeVar
-from game import Size, Path, Stopwatch, Timer, AssetMusic
+from game import Size, Path, Stopwatch, Timer, StringRes
 import json
 import os
 import pyxel
@@ -32,25 +31,6 @@ class GameConfig:
     self.copyright = copyright
     self.released_year = released_year
     self.debug = debug
-
-
-class Language(StrEnum):
-  EN = 'en'
-  JP = 'jp'
-
-
-class StringRes:
-  STRING_FILE = 'string.json'
-
-  def __init__(self, path: Path) -> None:
-    self.strings: dict[str, dict[str, str]] = {}
-    with open(os.path.join(path.asset_path, self.STRING_FILE), mode='r') as f:
-      self.strings = json.loads(f.read())
-
-  def string(self, key: str, language: Language) -> str:
-    if language in self.strings and key in self.strings[language]:
-      return self.strings[language][key]
-    return ''
 
 
 class Snapshot:
@@ -156,34 +136,6 @@ class TimeSeq:
           return seq.to_next()
 
     return None
-
-
-class MusicBox:
-  _instance: Self | None = None
-  _music: AssetMusic | None = None
-
-  def __new__(cls, *args, **kwargs):
-    if cls._instance is None:
-      cls._instance = super(MusicBox, cls).__new__(cls)
-      print('music box create', cls._instance)
-    return cls._instance
-
-  def play(self, music: AssetMusic) -> None:
-    if self._music is not None:
-      if self._music.name == music.name:
-        print('bgm already play', self._music.name)
-        return
-      self._music.stop()
-
-    self._music = music
-    self._music.play()
-    print('bgm play', self._music.name)
-
-  def stop(self) -> None:
-    if self._music is not None:
-      self._music.stop()
-      print('bgm stop', self._music.name)
-    self._music = None
 
 
 TSnapshot = TypeVar('TSnapshot', bound='Snapshot')

@@ -1,8 +1,27 @@
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from game import Coordinate, Size, Path
 import json
 import os
 import pyxel
+
+
+class Language(StrEnum):
+  EN = 'en'
+  JP = 'jp'
+
+
+class StringRes:
+  STRING_FILE = 'string.json'
+
+  def __init__(self, path: Path) -> None:
+    self.strings: dict[str, dict[str, str]] = {}
+    with open(os.path.join(path.asset_path, self.STRING_FILE), mode='r') as f:
+      self.strings = json.loads(f.read())
+
+  def string(self, key: str, language: Language) -> str:
+    if language in self.strings and key in self.strings[language]:
+      return self.strings[language][key]
+    return ''
 
 
 class AssetImageId:
@@ -58,8 +77,12 @@ class TileMap(AssetImage):
 
 
 class AssetSound:
+  @classmethod
+  def channel_count(cls) -> int:
+    return 4
+
   def play(self) -> None:
-    pass
+    raise RuntimeError()
 
 
 class SoundEffect(AssetSound):
@@ -71,57 +94,74 @@ class SoundEffect(AssetSound):
     pyxel.play(self.channel, self.id, resume=True)
 
 
-class AssetMusic(AssetSound):
+class AssetBgm(AssetSound):
   def __init__(self, name: str) -> None:
     self.name = name
 
-  def stop(self) -> None:
-    pass
-
-
-class Music(AssetMusic):
-  def __init__(self, id: int, channels: list[int]) -> None:
-    super().__init__(str(id))
-
-    self.id = id
-    self.channels = channels
-
-  def play(self) -> None:
-    pyxel.playm(self.id, loop=True)
+    self.channels: list[int] = {}
 
   def stop(self) -> None:
     for channel in self.channels:
       pyxel.stop(channel)
+    print('bgm stop', self.channels)
 
 
-class Bgm8BitMusic(AssetMusic):
-  BGM_FOLDER_NAME = 'bgm'
+class Bgm(AssetBgm):
+  @classmethod
+  def get_name(cls, id: int) -> str:
+    return 'bgm_{}'.format(id)
 
-  def __init__(self, filename: str, path: Path, offset_id: int, un_play_channels: list[int]) -> None:
-    super().__init__(filename)
+  def __init__(self, id: int, channels: list[int]) -> None:
+    super().__init__(Bgm.get_name(id))
 
-    self.bgm: dict = {}
-    file_path = os.path.join(path.asset_path, self.BGM_FOLDER_NAME, '{}.json'.format(filename))
+    self.channels = channels
+    self.id = id
+
+  def play(self) -> None:
+    if len(self.channels) > 0 and pyxel.play_pos(self.channels[0]) is None:
+      pyxel.playm(self.id, loop=True)
+      print('bgm play', self.name, self.channels)
+
+
+class RawBgm(AssetBgm):
+  @classmethod
+  def get_name(cls, filename: str) -> str:
+    return 'raw_bgm_{}'.format(filename)
+
+  def __init__(
+    self,
+    filename: str,
+    path: Path,
+    folder: str,
+    start_id: int,
+    exclude_play_channels: list[int],
+  ) -> None:
+    super().__init__(RawBgm.get_name(filename))
+
+    self.start_id = start_id
+    self.exclude_play_channels = exclude_play_channels
+
+    self.music_raw_data: dict = {}
+
+    file_path = os.path.join(path.asset_path, folder, '{}.json'.format(filename))
     with open(file_path, mode='r') as f:
-      self.bgm = json.loads(f.read())
-    self.offset_id = offset_id
-    self.un_play_channels = un_play_channels
-
-    self.channels: list[int] = []
+      self.music_raw_data = json.loads(f.read())
+    print('raw bgm loaded', filename)
 
   def play(self) -> None:
     if len(self.channels) == 0:
-      for (ch, sound) in enumerate(self.bgm):
-        if ch in self.un_play_channels:
+      for (channel, sound) in enumerate(self.music_raw_data):
+        if channel in self.exclude_play_channels:
           continue
 
-        pyxel.sounds[self.offset_id+ch].set(*sound)
-        pyxel.play(ch, self.offset_id+ch, loop=True)
-        self.channels.append(ch)
-      print('bgm 8bit play', self.channels)
+        id = self.start_id+channel
+
+        pyxel.sounds[id].set(*sound)
+        pyxel.play(channel, id, loop=True, resume=True)
+
+        self.channels.append(channel)
+      print('raw bgm play', self.name, self.channels)
 
   def stop(self) -> None:
-    for channel in self.channels:
-      pyxel.stop(channel)
-    print('bgm 8bit stop', self.channels)
+    super().stop()
     self.channels = []

@@ -3,9 +3,9 @@ from enum import IntEnum
 from typing import Any, TypeVar
 from game import (
   Coordinate, Size, Dice, Stopwatch, Timer,
-  TileMap, SoundEffect,
-  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad,
-  GameConfig, Language, StringRes, Snapshot as BaseSnapshot, Scene as BaseScene,
+  Language, StringRes, TileMap,
+  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,
+  GameConfig, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
 
@@ -176,7 +176,7 @@ class Jumper(FlashSprite):
     self,
     name: str,
     motions: dict[int, Block],
-    sounds: dict[int, SoundEffect],
+    sounds: dict[int, int],
     stopwatch: Stopwatch,
     param: Param,
   ) -> None:
@@ -194,6 +194,7 @@ class Jumper(FlashSprite):
     self.action = self.Action.STOP
     self.life = self.param.max_life
     self.damaging = False
+    self.start_damage = False
     self.walk_x = 0.0
     self.accel = 0.0
     self.now_accel = 0.0
@@ -206,6 +207,7 @@ class Jumper(FlashSprite):
   def clear(self, all: bool) -> None:
     if all:
       self.damaging = False
+      self.start_damage = False
     self.walk_x = 0.0
     self.accel = 0.0
     self.now_accel = 0.0
@@ -228,7 +230,7 @@ class Jumper(FlashSprite):
     return self.action == self.Action.STAND_BY
 
   def jumping(self, up: bool | None) -> bool:
-    jump = True if self.action == self.Action.JUMP else False
+    jump = self.action == self.Action.JUMP
     if jump and up is not None:
       if up:
         if self.center.y > self.prev_y:
@@ -292,12 +294,11 @@ class Jumper(FlashSprite):
         self.life = 0
         self.action = self.Action.FALL_DOWN
         self.clear(True)
-        self.sounds[self.Sound.FALL_DOWN].play()
       else:
         print('jumper damage', self.id, self.life)
         self.damaging = True
         self.flash()
-        self.sounds[self.Sound.DAMAGE].play()
+        self.start_damage = True
 
   def joy(self) -> None:
     if self.stopping:
@@ -312,6 +313,10 @@ class Jumper(FlashSprite):
     super().update(stopwatch, snapshot)
 
     if self.damaging:
+      if self.start_damage:
+        snapshot.music_box.play_se(self.sounds[self.Sound.DAMAGE])
+        self.start_damage = False
+
       if not self.flashing:
         self.damaging = False
 
@@ -342,7 +347,7 @@ class Jumper(FlashSprite):
           self.motion = self.Motion.STOP
         else:
           self.motion = self.Motion.WALK_LEFT if distance <= 0 else self.Motion.WALK_RIGHT
-          self.sounds[self.Sound.WALK].play()
+          snapshot.music_box.play_se(self.sounds[self.Sound.WALK])
 
     elif self.standing_by:
       self.motion = self.Motion.STOP
@@ -352,7 +357,7 @@ class Jumper(FlashSprite):
     elif self.jumping(None):
       if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
         if self.accel == self.now_accel:
-          self.sounds[self.Sound.JUMP].play()
+          snapshot.music_box.play_se(self.sounds[self.Sound.JUMP])
 
         center_y = self.center.y
 
@@ -386,6 +391,8 @@ class Jumper(FlashSprite):
         self.clear(False)
 
     elif self.falling_down:
+      if self.motion != self.Motion.FALL_DOWN:
+        snapshot.music_box.play_se(self.sounds[self.Sound.FALL_DOWN])
       self.motion = self.Motion.FALL_DOWN
 
     elif self.joying:
@@ -393,7 +400,7 @@ class Jumper(FlashSprite):
 
       if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
         if self.accel == self.now_accel:
-          self.sounds[self.Sound.JOY].play()
+          snapshot.music_box.play_se(self.Sound.JOY)
 
         center_y = self.center.y
         self.center.y += (self.center.y - self.prev_y) + self.accel
@@ -440,18 +447,18 @@ class Ball(FlashSprite):
       roll_distance: float,
       max_accel: int,
       roll_period: int,
-      default_acquirement_points: dict[int, int],
+      max_points: dict[int, int],
     ) -> None:
       self.roll_distance = roll_distance
       self.max_accel = max_accel
       self.roll_period = roll_period
-      self.default_acquirement_points = default_acquirement_points
+      self.max_points = max_points
 
   def __init__(
     self,
     name: str,
     motions: dict[int, Block],
-    sounds: dict[int, SoundEffect],
+    sounds: dict[int, int],
     stopwatch: Stopwatch,
     param: Param,
   ) -> None:
@@ -468,9 +475,10 @@ class Ball(FlashSprite):
 
     self.action = self.Action.STOP
     self.rolled_timer: Timer | None = None
-    self.acquirement_points: dict[int, int] = {}
+    self.points: dict[int, int] = {}
     self.dead = False
     self.roll_direction = True
+    self.start_roll = False
     self.accel = 0.0
     self.now_accel = 0.0
     self.prev_y = 0.0
@@ -504,8 +512,8 @@ class Ball(FlashSprite):
         self.accel = self.param.max_accel
         self.now_accel = self.accel
         self.prev_y = self.origin.y
-      self.acquirement_points = self.param.default_acquirement_points
-      self.sounds[self.Sound.ROLL].play()
+      self.points = self.param.max_points
+      self.start_roll = True
 
   def roll_msec(self, stopwatch: Stopwatch, rolled_msec: int) -> None:
     if self.stopping:
@@ -520,16 +528,15 @@ class Ball(FlashSprite):
       print('ball burst', self.id)
       self.action = self.Action.BURST
       self.flash()
-      self.sounds[self.Sound.BURST].play()
 
   def strike(self) -> None:
     print('ball strike', self.id)
-    self.acquirement_points = {}
+    self.points = {}
 
   @property
   def acquirement_point(self) -> int:
-    if self.action in self.acquirement_points:
-      return self.acquirement_points[self.action]
+    if self.action in self.points:
+      return self.points[self.action]
     return 0
 
   def update(self, stopwatch: Stopwatch, snapshot: TSnapshot) -> None:
@@ -541,6 +548,10 @@ class Ball(FlashSprite):
       pass
 
     elif self.rolling:
+      if self.start_roll:
+        snapshot.music_box.play_se(self.sounds[self.Sound.ROLL])
+        self.start_roll = False
+
       next_x = self.origin.x + self.param.roll_distance * (1 if self.roll_direction else -1)
 
       if not self.roll_direction:
@@ -551,7 +562,7 @@ class Ball(FlashSprite):
             self.roll_direction = True
             self.bounced = True
             print('ball roll direction', self.id, self.roll_direction, next_x)
-            self.sounds[self.Sound.CRASH].play()
+            snapshot.music_box.play_se(self.sounds[self.Sound.CRASH])
       else:
         right_end = snapshot.field.right_end(self.origin)
         if right_end is not None:
@@ -561,13 +572,13 @@ class Ball(FlashSprite):
             self.roll_direction = False
             self.bounced = True
             print('ball roll direction', self.id, self.roll_direction, next_x)
-            self.sounds[self.Sound.CRASH].play()
+            snapshot.music_box.play_se(self.sounds[self.Sound.CRASH])
 
       next_y = self.origin.y
       if self.accel != 0:
         if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
           if self.accel == self.now_accel:
-            self.sounds[self.Sound.LEAP].play()
+            snapshot.music_box.play_se(self.sounds[self.Sound.LEAP])
 
           origin_y = next_y
 
@@ -604,6 +615,8 @@ class Ball(FlashSprite):
             self.motion = self.Motion.ANGLE_270
 
     elif self.bursting:
+      if self.motion != self.Motion.BURST:
+        snapshot.music_box.play_se(self.sounds[self.Sound.BURST])
       self.motion = self.Motion.BURST
 
       if not self.flashing:
@@ -616,6 +629,7 @@ class Snapshot(BaseSnapshot):
     self,
     lang: Language,
     game_pad: GamePad,
+    music_box: MusicBox,
     score_board: ScoreBoard,
     level :GameLevel,
     field: Field,
@@ -626,6 +640,7 @@ class Snapshot(BaseSnapshot):
 
     self.lang = lang
     self.game_pad = game_pad
+    self.music_box = music_box
     self.score_board = score_board
     self.level = level
     self.field = field

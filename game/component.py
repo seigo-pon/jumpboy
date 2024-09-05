@@ -1,10 +1,11 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import (
-  Coordinate, Size, Stopwatch, Timer, TextScriber,
-  Image, TileMap, SoundEffect,
+  Coordinate, Size, Path, Stopwatch, Timer,
+  Image, TileMap, SoundEffect, AssetSound, AssetBgm, Bgm, RawBgm,
 )
 import pyxel
+import PyxelUniversalFont as puf
 
 
 class Variation:
@@ -259,6 +260,45 @@ class Movable(Variation):
         self.move_center = None
 
 
+class TextScriber:
+  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
+  CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
+    10: {
+      False: 'PixelMplus10-Regular.ttf',
+      True: 'PixelMplus10-Bold.ttf',
+    },
+    12: {
+      False: 'PixelMplus12-Regular.ttf',
+      True: 'PixelMplus12-Bold.ttf',
+    },
+  }
+
+  _instance: Self | None = None
+  _writers: dict[str, puf.Writer] = {}
+
+  def __new__(cls, *args, **kwargs):
+    if cls._instance is None:
+      cls._instance = super(TextScriber, cls).__new__(cls)
+      print('text scriber create', cls._instance)
+    return cls._instance
+
+  @classmethod
+  def word_size(cls, font_size: int) -> Size:
+    return Size(font_size/2, font_size)
+
+  def writer(self, font_size: int, bold: bool) -> puf.Writer:
+    font = self.CUSTOM_FONT_FILES[font_size][bold]
+    if font not in puf.get_available_fonts():
+      font = self.DEFAULT_FONT_FILE
+
+    if font not in self._writers:
+      writer = puf.Writer(font)
+      print('new font', font, writer, self._writers)
+      self._writers[font] = writer
+
+    return self._writers[font]
+  
+  
 class Text(Subject, Movable):
   def __init__(self, string: str, text_color: int, font_size: int, bold: bool) -> None:
     super().__init__()
@@ -425,3 +465,84 @@ class GamePad:
         return True
 
     return False
+
+
+class MusicBox:
+  def __init__(
+    self,
+    path: Path,
+    raw_bgm_folder: str,
+    raw_bgm_exclude_play_channels: list[int],
+  ) -> None:
+    self.path = path
+    self.raw_bgm_folder = raw_bgm_folder
+    self.raw_bgm_exclude_play_channels = raw_bgm_exclude_play_channels
+
+    self.can_play_se = True
+    self.can_play_bgm = True
+    self.bgm: AssetBgm | None = None
+
+  def play_se(self, id) -> None:
+    if not self.can_play_se:
+      print('sound effect play disabled', id)
+      return
+
+    played = False
+    for channel in AssetSound.channel_count():
+      if self.bgm is not None:
+        if channel in self.bgm.channels:
+          continue
+
+      if pyxel.play_pos(channel) is not None:
+        continue
+
+      SoundEffect(channel, id).play()
+      played = True
+      break
+
+    if not played:
+      channel = AssetSound.channel_count()-1
+      if channel < 0:
+        channel = 0
+      SoundEffect(channel, id).play()
+      
+
+  def play_bgm(self, id, channels: list[int]) -> None:
+    if not self.can_play_bgm:
+      print('bgm play disabled', id)
+      return
+
+    if self.bgm is not None:
+      if self.bgm.name == Bgm.get_name(id):
+        print('bgm play already', self.bgm.name)
+        return
+
+      self.bgm.stop()
+
+    self.bgm = Bgm(id, channels)
+    self.bgm.play()
+
+  def play_raw_bgm(self, filename) -> None:
+    if not self.can_play_bgm:
+      print('bgm play disabled', filename)
+      return
+
+    if self.bgm is not None:
+      if self.bgm.name == RawBgm.get_name(filename):
+        print('raw bgm play already', self.bgm.name)
+        return
+
+      self.bgm.stop()
+
+    self.bgm = RawBgm(
+      filename=filename,
+      path=self.path,
+      folder=self.raw_bgm_folder,
+      exclude_play_channels=self.raw_bgm_exclude_play_channels,
+    )
+    self.bgm.play()
+
+  def stop_bgm(self) -> None:
+    if self.bgm is not None:
+      self.bgm.stop()
+    self.bgm = None

@@ -12,12 +12,6 @@ class ImageId:
   LIFE = AssetImageId(0, 3)
 
 
-class SoundCh:
-  JUMPER = 3
-  BALL = 3
-  SCENE = 3
-
-
 class SoundId:
   JUMPER = 0
   BALL = 10

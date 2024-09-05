@@ -2,11 +2,11 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Any, Self
 from game import (
-  Coordinate, Size, Stopwatch, Timer, TextScriber,
-  Image, SoundEffect, Bgm8BitMusic,
-  Text, BlinkText,
+  Coordinate, Size, Stopwatch, Timer,
+  Language, StringRes, Image,
+  TextScriber, Text, BlinkText,
   Poster, Signboard,
-  GameConfig, Language, StringRes, Seq, TimeSeq, MusicBox,
+  GameConfig, Seq, TimeSeq, MusicBox,
 )
 from core import (
   GamePad,
@@ -14,7 +14,7 @@ from core import (
   Ball, Jumper,
   Snapshot, Scene,
 )
-from assetid import ImageId, SoundCh, SoundId
+from assetid import ImageId, SoundId
 from design import GameLevelMode, GameLevelStage, FIRST_LEVEL, GameDesign
 import pyxel
 
@@ -31,25 +31,28 @@ SCORE: dict[int, str] = {
   GameLevelMode.HARD: 'score_title_2',
 }
 
+BGM_FOLDER = 'bgm'
+BGM_EXCLUDE_PLAY_CHANNEL = [3]
+
 class SceneSound:
-  READY = SoundEffect(SoundCh.SCENE, SoundId.SCENE+0)
-  PAUSE = SoundEffect(SoundCh.SCENE, SoundId.SCENE+1)
-  TIME_UP = SoundEffect(SoundCh.SCENE, SoundId.SCENE+2)
-  GAME_OVER = SoundEffect(SoundCh.SCENE, SoundId.SCENE+3)
-  STAGE_CLEAR = SoundEffect(SoundCh.SCENE, SoundId.SCENE+4)
-  SELECT = SoundEffect(SoundCh.SCENE, SoundId.SCENE+5)
-  RESTART = SoundEffect(SoundCh.SCENE, SoundId.SCENE+6)
-  START = SoundEffect(SoundCh.SCENE, SoundId.SCENE+7)
-  RECOVER_LIFE = SoundEffect(SoundCh.SCENE, SoundId.SCENE+8)
+  READY = SoundId.SCENE+0
+  PAUSE = SoundId.SCENE+1
+  TIME_UP = SoundId.SCENE+2
+  GAME_OVER = SoundId.SCENE+3
+  STAGE_CLEAR = SoundId.SCENE+4
+  SELECT = SoundId.SCENE+5
+  RESTART = SoundId.SCENE+6
+  START = SoundId.SCENE+7
+  RECOVER_LIFE = SoundId.SCENE+8
 
 TITLE_BGM: dict[int, str] = {
   GameLevelMode.NORMAL: 'title1',
   GameLevelMode.HARD: 'title2',
 }
 FIELD_BGM: dict[int, str] = {
-  GameDesign.FieldSurface.NORMAL: 'field1',
-  GameDesign.FieldSurface.FENCE: 'field2',
-  GameDesign.FieldSurface.NORMAL: 'field3',
+  GameDesign.FieldSurface.ROAD: 'field1',
+  GameDesign.FieldSurface.GRASS: 'field2',
+  GameDesign.FieldSurface.CLAY: 'field3',
 }
 END_BGM: dict[int, str] = {
   GameLevelMode.NORMAL: 'end1',
@@ -216,16 +219,6 @@ class BaseScene(Scene):
 
     return subjects
 
-  def play_bgm(self, filename) -> None:
-    MusicBox().play(
-      Bgm8BitMusic(
-        filename=filename,
-        path=self.config.path,
-        offset_id=SoundId.BGM,
-        un_play_channels=list(set((SoundCh.JUMPER, SoundCh.BALL, SoundCh.SCENE)))
-      )
-    )
-
 
 class OpeningScene(BaseScene):
   MOVE_TITLE_Y_MIN = 1
@@ -241,6 +234,11 @@ class OpeningScene(BaseScene):
       snapshot=Snapshot(
         lang=Language.EN,
         game_pad=GamePad(),
+        music_box=MusicBox(
+          path=self.config.path,
+          raw_music_folder=BGM_FOLDER,
+          raw_music_exclude_play_channels=BGM_EXCLUDE_PLAY_CHANNEL,
+        ),
         score_board=ScoreBoard(),
         level=level,
         field=GameDesign.field(level, config),
@@ -274,7 +272,7 @@ class OpeningScene(BaseScene):
           -TextScriber.word_size(TEXT_FONT_SIZE).height,
         )
         self.title_text.move(center=self.title_center(), move_distance=0.5)
-        self.play_bgm(TITLE_BGM[self.snapshot.level.mode])
+        self.snapshot.music_box.play_bgm(TITLE_BGM[self.snapshot.level.mode])
       else:
         if self.title_text.moving:
           return True
@@ -337,7 +335,7 @@ class TitleScene(BaseScene):
     self.score = self.scoreboard()
     self.score.center = Coordinate(self.menu_middle_top_center(None).x, -self.score.size.height/2)
 
-    self.play_bgm(TITLE_BGM[self.snapshot.level.mode])
+    self.snapshot.music_box.play_bgm(TITLE_BGM[self.snapshot.level.mode])
 
     def _walk_jumper(start: bool, timer: Timer) -> bool:
       self.snapshot.jumper.walk(self.jumper_start_x())
@@ -436,8 +434,8 @@ class TitleScene(BaseScene):
         self.time_seq = TimeSeq([
           Seq(self.stopwatch, 1000, lambda x, y: True, lambda: ReadyScene(self, 0, None)),
         ])
-        SceneSound.SELECT.play()
-        MusicBox().stop()
+        self.snapshot.music_box.play_se(SceneSound.SELECT)
+        self.snapshot.music_box.stop_bgm()
 
     return super().update()
 
@@ -556,7 +554,7 @@ class ReadyScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
-    MusicBox().stop()
+    self.snapshot.music_box.stop_bgm()
 
     print('ready', vars(self.snapshot.level))
     self.play_timer = Timer.set_msec(
@@ -597,7 +595,7 @@ class ReadyScene(BaseStageScene):
           return True
 
         self.snapshot.jumper.life += 1
-        SceneSound.RECOVER_LIFE.play()
+        self.snapshot.music_box.play_se(SceneSound.RECOVER_LIFE)
 
       timer.limit_msec = 1000
       timer.reset()
@@ -607,7 +605,7 @@ class ReadyScene(BaseStageScene):
     def _ready_describe(start: bool, timer: Timer) -> bool:
       if self.describe is None:
         self.describe = [e for e in self.Describe][0]
-        SceneSound.START.play()
+        self.snapshot.music_box.play_se(SceneSound.START)
       else:
         if self.describe == self.Describe.STAGE:
           self.show_stage = True
@@ -635,7 +633,7 @@ class ReadyScene(BaseStageScene):
         else:
           last_sec = int(self.ready_timer.msec/1000)
           if self.last_sec != last_sec:
-            SceneSound.READY.play()
+            self.snapshot.music_box.play_se(SceneSound.READY)
             self.last_sec = last_sec
 
       return False
@@ -684,12 +682,12 @@ class PlayScene(BaseStageScene):
     if self.play_timer is not None:
       self.play_timer.resume()
 
-    self.play_bgm(FIELD_BGM[self.snapshot.field.surface])
+    self.snapshot.music_box.play_bgm(FIELD_BGM[self.snapshot.field.surface])
 
   def update(self) -> Self | Any:
     if self.play_timer is not None:
       if self.snapshot.game_pad.cancel():
-        SceneSound.PAUSE.play()
+        self.snapshot.music_box.play_se(SceneSound.PAUSE)
         return PauseScene(self, self.point, self.play_timer)
 
       next_balls: list[Ball] = []
@@ -740,7 +738,7 @@ class PlayScene(BaseStageScene):
         return GameOverScene(self, self.point, self.play_timer)
 
       if self.play_timer.over:
-        SceneSound.TIME_UP.play()
+        self.snapshot.music_box.play_se(SceneSound.TIME_UP)
         return StageClearScene(self, self.point, self.play_timer)
 
       stopped = False
@@ -784,7 +782,7 @@ class PauseScene(BaseStageScene):
 
   def update(self) -> Self | Any:
     if self.snapshot.game_pad.enter(False) or self.snapshot.game_pad.cancel():
-      SceneSound.RESTART.play()
+      self.snapshot.music_box.play_se(SceneSound.RESTART)
       return PlayScene(self, self.point, self.play_timer)
 
     return super().update()
@@ -803,7 +801,7 @@ class GameOverScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
-    MusicBox().stop()
+    self.snapshot.music_box.stop_bgm()
 
     if self.play_timer is not None:
       self.play_timer.pause()
@@ -821,7 +819,7 @@ class GameOverScene(BaseStageScene):
 
     def _show_game_over(start: bool, timer: Timer) -> bool:
       self.show_game_over = True
-      SceneSound.GAME_OVER.play()
+      self.snapshot.music_box.play_se(SceneSound.GAME_OVER)
       return True
 
     def _show_game_end(start: bool, timer: Timer) -> bool:
@@ -877,7 +875,7 @@ class StageClearScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
-    MusicBox().stop()
+    self.snapshot.music_box.stop_bgm()
 
     if self.play_timer is not None:
       self.play_timer.pause()
@@ -913,7 +911,7 @@ class StageClearScene(BaseStageScene):
 
     def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
-      SceneSound.STAGE_CLEAR.play()
+      self.snapshot.music_box.play_se(SceneSound.STAGE_CLEAR)
       return True
 
     def _show_next(start: bool, timer: Timer) -> bool:
@@ -975,7 +973,7 @@ class GameClearScene(BaseStageScene):
   def __init__(self, scene: Scene, point: int, play_timer: Timer | None) -> None:
     super().__init__(scene, point, play_timer)
 
-    MusicBox().stop()
+    self.snapshot.music_box.stop_bgm()
 
     self.record_score()
     self.snapshot.save(self.config.path)
@@ -989,7 +987,7 @@ class GameClearScene(BaseStageScene):
     def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
-      self.play_bgm(END_BGM[self.snapshot.level.mode])
+      self.snapshot.music_box.play_bgm(END_BGM[self.snapshot.level.mode])
       return True
 
     def _joy_jumper(start: bool, timer: Timer) -> bool:

@@ -1,14 +1,14 @@
 from enum import IntEnum
 from game import (
   Coordinate, Size, Stopwatch, Dice,
-  Image, TileMap, SoundEffect,
+  Image, TileMap,
   Collision, Block, Obstacle,
   GameConfig,
 )
 from core import (
   GameLevel, Field, Jumper, Ball,
 )
-from assetid import TileId, ImageId, SoundCh, SoundId
+from assetid import TileId, ImageId, SoundId
 
 
 class GameLevelMode(IntEnum):
@@ -30,8 +30,9 @@ class GameDesign:
   GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
 
   class FieldSurface(IntEnum):
-    NORMAL = 0
-    FENCE = 1
+    ROAD = 0
+    GRASS = 1
+    CLAY = 2
 
   @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
@@ -48,7 +49,7 @@ class GameDesign:
           ],
           obstacles=[],
           max_size=config.window_size,
-          surface=cls.FieldSurface.NORMAL,
+          surface=cls.FieldSurface.ROAD,
           ground_height=cls.GROUND_TOP,
         )
 
@@ -77,7 +78,7 @@ class GameDesign:
             ),
           ],
           max_size=config.window_size,
-          surface=cls.FieldSurface.FENCE,
+          surface=cls.FieldSurface.GRASS,
           ground_height=cls.GROUND_TOP,
         )
 
@@ -119,11 +120,11 @@ class GameDesign:
           ),
         },
         sounds={
-          Jumper.Sound.WALK: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+0),
-          Jumper.Sound.JUMP: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+1),
-          Jumper.Sound.FALL_DOWN: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+2),
-          Jumper.Sound.JOY: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+3),
-          Jumper.Sound.DAMAGE: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+4),
+          Jumper.Sound.WALK: SoundId.JUMPER+0,
+          Jumper.Sound.JUMP: SoundId.JUMPER+1,
+          Jumper.Sound.FALL_DOWN: SoundId.JUMPER+2,
+          Jumper.Sound.JOY: SoundId.JUMPER+3,
+          Jumper.Sound.DAMAGE: SoundId.JUMPER+4,
         },
         stopwatch=stopwatch,
         param=Jumper.Param(
@@ -170,11 +171,11 @@ class GameDesign:
           ),
         },
         sounds={
-          Jumper.Sound.WALK: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+5),
-          Jumper.Sound.JUMP: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+6),
-          Jumper.Sound.FALL_DOWN: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+7),
-          Jumper.Sound.JOY: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+8),
-          Jumper.Sound.DAMAGE: SoundEffect(SoundCh.JUMPER, SoundId.JUMPER+9),
+          Jumper.Sound.WALK: SoundId.JUMPER+5,
+          Jumper.Sound.JUMP: SoundId.JUMPER+6,
+          Jumper.Sound.FALL_DOWN: SoundId.JUMPER+7,
+          Jumper.Sound.JOY: SoundId.JUMPER+8,
+          Jumper.Sound.DAMAGE: SoundId.JUMPER+9,
         },
         stopwatch=stopwatch,
         param=Jumper.Param(
@@ -230,17 +231,17 @@ class GameDesign:
               ),
             },
             sounds={
-              Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
-              Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
-              Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
-              Ball.Sound.LEAP: SoundEffect(SoundCh.BALL, SoundId.BALL+3),
+              Ball.Sound.ROLL: SoundId.BALL+0,
+              Ball.Sound.CRASH: SoundId.BALL+1,
+              Ball.Sound.BURST: SoundId.BALL+2,
+              Ball.Sound.LEAP: SoundId.BALL+3,
             },
             stopwatch=stopwatch,
             param=Ball.Param(
               roll_distance=distance,
               max_accel=0,
               roll_period=1,
-              default_acquirement_points={
+              max_points={
                 Ball.Action.ROLL: 10,
                 Ball.Action.BURST: 30
               },
@@ -285,16 +286,16 @@ class GameDesign:
               ),
             },
             sounds={
-              Ball.Sound.ROLL: SoundEffect(SoundCh.BALL, SoundId.BALL+0),
-              Ball.Sound.CRASH: SoundEffect(SoundCh.BALL, SoundId.BALL+1),
-              Ball.Sound.BURST: SoundEffect(SoundCh.BALL, SoundId.BALL+2),
+              Ball.Sound.ROLL: SoundId.BALL+0,
+              Ball.Sound.CRASH: SoundId.BALL+1,
+              Ball.Sound.BURST: SoundId.BALL+2,
             },
             stopwatch=stopwatch,
             param=Ball.Param(
               roll_distance=distance,
               max_accel=0,
               roll_period=1,
-              default_acquirement_points={
+              max_points={
                 Ball.Action.ROLL: 20,
                 Ball.Action.BURST: 40
               },
