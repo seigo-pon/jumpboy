@@ -70,7 +70,7 @@ class Sprite(Variation, Subject):
     self,
     name: str,
     motions: dict[int, Block],
-    sounds: dict[int, SoundEffect],
+    sounds: dict[int, int],
     stopwatch: Stopwatch,
   ) -> None:
     self.id = '{}_{}'.format(name, str(uuid()))
@@ -144,7 +144,7 @@ class FlashSprite(Sprite):
     self,
     name: str,
     motions: dict[int, Block],
-    sounds: dict[int, SoundEffect],
+    sounds: dict[int, int],
     stopwatch: Stopwatch,
     flash_msec: int,
     max_flash_count: int,
@@ -468,27 +468,21 @@ class GamePad:
 
 
 class MusicBox:
-  def __init__(
-    self,
-    path: Path,
-    raw_bgm_folder: str,
-    raw_bgm_exclude_play_channels: list[int],
-  ) -> None:
-    self.path = path
-    self.raw_bgm_folder = raw_bgm_folder
-    self.raw_bgm_exclude_play_channels = raw_bgm_exclude_play_channels
+  def __init__(self, bgm_param: Bgm.Param | None, raw_bgm_param: RawBgm.Param | None) -> None:
+    self.bgm_param = bgm_param
+    self.raw_bgm_param = raw_bgm_param
 
     self.can_play_se = True
     self.can_play_bgm = True
     self.bgm: AssetBgm | None = None
 
-  def play_se(self, id) -> None:
+  def play_se(self, id: int) -> None:
     if not self.can_play_se:
-      print('sound effect play disabled', id)
+      print('sound effect disabled', id)
       return
 
-    played = False
-    for channel in AssetSound.channel_count():
+    play_channel = AssetSound.channel_count()-1
+    for channel in reversed(range(AssetSound.channel_count())):
       if self.bgm is not None:
         if channel in self.bgm.channels:
           continue
@@ -496,20 +490,17 @@ class MusicBox:
       if pyxel.play_pos(channel) is not None:
         continue
 
-      SoundEffect(channel, id).play()
-      played = True
+      play_channel = channel
       break
 
-    if not played:
-      channel = AssetSound.channel_count()-1
-      if channel < 0:
-        channel = 0
-      SoundEffect(channel, id).play()
+    if play_channel < 0:
+      play_channel = 0
+    SoundEffect(play_channel, id).play()
       
 
-  def play_bgm(self, id, channels: list[int]) -> None:
-    if not self.can_play_bgm:
-      print('bgm play disabled', id)
+  def play_bgm(self, id: int) -> None:
+    if not self.can_play_bgm or self.bgm_param is None:
+      print('bgm disabled', id)
       return
 
     if self.bgm is not None:
@@ -519,12 +510,12 @@ class MusicBox:
 
       self.bgm.stop()
 
-    self.bgm = Bgm(id, channels)
+    self.bgm = Bgm(id, self.bgm_param)
     self.bgm.play()
 
-  def play_raw_bgm(self, filename) -> None:
-    if not self.can_play_bgm:
-      print('bgm play disabled', filename)
+  def play_raw_bgm(self, filename: str) -> None:
+    if not self.can_play_bgm or self.raw_bgm_param is None:
+      print('bgm disabled', filename)
       return
 
     if self.bgm is not None:
@@ -534,12 +525,7 @@ class MusicBox:
 
       self.bgm.stop()
 
-    self.bgm = RawBgm(
-      filename=filename,
-      path=self.path,
-      folder=self.raw_bgm_folder,
-      exclude_play_channels=self.raw_bgm_exclude_play_channels,
-    )
+    self.bgm = RawBgm(filename, self.raw_bgm_param)
     self.bgm.play()
 
   def stop_bgm(self) -> None:

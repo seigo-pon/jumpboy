@@ -3,7 +3,7 @@ from enum import IntEnum
 from typing import Any, Self
 from game import (
   Coordinate, Size, Stopwatch, Timer,
-  Language, StringRes, Image,
+  Language, StringRes, Image, AssetSound, RawBgm,
   TextScriber, Text, BlinkText,
   Poster, Signboard,
   GameConfig, Seq, TimeSeq, MusicBox,
@@ -32,7 +32,7 @@ SCORE: dict[int, str] = {
 }
 
 BGM_FOLDER = 'bgm'
-BGM_EXCLUDE_PLAY_CHANNEL = [3]
+BGM_EXCLUDE_PLAY_CHANNEL = [AssetSound.channel_count()-1]
 
 class SceneSound:
   READY = SoundId.SCENE+0
@@ -44,6 +44,7 @@ class SceneSound:
   RESTART = SoundId.SCENE+6
   START = SoundId.SCENE+7
   RECOVER_LIFE = SoundId.SCENE+8
+  TITLE = SoundId.SCENE+9
 
 TITLE_BGM: dict[int, str] = {
   GameLevelMode.NORMAL: 'title1',
@@ -235,9 +236,13 @@ class OpeningScene(BaseScene):
         lang=Language.EN,
         game_pad=GamePad(),
         music_box=MusicBox(
-          path=self.config.path,
-          raw_music_folder=BGM_FOLDER,
-          raw_music_exclude_play_channels=BGM_EXCLUDE_PLAY_CHANNEL,
+          bgm_param=None,
+          raw_bgm_param=RawBgm.Param(
+            path=config.path,
+            folder=BGM_FOLDER,
+            start_id=SoundId.BGM,
+            exclude_play_channels=BGM_EXCLUDE_PLAY_CHANNEL,
+          ),
         ),
         score_board=ScoreBoard(),
         level=level,
@@ -272,9 +277,9 @@ class OpeningScene(BaseScene):
           -TextScriber.word_size(TEXT_FONT_SIZE).height,
         )
         self.title_text.move(center=self.title_center(), move_distance=0.5)
-        self.snapshot.music_box.play_bgm(TITLE_BGM[self.snapshot.level.mode])
+        self.snapshot.music_box.play_raw_bgm(TITLE_BGM[self.snapshot.level.mode])
       else:
-        if self.title_text.moving:
+        if not self.title_text.moving:
           return True
 
       return False
@@ -282,7 +287,7 @@ class OpeningScene(BaseScene):
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 500, _walk_jumper, None),
       Seq(self.stopwatch, 2000, _move_title, None),
-      Seq(self.stopwatch, 3000, lambda x, y: True, lambda: TitleScene(self)),
+      Seq(self.stopwatch, 500, lambda x, y: True, lambda: TitleScene(self)),
     ])
 
   @property
@@ -326,7 +331,7 @@ class TitleScene(BaseScene):
     self.title_text.center = self.title_center()
 
     self.show_start = True
-    self.start_text = self.blink_text(self.string('game_start_text'), 1000, False)
+    self.start_text = self.blink_text(self.string('game_start_text'), 1000, True)
     self.start_text.center = self.menu_middle_center()
     self.start_text.resume()
     self.wait_start = False
@@ -335,7 +340,8 @@ class TitleScene(BaseScene):
     self.score = self.scoreboard()
     self.score.center = Coordinate(self.menu_middle_top_center(None).x, -self.score.size.height/2)
 
-    self.snapshot.music_box.play_bgm(TITLE_BGM[self.snapshot.level.mode])
+    self.snapshot.music_box.play_raw_bgm(TITLE_BGM[self.snapshot.level.mode])
+    self.snapshot.music_box.play_se(SceneSound.TITLE)
 
     def _walk_jumper(start: bool, timer: Timer) -> bool:
       self.snapshot.jumper.walk(self.jumper_start_x())
@@ -682,7 +688,7 @@ class PlayScene(BaseStageScene):
     if self.play_timer is not None:
       self.play_timer.resume()
 
-    self.snapshot.music_box.play_bgm(FIELD_BGM[self.snapshot.field.surface])
+    self.snapshot.music_box.play_raw_bgm(FIELD_BGM[self.snapshot.field.surface])
 
   def update(self) -> Self | Any:
     if self.play_timer is not None:
@@ -987,7 +993,7 @@ class GameClearScene(BaseStageScene):
     def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.jumper.joy()
-      self.snapshot.music_box.play_bgm(END_BGM[self.snapshot.level.mode])
+      self.snapshot.music_box.play_raw_bgm(END_BGM[self.snapshot.level.mode])
       return True
 
     def _joy_jumper(start: bool, timer: Timer) -> bool:

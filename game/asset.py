@@ -92,13 +92,14 @@ class SoundEffect(AssetSound):
 
   def play(self) -> None:
     pyxel.play(self.channel, self.id, resume=True)
+    print('sound effect play', self.id, self.channel)
 
 
 class AssetBgm(AssetSound):
   def __init__(self, name: str) -> None:
     self.name = name
 
-    self.channels: list[int] = {}
+    self.channels: list[int] = []
 
   def stop(self) -> None:
     for channel in self.channels:
@@ -107,15 +108,19 @@ class AssetBgm(AssetSound):
 
 
 class Bgm(AssetBgm):
+  class Param:
+    def __init__(self, channels: list[int]) -> None:
+      self.channels = channels
+
   @classmethod
   def get_name(cls, id: int) -> str:
     return 'bgm_{}'.format(id)
 
-  def __init__(self, id: int, channels: list[int]) -> None:
+  def __init__(self, id: int, param: Param) -> None:
     super().__init__(Bgm.get_name(id))
 
-    self.channels = channels
     self.id = id
+    self.channels = param.channels
 
   def play(self) -> None:
     if len(self.channels) > 0 and pyxel.play_pos(self.channels[0]) is None:
@@ -124,33 +129,39 @@ class Bgm(AssetBgm):
 
 
 class RawBgm(AssetBgm):
+  class Param:
+    def __init__(
+      self,
+      path: Path,
+      folder: str,
+      start_id: int,
+      exclude_play_channels: list[int],
+    ) -> None:
+      self.path = path
+      self.folder = folder
+      self.start_id = start_id
+      self.exclude_play_channels = exclude_play_channels
+
   @classmethod
   def get_name(cls, filename: str) -> str:
     return 'raw_bgm_{}'.format(filename)
 
-  def __init__(
-    self,
-    filename: str,
-    path: Path,
-    folder: str,
-    start_id: int,
-    exclude_play_channels: list[int],
-  ) -> None:
+  def __init__(self, filename: str, param: Param) -> None:
     super().__init__(RawBgm.get_name(filename))
 
-    self.start_id = start_id
-    self.exclude_play_channels = exclude_play_channels
+    self.bgm_raw_data: dict = {}
 
-    self.music_raw_data: dict = {}
-
-    file_path = os.path.join(path.asset_path, folder, '{}.json'.format(filename))
+    file_path = os.path.join(param.path.asset_path, param.folder, '{}.json'.format(filename))
     with open(file_path, mode='r') as f:
-      self.music_raw_data = json.loads(f.read())
+      self.bgm_raw_data = json.loads(f.read())
     print('raw bgm loaded', filename)
+
+    self.start_id = param.start_id
+    self.exclude_play_channels = param.exclude_play_channels
 
   def play(self) -> None:
     if len(self.channels) == 0:
-      for (channel, sound) in enumerate(self.music_raw_data):
+      for (channel, sound) in enumerate(self.bgm_raw_data):
         if channel in self.exclude_play_channels:
           continue
 
