@@ -59,6 +59,7 @@ FIELD_BGM: dict[int, str] = {
   GameDesign.FieldSurface.ROAD: 'field1',
   GameDesign.FieldSurface.GRASS: 'field2',
   GameDesign.FieldSurface.CLAY: 'field3',
+  GameDesign.FieldSurface.WOOD: 'field4',
 }
 END_BGM: dict[int, str] = {
   GameLevelMode.NORMAL: 'end1',
@@ -586,7 +587,7 @@ class ReadyScene(BaseStageScene):
 
     self.show_stage = False
 
-    self.describe: self.Describe | None = None
+    self.describe: int | None = None
     self.ready_timer: Timer | None = None
     self.last_sec = -1
 
