@@ -13,9 +13,10 @@ from core import (
   GameLevel, Score, ScoreBoard,
   Ball, Jumper,
   Snapshot, Scene,
+  ImageId, SoundId,
+  GameLevelMode, GameLevelStage,
+  GameDesign,
 )
-from assetid import ImageId, SoundId
-from design import GameLevelMode, GameLevelStage, FIRST_LEVEL, GameDesign
 import pyxel
 
 
@@ -30,6 +31,10 @@ SCORE: dict[int, str] = {
   GameLevelMode.NORMAL: 'score_title_1',
   GameLevelMode.HARD: 'score_title_2',
 }
+
+JUMPER_START_X = Image.basic_size().width*5
+
+SCORE_RANKING_NUM = 3
 
 BGM_FOLDER = 'bgm'
 BGM_EXCLUDE_PLAY_CHANNEL = [AssetSound.channel_count()-1]
@@ -62,8 +67,6 @@ END_BGM: dict[int, str] = {
 
 
 class BaseScene(Scene):
-  JUMPER_START_X = Image.basic_size().width*5
-
   def __init__(
     self,
     config: GameConfig,
@@ -137,7 +140,7 @@ class BaseScene(Scene):
     )
 
   def jumper_start_x(self) -> float:
-    return self.snapshot.field.right-self.JUMPER_START_X
+    return self.snapshot.field.right-JUMPER_START_X
 
   def text(self, string: str) -> Text:
     return Text(
@@ -222,11 +225,9 @@ class BaseScene(Scene):
 
 
 class OpeningScene(BaseScene):
-  MOVE_TITLE_Y_MIN = 1
-
   def __init__(self, config: GameConfig, string_res: StringRes) -> None:
     stopwatch = Stopwatch(config.fps)
-    level = FIRST_LEVEL
+    level = GameDesign.FIRST_LEVEL
 
     super().__init__(
       config=config,
@@ -325,9 +326,6 @@ class OpeningScene(BaseScene):
 
 
 class TitleScene(BaseScene):
-  START_TEXT = 1
-  SCORE_RANKING_NUM = 3
-
   def __init__(self, scene: Scene) -> None:
     super().__init__(
       config=scene.config,
@@ -403,7 +401,7 @@ class TitleScene(BaseScene):
     score_texts.append(title_text)
 
     score_center.y += TextScriber.word_size(title_text.font_size).height*2
-    scores = self.snapshot.score_board.ranking(self.SCORE_RANKING_NUM)
+    scores = self.snapshot.score_board.ranking(SCORE_RANKING_NUM)
     if len(scores) > 0:
       for (index, score) in enumerate(scores):
         score_text = self.text(
@@ -861,7 +859,7 @@ class GameOverScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
-        self.snapshot.level = FIRST_LEVEL
+        self.snapshot.level = GameDesign.FIRST_LEVEL
         self.initial_sprites(True)
         self.snapshot.save(self.config.path)
         return TitleScene(self)
@@ -1036,7 +1034,7 @@ class GameClearScene(BaseStageScene):
       if self.next_level is not None:
         self.snapshot.level = self.next_level
       else:
-        self.snapshot.level = FIRST_LEVEL
+        self.snapshot.level = GameDesign.FIRST_LEVEL
       self.initial_sprites(True)
       self.snapshot.save(self.config.path)
       return TitleScene(self)

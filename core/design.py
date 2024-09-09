@@ -1,38 +1,63 @@
 from enum import IntEnum
 from game import (
   Coordinate, Size, Stopwatch, Dice,
-  Image, TileMap,
+  AssetImageId, Image, TileMap,
   Collision, Block, Obstacle,
   GameConfig,
 )
 from core import (
   GameLevel, Field, Jumper, Ball,
 )
-from assetid import TileId, ImageId, SoundId
 
+
+class TileId:
+  FIELD = AssetImageId(0, 0)
+
+class ImageId:
+  BALL = AssetImageId(0, 0)
+  JUMPER = AssetImageId(0, 1)
+  LIFE = AssetImageId(0, 3)
+
+class SoundId:
+  JUMPER = 0
+  BALL = 10
+  SCENE = 20
+  BGM = 60
 
 class GameLevelMode(IntEnum):
+  # boy
   NORMAL = 0
+  # girl
   HARD = 1
 
 class GameLevelStage(IntEnum):
+  # road
   STAGE_1 = 0
   STAGE_2 = 1
   STAGE_3 = 2
+  # grass
   STAGE_4 = 3
   STAGE_5 = 4
   STAGE_6 = 5
-
-FIRST_LEVEL = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
+  # clay
+  STAGE_7 = 6
+  STAGE_8 = 7
+  STAGE_9 = 8
+  # wood
+  STAGE_10 = 9
+  STAGE_11 = 10
+  STAGE_12 = 11
 
 
 class GameDesign:
   GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
+  FIRST_LEVEL = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
   class FieldSurface(IntEnum):
     ROAD = 0
     GRASS = 1
     CLAY = 2
+    WOOD = 3
 
   @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
@@ -61,7 +86,7 @@ class GameDesign:
         field = Field(
           name='grass_field',
           background_tiles=[
-            TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x+3, 0), Size(2.5, 1.875), Image.Pose.NORMAL),
+            TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 2), Size(2.5, 1.875), Image.Pose.NORMAL),
           ],
           obstacles=[
             Obstacle(
@@ -79,6 +104,51 @@ class GameDesign:
           ],
           max_size=config.window_size,
           surface=cls.FieldSurface.GRASS,
+          ground_height=cls.GROUND_TOP,
+        )
+
+      elif level.stage in [
+        GameLevelStage.STAGE_7,
+        GameLevelStage.STAGE_8,
+        GameLevelStage.STAGE_9,
+      ]:
+        field = Field(
+          name='clay_field',
+          background_tiles=[
+            TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 4), Size(2.5, 1.875), Image.Pose.NORMAL),
+          ],
+          obstacles=[],
+          max_size=config.window_size,
+          surface=cls.FieldSurface.CLAY,
+          ground_height=cls.GROUND_TOP,
+        )
+
+      elif level.stage in [
+        GameLevelStage.STAGE_10,
+        GameLevelStage.STAGE_11,
+        GameLevelStage.STAGE_12,
+      ]:
+        field = Field(
+          name='wood_field',
+          background_tiles=[
+            TileMap(TileId.FIELD.id, Coordinate(TileId.FIELD.x, 6), Size(2.5, 1.875), Image.Pose.NORMAL),
+          ],
+          obstacles=[
+            Obstacle(
+              Collision(
+                Coordinate(0, cls.GROUND_TOP-TileMap.basic_size().height*2),
+                Size(0, TileMap.basic_size().height*2),
+              ),
+            ),
+            Obstacle(
+              Collision(
+                Coordinate(config.window_size.width, cls.GROUND_TOP-TileMap.basic_size().height*2),
+                Size(0, TileMap.basic_size().height*2),
+              ),
+            ),
+          ],
+          max_size=config.window_size,
+          surface=cls.FieldSurface.WOOD,
           ground_height=cls.GROUND_TOP,
         )
 
@@ -198,7 +268,7 @@ class GameDesign:
         GameLevelStage.STAGE_2,
         GameLevelStage.STAGE_3,
       ]:
-        distance = 1
+        distance = 2
         if level.stage == GameLevelStage.STAGE_1:
           distance = 2
         elif level.stage == GameLevelStage.STAGE_2:
@@ -253,7 +323,7 @@ class GameDesign:
         GameLevelStage.STAGE_5,
         GameLevelStage.STAGE_6,
       ]:
-        distance = 1
+        distance = 2
         if level.stage == GameLevelStage.STAGE_4:
           distance = 2
         elif level.stage == GameLevelStage.STAGE_5:
@@ -311,27 +381,31 @@ class GameDesign:
       if level.mode == GameLevelMode.NORMAL:
         if level.stage in [
           GameLevelStage.STAGE_1,
-          GameLevelStage.STAGE_2,
         ]:
           msec = 2000
 
         elif level.stage in [
+          GameLevelStage.STAGE_2,
+        ]:
+          msec = 1000
+
+        elif level.stage in [
           GameLevelStage.STAGE_3,
         ]:
-          msec = (Dice.roll(2)+1)*1000
+          msec = (Dice.roll(1)+1)*1000
 
         elif level.stage in [
           GameLevelStage.STAGE_4,
         ]:
-          if len(balls) <= 2:
-            msec = 2000
+          if len(balls) < 2:
+            msec = 3000
           else:
             msec = None
 
         elif level.stage in [
           GameLevelStage.STAGE_5,
         ]:
-          if len(balls) <= 4:
+          if len(balls) < 4:
             msec = 2000
           else:
             msec = None
@@ -339,7 +413,7 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_6,
         ]:
-          if len(balls) <= 6:
+          if len(balls) < 6:
             msec = (Dice.roll(1)+1)*1000
           else:
             msec = None
@@ -356,14 +430,18 @@ class GameDesign:
       if level.mode == GameLevelMode.NORMAL:
         if level.stage in [
           GameLevelStage.STAGE_1,
-          GameLevelStage.STAGE_2,
         ]:
           distance = field.max_size.width/2
 
         elif level.stage in [
-          GameLevelStage.STAGE_3,
+          GameLevelStage.STAGE_2,
         ]:
           distance = field.max_size.width/3
+
+        elif level.stage in [
+          GameLevelStage.STAGE_3,
+        ]:
+          distance = field.max_size.width/4
 
         elif level.stage in [
           GameLevelStage.STAGE_4,

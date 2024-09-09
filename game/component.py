@@ -1,7 +1,7 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from game import (
-  Coordinate, Size, Path, Stopwatch, Timer,
+  Coordinate, Size, Stopwatch, Timer,
   Image, TileMap, SoundEffect, AssetSound, AssetBgm, Bgm, RawBgm,
 )
 import pyxel
@@ -481,7 +481,7 @@ class MusicBox:
       print('sound effect disabled', id)
       return
 
-    play_channel = AssetSound.channel_count()-1
+    play_channel = -1
     for channel in reversed(range(AssetSound.channel_count())):
       if self.bgm is not None:
         if channel in self.bgm.channels:
@@ -494,7 +494,8 @@ class MusicBox:
       break
 
     if play_channel < 0:
-      play_channel = 0
+      play_channel = AssetSound.channel_count()-1
+      print('sound effect no enable channel', play_channel)
     SoundEffect(play_channel, id).play()
       
 

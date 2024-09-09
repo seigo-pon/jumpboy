@@ -1,7 +1,12 @@
 from datetime import datetime
 from dotenv import load_dotenv
-from game import Size, Path, Language, StringRes, GameConfig, GameEngine
-from script import OpeningScene
+from game import (
+  Size, Path,
+  Language, StringRes,
+  GameConfig,
+  GameEngine,
+)
+from core import OpeningScene
 import os
 import pyxel
 
