@@ -1,22 +1,16 @@
-from datetime import datetime
-from dotenv import load_dotenv
-from game import (
+from core import (
   Size, Path,
   Language, StringRes,
   GameConfig,
   GameEngine,
 )
 from scene import OpeningScene
-import os
 import pyxel
 
 
-# load env file
-load_dotenv()
-
-DEBUG = bool(os.getenv('DEBUG') == 'True')
-COPYRIGHT = str(os.getenv('COPYRIGHT') or 'ANONYMOUS')
-RELEASED_YEAR = int(os.getenv('RELEASED_YEAR') or datetime.now().year)
+DEBUG = False
+COPYRIGHT = 'SEIGO-PON'
+RELEASED_YEAR = 2024
 GAME_WINDOW_SIZE = Size(160, 120)
 FPS = 30
 ASSET_FOLDER = 'assets'

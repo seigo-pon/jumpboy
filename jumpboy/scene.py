@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import IntEnum
 from typing import Any, Self
-from game import (
+from core import (
   Coordinate, Size, Stopwatch, Timer,
   Language, StringRes, Image, AssetSound, RawBgm,
   TextScriber, Text, BlinkText,

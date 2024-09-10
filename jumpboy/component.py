@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import IntEnum
 from typing import Any, TypeVar
-from game import (
+from core import (
   Coordinate, Size, Dice, Stopwatch, Timer,
   Language, StringRes, TileMap,
   Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,

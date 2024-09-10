@@ -11,7 +11,6 @@
 
 ### Libraries
 - pyxel
-- python-dotenv
 - pyxel-universal-font
 
 ## Assets
@@ -29,24 +28,30 @@
 # Install libraries.
 pip install -r requirement.txt
 
-# Create environment file.
-cp .env.sample .env
-
 # Start game.
-pyxel run app.py
+pyxel run jumpboy/app.py
 ```
 
 ## Asset file edits
 ```bash
 # Edit pyxel assets.
-pyxel edit assets/jumpboy.pyxres
+pyxel edit jumpboy/assets/jumpboy.pyxres
 ```
 
 フォントをインストールする場合は、以下の操作を実行してください。
 ```bash
 # Open font folder in 'pyxel-universal-font' library.
 puf edit
-# Copy font files in 'assets/font' folder.
+# Copy font files in 'jumpboy/assets/font' folder.
+```
+
+## Build packages
+```bash
+# Build.
+pyxel package jumpboy jumpboy/app.py
+
+# Play game.
+pyxel play jumpboy.pyxapp
 ```
 
 ## Game rules

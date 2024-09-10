@@ -1,6 +1,6 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
-from game import (
+from core import (
   Coordinate, Size, Stopwatch, Timer,
   Image, TileMap, SoundEffect, AssetSound, AssetBgm, Bgm, RawBgm,
 )

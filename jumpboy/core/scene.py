@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Callable, Generic, Self, TypeVar
-from game import Size, Path, Stopwatch, Timer, StringRes
+from core import Size, Path, Stopwatch, Timer, StringRes
 import json
 import os
 import pyxel

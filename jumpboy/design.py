@@ -1,5 +1,5 @@
 from enum import IntEnum
-from game import (
+from core import (
   Coordinate, Size, Stopwatch, Dice,
   AssetImageId, Image, TileMap,
   Collision, Block, Obstacle,
@@ -61,7 +61,7 @@ class GameDesign:
   @classmethod
   def first_level(cls, config: GameConfig) -> GameLevel:
     if config.debug:
-      return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_10)
+      return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
     else:
       return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 

@@ -1,5 +1,5 @@
 from enum import IntEnum, StrEnum
-from game import Coordinate, Size, Path
+from core import Coordinate, Size, Path
 import json
 import os
 import pyxel

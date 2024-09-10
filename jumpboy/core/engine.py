@@ -1,5 +1,5 @@
 from typing import Callable
-from game import GameConfig
+from core import GameConfig
 import os
 import pyxel
 
