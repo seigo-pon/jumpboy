@@ -9,7 +9,6 @@ class Language(StrEnum):
   EN = 'en'
   JP = 'jp'
 
-
 class StringRes:
   STRING_FILE = 'string.json'
 
@@ -113,11 +112,11 @@ class Bgm(AssetBgm):
       self.channels = channels
 
   @classmethod
-  def get_name(cls, id: int) -> str:
+  def setup_name(cls, id: int) -> str:
     return 'bgm_{}'.format(id)
 
   def __init__(self, id: int, param: Param) -> None:
-    super().__init__(Bgm.get_name(id))
+    super().__init__(Bgm.setup_name(id))
 
     self.id = id
     self.channels = param.channels
@@ -143,11 +142,11 @@ class RawBgm(AssetBgm):
       self.exclude_play_channels = exclude_play_channels
 
   @classmethod
-  def get_name(cls, filename: str) -> str:
+  def setup_name(cls, filename: str) -> str:
     return 'raw_bgm_{}'.format(filename)
 
   def __init__(self, filename: str, param: Param) -> None:
-    super().__init__(RawBgm.get_name(filename))
+    super().__init__(RawBgm.setup_name(filename))
 
     self.bgm_raw_data: dict = {}
 

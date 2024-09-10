@@ -5,7 +5,7 @@ from game import (
   Collision, Block, Obstacle,
   GameConfig,
 )
-from core import (
+from component import (
   GameLevel, Field, Jumper, Ball,
 )
 
@@ -51,7 +51,6 @@ class GameLevelStage(IntEnum):
 
 class GameDesign:
   GROUND_TOP = TileMap.basic_size().height+TileMap.basic_size().height*(3/4)
-  FIRST_LEVEL = GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
   class FieldSurface(IntEnum):
     ROAD = 0
@@ -60,8 +59,18 @@ class GameDesign:
     WOOD = 3
 
   @classmethod
+  def first_level(cls, config: GameConfig) -> GameLevel:
+    if config.debug:
+      return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_10)
+    else:
+      return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
+
+  @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
-    if level.mode == GameLevelMode.NORMAL:
+    if level.mode in [
+      GameLevelMode.NORMAL,
+      GameLevelMode.HARD,
+    ]:
       if level.stage in [
         GameLevelStage.STAGE_1,
         GameLevelStage.STAGE_2,
@@ -262,19 +271,21 @@ class GameDesign:
 
   @classmethod
   def ball(cls, level: GameLevel, stopwatch: Stopwatch) -> Ball:
-    if level.mode == GameLevelMode.NORMAL:
+    if level.mode in [
+      GameLevelMode.NORMAL,
+      GameLevelMode.HARD,
+    ]:
       if level.stage in [
         GameLevelStage.STAGE_1,
         GameLevelStage.STAGE_2,
         GameLevelStage.STAGE_3,
       ]:
-        distance = 2
         if level.stage == GameLevelStage.STAGE_1:
           distance = 2
         elif level.stage == GameLevelStage.STAGE_2:
           distance = 3
         elif level.stage == GameLevelStage.STAGE_3:
-          distance = Dice.roll(1)+2
+          distance = Dice.spin(1)+2
 
         ball = Ball(
             name='straight_ball',
@@ -301,18 +312,19 @@ class GameDesign:
               ),
             },
             sounds={
-              Ball.Sound.ROLL: SoundId.BALL+0,
-              Ball.Sound.CRASH: SoundId.BALL+1,
+              Ball.Sound.SPIN: SoundId.BALL+0,
+              Ball.Sound.BOUNCE: SoundId.BALL+1,
               Ball.Sound.BURST: SoundId.BALL+2,
               Ball.Sound.LEAP: SoundId.BALL+3,
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              roll_distance=distance,
+              spin_distance=distance,
               max_accel=0,
-              roll_period=1,
+              first_y=0,
+              spin_period=1,
               max_points={
-                Ball.Action.ROLL: 10,
+                Ball.Action.SPIN: 10,
                 Ball.Action.BURST: 30
               },
             ),
@@ -323,16 +335,15 @@ class GameDesign:
         GameLevelStage.STAGE_5,
         GameLevelStage.STAGE_6,
       ]:
-        distance = 2
         if level.stage == GameLevelStage.STAGE_4:
           distance = 2
         elif level.stage == GameLevelStage.STAGE_5:
           distance = 3
         elif level.stage == GameLevelStage.STAGE_6:
-          distance = Dice.roll(2)+1
+          distance = Dice.spin(2)+1
 
         ball = Ball(
-            name='bound_ball',
+            name='bounce_ball',
             motions={
               Ball.Motion.ANGLE_0: Block(
                 Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 2), Size(1, 1), Image.Pose.NORMAL),
@@ -356,18 +367,136 @@ class GameDesign:
               ),
             },
             sounds={
-              Ball.Sound.ROLL: SoundId.BALL+0,
-              Ball.Sound.CRASH: SoundId.BALL+1,
+              Ball.Sound.SPIN: SoundId.BALL+0,
+              Ball.Sound.BOUNCE: SoundId.BALL+1,
               Ball.Sound.BURST: SoundId.BALL+2,
+              Ball.Sound.LEAP: SoundId.BALL+3,
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              roll_distance=distance,
+              spin_distance=distance,
               max_accel=0,
-              roll_period=1,
+              first_y=0,
+              spin_period=1,
               max_points={
-                Ball.Action.ROLL: 20,
+                Ball.Action.SPIN: 20,
                 Ball.Action.BURST: 40
+              },
+            ),
+          )
+
+      elif level.stage in [
+        GameLevelStage.STAGE_7,
+        GameLevelStage.STAGE_8,
+        GameLevelStage.STAGE_9,
+      ]:
+        if level.stage == GameLevelStage.STAGE_7:
+          distance = 2
+          accel = -8
+        elif level.stage == GameLevelStage.STAGE_8:
+          distance = 3
+          accel = -8
+        elif level.stage == GameLevelStage.STAGE_9:
+          distance = Dice.spin(1)+2
+          accel = -(Dice.spin(2)+8)
+
+        ball = Ball(
+            name='straight_leap_ball',
+            motions={
+              Ball.Motion.ANGLE_0: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 3), Size(1, 1), Image.Pose.NORMAL),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_90: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 3), Size(1, 1), Image.Pose.MIRROR_Y),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_180: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 3), Size(1, 1), Image.Pose.MIRROR_XY),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_270: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 3), Size(1, 1), Image.Pose.MIRROR_X),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.BURST: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 1), Size(1, 1), Image.Pose.NORMAL),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+            },
+            sounds={
+              Ball.Sound.SPIN: SoundId.BALL+0,
+              Ball.Sound.BOUNCE: SoundId.BALL+1,
+              Ball.Sound.BURST: SoundId.BALL+2,
+              Ball.Sound.LEAP: SoundId.BALL+3,
+            },
+            stopwatch=stopwatch,
+            param=Ball.Param(
+              spin_distance=distance,
+              max_accel=accel,
+              first_y=Image.basic_size().height*4,
+              spin_period=1,
+              max_points={
+                Ball.Action.SPIN: 30,
+                Ball.Action.BURST: 50
+              },
+            ),
+          )
+
+      elif level.stage in [
+        GameLevelStage.STAGE_10,
+        GameLevelStage.STAGE_11,
+        GameLevelStage.STAGE_12,
+      ]:
+        if level.stage == GameLevelStage.STAGE_10:
+          distance = 2
+          accel = -8
+        elif level.stage == GameLevelStage.STAGE_11:
+          distance = 3
+          accel = -8
+        elif level.stage == GameLevelStage.STAGE_12:
+          distance = Dice.spin(2)+1
+          accel = -(Dice.spin(4)+6)
+
+        ball = Ball(
+            name='straight_leap_ball',
+            motions={
+              Ball.Motion.ANGLE_0: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 4), Size(1, 1), Image.Pose.NORMAL),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_90: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 4), Size(1, 1), Image.Pose.MIRROR_Y),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_180: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 4), Size(1, 1), Image.Pose.MIRROR_XY),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.ANGLE_270: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 4), Size(1, 1), Image.Pose.MIRROR_X),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+              Ball.Motion.BURST: Block(
+                Image(ImageId.BALL.id, Coordinate(ImageId.BALL.x, 1), Size(1, 1), Image.Pose.NORMAL),
+                Collision(Coordinate(0, 0), Size(Image.basic_size().width, Image.basic_size().height)),
+              ),
+            },
+            sounds={
+              Ball.Sound.SPIN: SoundId.BALL+0,
+              Ball.Sound.BOUNCE: SoundId.BALL+1,
+              Ball.Sound.BURST: SoundId.BALL+2,
+              Ball.Sound.LEAP: SoundId.BALL+3,
+            },
+            stopwatch=stopwatch,
+            param=Ball.Param(
+              spin_distance=distance,
+              max_accel=accel,
+              first_y=Image.basic_size().height*4,
+              spin_period=1,
+              max_points={
+                Ball.Action.SPIN: 40,
+                Ball.Action.BURST: 60
               },
             ),
           )
@@ -378,7 +507,10 @@ class GameDesign:
   def next_ball_msec(cls, level: GameLevel, balls: list[Ball]) -> int | None:
     msec: int | None = 0
     if len(balls) > 0:
-      if level.mode == GameLevelMode.NORMAL:
+      if level.mode in [
+        GameLevelMode.NORMAL,
+        GameLevelMode.HARD,
+      ]:
         if level.stage in [
           GameLevelStage.STAGE_1,
         ]:
@@ -392,7 +524,7 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_3,
         ]:
-          msec = (Dice.roll(1)+1)*1000
+          msec = (Dice.spin(1)+1)*1000
 
         elif level.stage in [
           GameLevelStage.STAGE_4,
@@ -405,7 +537,7 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_5,
         ]:
-          if len(balls) < 4:
+          if len(balls) < 2:
             msec = 2000
           else:
             msec = None
@@ -413,21 +545,63 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_6,
         ]:
-          if len(balls) < 6:
-            msec = (Dice.roll(1)+1)*1000
+          if len(balls) < 3:
+            msec = (Dice.spin(1)+1)*1000
+          else:
+            msec = None
+
+        elif level.stage in [
+          GameLevelStage.STAGE_7,
+        ]:
+          msec = 2000
+
+        elif level.stage in [
+          GameLevelStage.STAGE_8,
+        ]:
+          msec = 2000
+
+        elif level.stage in [
+          GameLevelStage.STAGE_9,
+        ]:
+          msec = (Dice.spin(1)+1)*1000
+
+        elif level.stage in [
+          GameLevelStage.STAGE_10,
+        ]:
+          if len(balls) < 3:
+            msec = 2000
+          else:
+            msec = None
+
+        elif level.stage in [
+          GameLevelStage.STAGE_11,
+        ]:
+          if len(balls) < 3:
+            msec = 2000
+          else:
+            msec = None
+
+        elif level.stage in [
+          GameLevelStage.STAGE_12,
+        ]:
+          if len(balls) < 4:
+            msec = (Dice.spin(1)+0)*1000
           else:
             msec = None
 
     return msec
 
   @classmethod
-  def can_roll_ball(cls, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
-    roll = False
-    if ball.rolled_timer is None or ball.rolled_timer.over:
-      roll = True
+  def can_spin_ball(cls, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
+    spin = False
+    if ball.spun_timer is None or ball.spun_timer.over:
+      spin = True
 
     if last_ball is not None:
-      if level.mode == GameLevelMode.NORMAL:
+      if level.mode in [
+        GameLevelMode.NORMAL,
+        GameLevelMode.HARD,
+      ]:
         if level.stage in [
           GameLevelStage.STAGE_1,
         ]:
@@ -454,14 +628,39 @@ class GameDesign:
         ]:
           distance = field.max_size.width/3
 
-      if last_ball.left < distance:
-        roll = False
+        elif level.stage in [
+          GameLevelStage.STAGE_7,
+          GameLevelStage.STAGE_8,
+        ]:
+          distance = field.max_size.width/2
 
-    return roll
+        elif level.stage in [
+          GameLevelStage.STAGE_9,
+        ]:
+          distance = field.max_size.width/3
+
+        elif level.stage in [
+          GameLevelStage.STAGE_10,
+          GameLevelStage.STAGE_11,
+        ]:
+          distance = field.max_size.width/3
+
+        elif level.stage in [
+          GameLevelStage.STAGE_12,
+        ]:
+          distance = 0
+
+      if last_ball.left < distance:
+        spin = False
+
+    return spin
 
   @classmethod
   def play_limit_msec(cls, level: GameLevel) -> int:
-    if level.mode == GameLevelMode.NORMAL:
+    if level.mode in [
+      GameLevelMode.NORMAL,
+      GameLevelMode.HARD,
+    ]:
       if level.stage in [
         GameLevelStage.STAGE_1,
         GameLevelStage.STAGE_2,
@@ -483,6 +682,28 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         limit_msec = 20000
+
+      elif level.stage in [
+        GameLevelStage.STAGE_7,
+        GameLevelStage.STAGE_8,
+      ]:
+        limit_msec = 20000
+
+      elif level.stage in [
+        GameLevelStage.STAGE_9,
+      ]:
+        limit_msec = 30000
+
+      elif level.stage in [
+        GameLevelStage.STAGE_10,
+        GameLevelStage.STAGE_11,
+      ]:
+        limit_msec = 30000
+
+      elif level.stage in [
+        GameLevelStage.STAGE_12,
+      ]:
+        limit_msec = 40000
 
     return limit_msec
 

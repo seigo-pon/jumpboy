@@ -505,7 +505,7 @@ class MusicBox:
       return
 
     if self.bgm is not None:
-      if self.bgm.name == Bgm.get_name(id):
+      if self.bgm.name == Bgm.setup_name(id):
         print('bgm play already', self.bgm.name)
         return
 
@@ -520,7 +520,7 @@ class MusicBox:
       return
 
     if self.bgm is not None:
-      if self.bgm.name == RawBgm.get_name(filename):
+      if self.bgm.name == RawBgm.setup_name(filename):
         print('raw bgm play already', self.bgm.name)
         return
 

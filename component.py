@@ -272,7 +272,7 @@ class Jumper(FlashSprite):
   @property
   def fuzzy_accel(self) -> int:
     accel = int(self.param.max_accel/2)
-    accel += Dice.roll(abs(accel)) * (1 if self.param.max_accel >= 0 else -1)
+    accel += Dice.spin(abs(accel)) * (1 if self.param.max_accel >= 0 else -1)
     print('jump accel', accel, self.param.max_accel)
     return accel
 
@@ -370,7 +370,7 @@ class Jumper(FlashSprite):
         if new_y > max_y:
           new_y = max_y
 
-        self.center.y = new_y
+        self.center = Coordinate(self.center.x, new_y)
         self.prev_y = center_y
 
         self.motion = self.Motion.JUMP_UP if new_y < center_y else self.Motion.JUMP_DOWN
@@ -422,7 +422,7 @@ class Jumper(FlashSprite):
 class Ball(FlashSprite):
   class Action(IntEnum):
     STOP = 0
-    ROLL = 1
+    SPIN = 1
     BURST = 2
 
   class Motion(IntEnum):
@@ -433,8 +433,8 @@ class Ball(FlashSprite):
     BURST = 4
 
   class Sound(IntEnum):
-    ROLL = 0
-    CRASH = 1
+    SPIN = 0
+    BOUNCE = 1
     BURST = 2
     LEAP = 3
 
@@ -444,14 +444,16 @@ class Ball(FlashSprite):
   class Param:
     def __init__(
       self,
-      roll_distance: float,
+      spin_distance: float,
       max_accel: int,
-      roll_period: int,
+      first_y: float,
+      spin_period: int,
       max_points: dict[int, int],
     ) -> None:
-      self.roll_distance = roll_distance
+      self.spin_distance = spin_distance
       self.max_accel = max_accel
-      self.roll_period = roll_period
+      self.first_y = first_y
+      self.spin_period = spin_period
       self.max_points = max_points
 
   def __init__(
@@ -474,15 +476,15 @@ class Ball(FlashSprite):
     self.param = param
 
     self.action = self.Action.STOP
-    self.rolled_timer: Timer | None = None
+    self.spun_timer: Timer | None = None
     self.points: dict[int, int] = {}
     self.dead = False
-    self.roll_direction = True
-    self.start_roll = False
+    self.spin_direction = True
+    self.start_spin = False
     self.accel = 0.0
     self.now_accel = 0.0
     self.prev_y = 0.0
-    self.roll_interval = 0
+    self.spin_interval = 0
     self.bounced = False
 
   @property
@@ -490,51 +492,52 @@ class Ball(FlashSprite):
     return self.action == self.Action.STOP
 
   @property
-  def rolling(self) -> bool:
-    return self.action == self.Action.ROLL
+  def spinning(self) -> bool:
+    return self.action == self.Action.SPIN
 
   @property
   def bursting(self) -> bool:
     return self.action == self.Action.BURST
 
   def stop(self) -> None:
-    if self.rolling:
+    if self.spinning:
       print('ball stop', self.id)
       self.action = self.Action.STOP
 
-  def roll(self) -> None:
+  def spin(self) -> None:
     if self.stopping:
-      print('ball roll', self.id)
-      self.action = self.Action.ROLL
-      self.rolled_timer = None
-      if self.param.max_accel > 0:
+      print('ball spin', self.id)
+      self.action = self.Action.SPIN
+      self.spun_timer = None
+      if self.param.max_accel != 0:
         print('ball leap', self.id, self.param.max_accel)
-        self.accel = self.param.max_accel
-        self.now_accel = self.accel
+        self.accel = 1
+        self.now_accel = self.param.max_accel
+        self.origin = Coordinate(self.origin.x, self.origin.y-self.param.first_y)
         self.prev_y = self.origin.y
       self.points = self.param.max_points
-      self.start_roll = True
+      self.start_spin = True
 
-  def roll_msec(self, stopwatch: Stopwatch, rolled_msec: int) -> None:
+  def spin_after_msec(self, stopwatch: Stopwatch, spun_msec: int) -> None:
     if self.stopping:
-      if rolled_msec > 0:
-        print('ball roll wait', self.id, rolled_msec)
-        self.rolled_timer = Timer.set_msec(stopwatch, rolled_msec, True)
+      if spun_msec > 0:
+        print('ball spin wait', self.id, spun_msec)
+        self.spun_timer = Timer.set_msec(stopwatch, spun_msec, True)
       else:
-        self.roll()
+        self.spin()
 
   def burst(self) -> None:
-    if self.rolling:
+    if self.spinning:
       print('ball burst', self.id)
       self.action = self.Action.BURST
       self.flash()
 
-  def strike(self) -> None:
-    print('ball strike', self.id)
+  def through(self) -> None:
+    print('ball through', self.id)
     self.points = {}
 
   @property
-  def acquirement_point(self) -> int:
+  def point(self) -> int:
     if self.action in self.points:
       return self.points[self.action]
     return 0
@@ -547,45 +550,45 @@ class Ball(FlashSprite):
     if self.stopping:
       pass
 
-    elif self.rolling:
-      if self.start_roll:
-        snapshot.music_box.play_se(self.sounds[self.Sound.ROLL])
-        self.start_roll = False
+    elif self.spinning:
+      if self.start_spin:
+        snapshot.music_box.play_se(self.sounds[self.Sound.SPIN])
+        self.start_spin = False
 
-      next_x = self.origin.x + self.param.roll_distance * (1 if self.roll_direction else -1)
+      new_x = self.origin.x + self.param.spin_distance * (1 if self.spin_direction else -1)
 
-      if not self.roll_direction:
+      if not self.spin_direction:
         left_end = snapshot.field.left_end(self.origin)
         if left_end is not None:
-          if next_x <= left_end:
-            next_x = left_end
-            self.roll_direction = True
+          if new_x <= left_end:
+            new_x = left_end
+            self.spin_direction = True
             self.bounced = True
-            print('ball roll direction', self.id, self.roll_direction, next_x)
-            snapshot.music_box.play_se(self.sounds[self.Sound.CRASH])
+            print('ball spin direction', self.id, self.spin_direction, new_x)
+            snapshot.music_box.play_se(self.sounds[self.Sound.BOUNCE])
       else:
         right_end = snapshot.field.right_end(self.origin)
         if right_end is not None:
           right_end -= self.size.width
-          if next_x >= right_end:
-            next_x = right_end
-            self.roll_direction = False
+          if new_x >= right_end:
+            new_x = right_end
+            self.spin_direction = False
             self.bounced = True
-            print('ball roll direction', self.id, self.roll_direction, next_x)
-            snapshot.music_box.play_se(self.sounds[self.Sound.CRASH])
+            print('ball spin direction', self.id, self.spin_direction, new_x)
+            snapshot.music_box.play_se(self.sounds[self.Sound.BOUNCE])
 
-      next_y = self.origin.y
+      new_y = self.origin.y
       if self.accel != 0:
         if self.bottom < snapshot.field.bottom or self.accel == self.now_accel:
           if self.accel == self.now_accel:
             snapshot.music_box.play_se(self.sounds[self.Sound.LEAP])
 
-          origin_y = next_y
+          origin_y = new_y
 
           min_y = snapshot.field.top+self.size.height/2
           max_y = snapshot.field.bottom-self.size.height/2
 
-          new_y = next_y + (next_y - self.prev_y) + self.accel
+          new_y = new_y + (new_y - self.prev_y) + self.accel
           if new_y < min_y:
             new_y = min_y
           if new_y > max_y:
@@ -599,13 +602,13 @@ class Ball(FlashSprite):
           self.now_accel = self.accel
           self.prev_y = self.origin.y
 
-      self.origin = Coordinate(next_x, next_y)
+      self.origin = Coordinate(new_x, new_y)
 
-      if self.roll_interval < self.param.roll_period:
-        self.roll_interval += 1
+      if self.spin_interval < self.param.spin_period:
+        self.spin_interval += 1
       else:
-        self.roll_interval = 0
-        if self.roll_direction:
+        self.spin_interval = 0
+        if self.spin_direction:
           self.motion += 1
           if self.motion > self.Motion.ANGLE_270:
             self.motion = self.Motion.ANGLE_0
@@ -672,7 +675,7 @@ class Snapshot(BaseSnapshot):
       self.score_board.scores = scores
 
     if 'level' in data:
-      self.level = GameLevel(int(data['level']), 0)
+      self.level = GameLevel(int(data['level']), self.level.stage)
 
 
 class Scene(BaseScene[Snapshot]):

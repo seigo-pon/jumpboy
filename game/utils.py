@@ -109,7 +109,7 @@ class Timer:
 
 class Dice:
   @classmethod
-  def roll(cls, max: int) -> int:
+  def spin(cls, max: int) -> int:
     value = randint(0, max)
     print('dice roll', max, value)
     return value

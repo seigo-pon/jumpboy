@@ -6,7 +6,7 @@ from game import (
   GameConfig,
   GameEngine,
 )
-from core import OpeningScene
+from scene import OpeningScene
 import os
 import pyxel
 
