@@ -47,6 +47,9 @@ puf edit
 
 ## Build packages
 ```bash
+# Remove folder
+rm -rf jumpboy/snapshot
+
 # Build.
 pyxel package jumpboy jumpboy/app.py
 
