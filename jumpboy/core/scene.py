@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Callable, Generic, Self, TypeVar
-from core import Size, Path, Stopwatch, Timer, StringRes
+from core import Size, Path, Stopwatch, Timer, StringRes, Typewriter
 import json
 import os
 import pyxel
@@ -146,11 +146,13 @@ class Scene(Generic[TSnapshot]):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
+    typewriter: Typewriter,
     snapshot: TSnapshot,
   ) -> None:
     self.config = config
     self.string_res = string_res
     self.stopwatch = stopwatch
+    self.typewriter = typewriter
     self.snapshot = snapshot
     self.time_seq = TimeSeq([])
 

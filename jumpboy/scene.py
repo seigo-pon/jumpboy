@@ -4,7 +4,7 @@ from typing import Any, Self
 from core import (
   Coordinate, Size, Stopwatch, Timer,
   Language, StringRes, Image, AssetSound, RawBgm,
-  TextScriber, Text, BlinkText,
+  Typewriter, Text, BlinkText,
   Poster, Signboard,
   GameConfig, Seq, TimeSeq, MusicBox,
 )
@@ -75,12 +75,14 @@ class BaseScene(Scene):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
+    typewriter: Typewriter,
     snapshot: Snapshot,
   ) -> None:
     super().__init__(
       config=config,
       string_res=string_res,
       stopwatch=stopwatch,
+      typewriter=typewriter,
       snapshot=snapshot,
     )
 
@@ -92,7 +94,7 @@ class BaseScene(Scene):
       self.config.window_size.center.x,
       (size.height
        if size is not None else
-       TextScriber.word_size(TEXT_FONT_SIZE).height)/2,
+       Typewriter.word_size(TEXT_FONT_SIZE).height)/2,
     )
 
   def menu_right_top_origin(self, size: Size) -> Coordinate:
@@ -101,15 +103,15 @@ class BaseScene(Scene):
   def title_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      TextScriber.word_size(TEXT_FONT_SIZE).height*2
-      +TextScriber.word_size(TEXT_FONT_SIZE).height/2,
+      Typewriter.word_size(TEXT_FONT_SIZE).height*2
+      +Typewriter.word_size(TEXT_FONT_SIZE).height/2,
     )
 
   def subtitle_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
-      TextScriber.word_size(TEXT_FONT_SIZE).height*3
-      +TextScriber.word_size(TEXT_FONT_SIZE).height/2,
+      Typewriter.word_size(TEXT_FONT_SIZE).height*3
+      +Typewriter.word_size(TEXT_FONT_SIZE).height/2,
     )
 
   def menu_middle_center(self) -> Coordinate:
@@ -119,15 +121,15 @@ class BaseScene(Scene):
     return Coordinate(
       self.config.window_size.center.x,
       self.config.window_size.center.y
-      +TextScriber.word_size(TEXT_FONT_SIZE).height*3,
+      +Typewriter.word_size(TEXT_FONT_SIZE).height*3,
     )
 
   def menu_middle_bottom_center(self) -> Coordinate:
     return Coordinate(
       self.config.window_size.center.x,
       self.snapshot.field.ground_height
-      -TextScriber.word_size(TEXT_FONT_SIZE).height*2
-      +TextScriber.word_size(TEXT_FONT_SIZE).height/2,
+      -Typewriter.word_size(TEXT_FONT_SIZE).height*2
+      +Typewriter.word_size(TEXT_FONT_SIZE).height/2,
     )
 
   def ball_ready_origin(self, ball: Ball) -> Coordinate:
@@ -147,6 +149,7 @@ class BaseScene(Scene):
 
   def text(self, string: str) -> Text:
     return Text(
+      typewriter=self.typewriter,
       string=string,
       text_color=TEXT_COLOR,
       font_size=TEXT_FONT_SIZE,
@@ -155,6 +158,7 @@ class BaseScene(Scene):
 
   def blink_text(self, string: str, blink_msec: int, show: bool) -> BlinkText:
     return BlinkText(
+      typewriter=self.typewriter,
       string=string,
       text_color=TEXT_COLOR,
       font_size=TEXT_FONT_SIZE,
@@ -208,6 +212,7 @@ class BaseScene(Scene):
 
     if self.config.debug:
       stopwatch_text = Text(
+        typewriter=self.typewriter,
         string='{:02}:{:02}:{:02}:{:03}'.format(
           int(self.stopwatch.sec/60/60),
           int(self.stopwatch.sec/60%60),
@@ -236,6 +241,7 @@ class OpeningScene(BaseScene):
       config=config,
       string_res=string_res,
       stopwatch=stopwatch,
+      typewriter=Typewriter(config.path),
       snapshot=Snapshot(
         lang=Language.EN,
         game_pad=GamePad(),
@@ -279,7 +285,7 @@ class OpeningScene(BaseScene):
         self.title_text = self.text(self.config.title)
         self.title_text.center = Coordinate(
           self.title_center().x,
-          -TextScriber.word_size(TEXT_FONT_SIZE).height,
+          -Typewriter.word_size(TEXT_FONT_SIZE).height,
         )
         self.title_text.move(center=self.title_center(), move_distance=0.5)
         self.snapshot.music_box.play_raw_bgm(TITLE_BGM[self.snapshot.level.mode])
@@ -334,6 +340,7 @@ class TitleScene(BaseScene):
       config=scene.config,
       string_res=scene.string_res,
       stopwatch=scene.stopwatch,
+      typewriter=scene.typewriter,
       snapshot=scene.snapshot,
     )
 
@@ -372,7 +379,7 @@ class TitleScene(BaseScene):
           center=self.menu_middle_top_center(
             Size(
               self.score.size.width,
-              self.score.size.height+TextScriber.word_size(TEXT_FONT_SIZE).height*2,
+              self.score.size.height+Typewriter.word_size(TEXT_FONT_SIZE).height*2,
             )
           ),
           move_distance=0.5,
@@ -383,7 +390,7 @@ class TitleScene(BaseScene):
           self.show_start = True
           self.start_text.center = Coordinate(
             self.menu_middle_low_center().x,
-            self.menu_middle_low_center().y-TextScriber.word_size(TEXT_FONT_SIZE).height,
+            self.menu_middle_low_center().y-Typewriter.word_size(TEXT_FONT_SIZE).height,
           )
           return True
 
@@ -403,7 +410,7 @@ class TitleScene(BaseScene):
     title_text.center = Coordinate(score_center.x, score_center.y)
     score_texts.append(title_text)
 
-    score_center.y += TextScriber.word_size(title_text.font_size).height*2
+    score_center.y += Typewriter.word_size(title_text.font_size).height*2
     scores = self.snapshot.score_board.ranking(SCORE_RANKING_NUM)
     if len(scores) > 0:
       for (index, score) in enumerate(scores):
@@ -418,7 +425,7 @@ class TitleScene(BaseScene):
         )
         score_text.center = Coordinate(score_center.x, score_center.y)
         score_texts.append(score_text)
-        score_center.y += TextScriber.word_size(score_text.font_size).height
+        score_center.y += Typewriter.word_size(score_text.font_size).height
     else:
       no_score_text = self.text(self.string('score_no_text'))
       no_score_text.center = Coordinate(score_center.x, score_center.y)
@@ -479,6 +486,7 @@ class BaseStageScene(BaseScene):
       config=scene.config,
       string_res=scene.string_res,
       stopwatch=scene.stopwatch,
+      typewriter=scene.typewriter,
       snapshot=scene.snapshot,
     )
 

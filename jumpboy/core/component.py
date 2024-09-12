@@ -1,11 +1,11 @@
 from typing import Any, Self, TypeVar
 from uuid import uuid4 as uuid
 from core import (
-  Coordinate, Size, Stopwatch, Timer,
+  Coordinate, Size, Path, Stopwatch, Timer,
   Image, TileMap, SoundEffect, AssetSound, AssetBgm, Bgm, RawBgm,
 )
+import os
 import pyxel
-import PyxelUniversalFont as puf
 
 
 class Variation:
@@ -260,52 +260,57 @@ class Movable(Variation):
         self.move_center = None
 
 
-class TextScriber:
-  DEFAULT_FONT_FILE = 'misaki_mincho.ttf'
+class Typewriter:
+  FONT_FOLDER = 'font'
   CUSTOM_FONT_FILES: dict[int, dict[bool, str]] = {
     10: {
-      False: 'PixelMplus10-Regular.ttf',
-      True: 'PixelMplus10-Bold.ttf',
+      False: 'PixelMplus10-Regular.bdf',
+      True: 'PixelMplus10-Bold.bdf',
     },
     12: {
-      False: 'PixelMplus12-Regular.ttf',
-      True: 'PixelMplus12-Bold.ttf',
+      False: 'PixelMplus12-Regular.bdf',
+      True: 'PixelMplus12-Bold.bdf',
     },
   }
 
-  _instance: Self | None = None
-  _writers: dict[str, puf.Writer] = {}
+  def __init__(self, path: Path) -> None:
+    self.path = path
 
-  def __new__(cls, *args, **kwargs):
-    if cls._instance is None:
-      cls._instance = super(TextScriber, cls).__new__(cls)
-      print('text scriber create', cls._instance)
-    return cls._instance
+    self.fonts: dict[str, pyxel.Font] = {}
 
   @classmethod
   def word_size(cls, font_size: int) -> Size:
     return Size(font_size/2, font_size)
 
-  def writer(self, font_size: int, bold: bool) -> puf.Writer:
-    font = self.CUSTOM_FONT_FILES[font_size][bold]
-    if font not in puf.get_available_fonts():
-      font = self.DEFAULT_FONT_FILE
+  def font(self, font_size: int, bold: bool) -> pyxel.Font:
+    if font_size in self.CUSTOM_FONT_FILES and bold in self.CUSTOM_FONT_FILES[font_size]:
+      font_file = self.CUSTOM_FONT_FILES[font_size][bold]
+    else:
+      font_file = self.CUSTOM_FONT_FILES[10][False]
 
-    if font not in self._writers:
-      writer = puf.Writer(font)
-      print('new font', font, writer, self._writers)
-      self._writers[font] = writer
+    if font_file not in self.fonts:
+      font = pyxel.Font(os.path.join(self.path.asset_path, self.FONT_FOLDER, font_file)) # type: ignore
+      print('new font', font, font, self.fonts)
+      self.fonts[font_file] = font
 
-    return self._writers[font]
+    return self.fonts[font_file]
   
   
 class Text(Subject, Movable):
-  def __init__(self, string: str, text_color: int, font_size: int, bold: bool) -> None:
+  def __init__(
+    self,
+    typewriter: Typewriter,
+    string: str,
+    text_color: int,
+    font_size: int,
+    bold: bool,
+  ) -> None:
     super().__init__()
 
     if string == '':
       raise RuntimeError()
 
+    self.typewriter = typewriter
     self.string = string
     self.text_color = text_color
     self.font_size = font_size
@@ -314,8 +319,8 @@ class Text(Subject, Movable):
   @property
   def size(self) -> Size:
     return Size(
-      len(self.string)*TextScriber.word_size(self.font_size).width,
-      TextScriber.word_size(self.font_size).height,
+      len(self.string)*Typewriter.word_size(self.font_size).width,
+      Typewriter.word_size(self.font_size).height,
     )
 
   @property
@@ -327,18 +332,19 @@ class Text(Subject, Movable):
     self.center = Coordinate(value.x+self.size.width/2, value.y+self.size.height/2)
 
   def draw(self, transparent_color: int) -> None:
-    TextScriber().writer(self.font_size,self.bold).draw(
+    pyxel.text(
       x=self.origin.x,
       y=self.origin.y,
-      text=self.string.upper(),
-      font_size=self.font_size,
-      font_color=self.text_color,
+      s=self.string.upper(),
+      col=self.text_color,
+      font=self.typewriter.font(self.font_size, self.bold),
     )
 
 
 class BlinkText(Text):
   def __init__(
     self,
+    typewriter: Typewriter,
     string: str,
     text_color: int,
     font_size: int,
@@ -348,6 +354,7 @@ class BlinkText(Text):
     show: bool,
   ) -> None:
     super().__init__(
+      typewriter=typewriter,
       string=string,
       text_color=text_color,
       font_size=font_size,
@@ -443,7 +450,13 @@ class Signboard(Subject, Movable):
         colkey=transparent_color,
       )
     for text in self.texts:
-      draw_text = Text(text.string, text.text_color, text.font_size, text.bold)
+      draw_text = Text(
+        typewriter=text.typewriter,
+        string=text.string,
+        text_color=text.text_color,
+        font_size=text.font_size,
+        bold=text.bold,
+      )
       draw_text.origin = Coordinate(self.origin.x+text.origin.x, self.origin.y+text.origin.y)
       draw_text.draw(transparent_color)
 

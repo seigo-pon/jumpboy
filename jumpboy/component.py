@@ -4,7 +4,7 @@ from typing import Any, TypeVar
 from core import (
   Coordinate, Size, Dice, Stopwatch, Timer,
   Language, StringRes, TileMap,
-  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,
+  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, Typewriter, MusicBox,
   GameConfig, Snapshot as BaseSnapshot, Scene as BaseScene,
 )
 import pyxel
@@ -684,12 +684,14 @@ class Scene(BaseScene[Snapshot]):
     config: GameConfig,
     string_res: StringRes,
     stopwatch: Stopwatch,
+    typewriter: Typewriter,
     snapshot: Snapshot,
   ) -> None:
     super().__init__(
       config=config,
       string_res=string_res,
       stopwatch=stopwatch,
+      typewriter=typewriter,
       snapshot=snapshot,
     )
 
