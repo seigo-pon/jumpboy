@@ -35,7 +35,7 @@ cp jumpboy/env.sample.py jumpboy/env.py
 pyxel run jumpboy/app.py
 ```
 
-## Asset file edits
+## Edit assets
 ```bash
 # Edit pyxel assets.
 pyxel edit jumpboy/assets/jumpboy.pyxres
