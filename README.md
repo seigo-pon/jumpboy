@@ -11,11 +11,11 @@
 
 ### Libraries
 - pyxel
-- pyxel-universal-font
 
 ## Assets
 ### Fonts
 - [PixelMplus](https://itouhiro.hatenablog.com/entry/20130602/font) に掲載されているフォントを使用しています。
+  - TTFファイルをBDFファイルに変換しています。
 
 ### Sound effects
 - [8bit_taste_game_se](https://booth.pm/ja/items/2576189) に掲載されている効果音を使用しています。
@@ -38,16 +38,9 @@ pyxel run jumpboy/app.py
 pyxel edit jumpboy/assets/jumpboy.pyxres
 ```
 
-フォントをインストールする場合は、以下の操作を実行してください。
-```bash
-# Open font folder in 'pyxel-universal-font' library.
-puf edit
-# Copy font files in 'jumpboy/assets/font' folder.
-```
-
 ## Build packages
 ```bash
-# Remove folder
+# Remove temporary folder.
 rm -rf jumpboy/snapshot
 
 # Build.
