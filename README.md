@@ -54,7 +54,27 @@ pyxel play jumpboy.pyxapp
 ```
 
 ## Game rules
-- 作成中...
+### Input keys
+|Event|PC|スマホ|
+|--|--|--|
+|OK|ENTERキー|タッチ|
+|CANCEL|SPACEキー|なし|
+
+### Manual
+1. タイトル画面で `OK` するとゲームを開始します。  
+![title](./images/title.png)
+1. ゲームはステージごとにプレイします。  
+![stage](./images/stage.png)
+1. プレイが開始すると時間のカウントダウンが開始し、ボールが射出されます。`OK` するとプレーヤーがジャンプしてボールを避けられます。  
+![play](./images/play.png)
+1. `CANCEL` するとプレイが中断します。`OK` か `CANCEL` で再開します。  
+![pause](./images/pause.png)
+1. ジャンプから降下中にボールにヒットすると破壊できます。  
+![burst](./images/burst.png)
+1. ボールにヒットするとダメージを受け、3回ダメージを受けるとゲームオーバーです。  
+![game over](./images/game_over.png)
+1. タイムアップまで避け続けられればステージクリアです。がんばって全てのステージクリアを目指しましょう。  
+![stage clear](./images/stage_clear.png)
 
 ## License
 - GNU General Public License (GPL)
