@@ -6,13 +6,13 @@ from core import (
   Language, StringRes, Image, AssetSound, RawBgm,
   Typewriter, Text, BlinkText,
   Poster, Signboard,
-  GameConfig, Seq, TimeSeq, MusicBox,
+  GameConfig, Seq, TimeSeq, MusicBox, Scene,
 )
 from component import (
   GamePad,
   GameLevel, Score, ScoreBoard,
-  Ball, Jumper,
-  Snapshot, Scene,
+  Ball, Jumper, Field,
+  Snapshot as BaseSnapshot,
 )
 from design import (
   ImageId, SoundId,
@@ -69,7 +69,34 @@ END_BGM: dict[int, str] = {
 }
 
 
-class BaseScene(Scene):
+class Snapshot(BaseSnapshot):
+  def __init__(
+    self,
+    design: GameDesign,
+    lang: Language,
+    game_pad: GamePad,
+    music_box: MusicBox,
+    score_board: ScoreBoard,
+    level: GameLevel,
+    field: Field,
+    balls: list[Ball],
+    jumper: Jumper,
+  ) -> None:
+    super().__init__(
+      lang,
+      game_pad,
+      music_box,
+      score_board,
+      level,
+      field,
+      balls,
+      jumper,
+    )
+
+    self.design = design
+
+
+class BaseScene(Scene[Snapshot]):
   def __init__(
     self,
     config: GameConfig,
@@ -169,13 +196,13 @@ class BaseScene(Scene):
     )
 
   def initial_sprites(self, reset: bool) -> None:
-    self.snapshot.field = GameDesign.field(self.snapshot.level, self.config)
+    self.snapshot.field = self.snapshot.design.field(self.snapshot.level, self.config)
     print('field', self.snapshot.field.id)
 
     self.snapshot.balls = []
 
     life = self.snapshot.jumper.life
-    self.snapshot.jumper = GameDesign.jumper(self.snapshot.level, self.stopwatch)
+    self.snapshot.jumper = self.snapshot.design.jumper(self.snapshot.level, self.stopwatch)
     if not reset:
       self.snapshot.jumper.life = life
 
@@ -203,6 +230,15 @@ class BaseScene(Scene):
 
     print('next level none')
     return None
+
+  def string(self, key: str) -> str:
+    return self.string_res.string(key, self.snapshot.lang)
+
+  @property
+  def updating_variations(self) -> list[Any]:
+    variations: list[Any] = [ball for ball in self.snapshot.balls]
+    variations.append(self.snapshot.jumper)
+    return variations
 
   @property
   def drawing_subjects(self) -> list[Any]:
@@ -235,7 +271,8 @@ class BaseScene(Scene):
 class OpeningScene(BaseScene):
   def __init__(self, config: GameConfig, string_res: StringRes) -> None:
     stopwatch = Stopwatch(config.fps)
-    level = GameDesign.first_level(config)
+    design = GameDesign()
+    level = design.first_level(config)
 
     super().__init__(
       config=config,
@@ -243,6 +280,7 @@ class OpeningScene(BaseScene):
       stopwatch=stopwatch,
       typewriter=Typewriter(config.path),
       snapshot=Snapshot(
+        design=design,
         lang=Language.EN,
         game_pad=GamePad(),
         music_box=MusicBox(
@@ -256,9 +294,9 @@ class OpeningScene(BaseScene):
         ),
         score_board=ScoreBoard(),
         level=level,
-        field=GameDesign.field(level, config),
+        field=design.field(level, config),
         balls=[],
-        jumper=GameDesign.jumper(level, stopwatch),
+        jumper=design.jumper(level, stopwatch),
       ),
     )
 
@@ -582,7 +620,7 @@ class ReadyScene(BaseStageScene):
     print('ready', vars(self.snapshot.level))
     self.play_timer = Timer.set_msec(
       stopwatch=self.stopwatch,
-      msec=GameDesign.play_limit_msec(self.snapshot.level),
+      msec=self.snapshot.design.play_limit_msec(self.snapshot.level),
       start=False,
     )
 
@@ -590,7 +628,7 @@ class ReadyScene(BaseStageScene):
 
     self.max_add_life = 0
     if self.snapshot.jumper.life < self.snapshot.jumper.param.max_life:
-      self.max_add_life = GameDesign.recovery_life_count(self.snapshot.level)
+      self.max_add_life = self.snapshot.design.recovery_life_count(self.snapshot.level)
       self.max_add_life = min(self.max_add_life, self.snapshot.jumper.param.max_life-self.snapshot.jumper.life)
     print('recovery life', self.max_add_life, self.snapshot.jumper.life, self.snapshot.jumper.param.max_life)
     self.add_life = 0
@@ -772,7 +810,7 @@ class PlayScene(BaseStageScene):
         balls = sorted([ball for ball in self.snapshot.balls], key=lambda x: x.elapsed_msec, reverse=True)
         for ball in balls:
           if ball.stopping:
-            if GameDesign.can_spin_ball(self.snapshot.level, self.snapshot.field, ball, last_ball):
+            if self.snapshot.design.can_spin_ball(self.snapshot.level, self.snapshot.field, ball, last_ball):
               ball.spin()
             else:
               stopped = True
@@ -780,9 +818,9 @@ class PlayScene(BaseStageScene):
             last_ball = ball
 
       if not stopped:
-        next_msec = GameDesign.next_ball_msec(self.snapshot.level, self.snapshot.balls)
+        next_msec = self.snapshot.design.next_ball_msec(self.snapshot.level, self.snapshot.balls)
         if next_msec is not  None:
-          stopping_ball = GameDesign.ball(self.snapshot.level, self.stopwatch)
+          stopping_ball = self.snapshot.design.ball(self.snapshot.level, self.stopwatch)
           stopping_ball.origin = self.ball_ready_origin(stopping_ball)
           stopping_ball.spin_after_msec(self.stopwatch, next_msec)
           self.snapshot.balls.append(stopping_ball)
@@ -871,7 +909,7 @@ class GameOverScene(BaseStageScene):
   def update(self) -> Self | Any:
     if self.time_seq.ended:
       if self.snapshot.game_pad.enter(False):
-        self.snapshot.level = GameDesign.first_level(self.config)
+        self.snapshot.level = self.snapshot.design.first_level(self.config)
         self.initial_sprites(True)
         self.snapshot.save(self.config.path)
         return TitleScene(self)
@@ -930,7 +968,7 @@ class StageClearScene(BaseStageScene):
           if self.next_level.mode != self.snapshot.level.mode:
             self.next_level = None
           else:
-            if self.snapshot.field.surface == GameDesign.field(self.next_level, self.config).surface:
+            if self.snapshot.field.surface == self.snapshot.design.field(self.next_level, self.config).surface:
               self.same_surface = True
         return True
 
@@ -1046,7 +1084,7 @@ class GameClearScene(BaseStageScene):
       if self.next_level is not None:
         self.snapshot.level = self.next_level
       else:
-        self.snapshot.level = GameDesign.first_level(self.config)
+        self.snapshot.level = self.snapshot.design.first_level(self.config)
       self.initial_sprites(True)
       self.snapshot.save(self.config.path)
       return TitleScene(self)

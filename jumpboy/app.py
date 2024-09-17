@@ -1,16 +1,26 @@
+from datetime import datetime
 from core import (
   Size, Path,
   Language, StringRes,
   GameConfig,
   GameEngine,
 )
+try:
+  from env import (
+    DEBUG as ENV_DEBUG,
+    COPYRIGHT as ENV_COPYRIGHT,
+    RELEASED_YEAR as ENV_RELEASED_YEAR,
+  )
+except:
+  pass
 from scene import OpeningScene
 import pyxel
 
 
-DEBUG = False
-COPYRIGHT = 'SEIGO-PON'
-RELEASED_YEAR = 2024
+DEBUG = ENV_DEBUG if ENV_DEBUG is not None else False
+COPYRIGHT = ENV_COPYRIGHT if ENV_COPYRIGHT is not None else 'ANONYMOUS'
+RELEASED_YEAR = ENV_RELEASED_YEAR if ENV_RELEASED_YEAR is not None else datetime.now().year
+
 GAME_WINDOW_SIZE = Size(160, 120)
 FPS = 30
 ASSET_FOLDER = 'assets'

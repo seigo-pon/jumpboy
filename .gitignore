@@ -177,5 +177,6 @@ pyrightconfig.json
 pyxel_examples
 sample
 snapshot
+env.py
 
 # End of https://www.toptal.com/developers/gitignore/api/python

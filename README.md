@@ -28,6 +28,9 @@
 # Install libraries.
 pip install -r requirement.txt
 
+# Copy env file.
+cp jumpboy/env.sample.py jumpboy/env.py
+
 # Start game.
 pyxel run jumpboy/app.py
 ```

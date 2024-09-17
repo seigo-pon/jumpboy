@@ -1,11 +1,11 @@
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, TypeVar
+from typing import TypeVar
 from core import (
   Coordinate, Size, Dice, Stopwatch, Timer,
-  Language, StringRes, TileMap,
-  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, Typewriter, MusicBox,
-  GameConfig, Snapshot as BaseSnapshot, Scene as BaseScene,
+  Language, TileMap,
+  Block, FlashSprite, Obstacle, Field as BaseField, GamePad as BaseGamePad, MusicBox,
+  Snapshot as BaseSnapshot,
 )
 import pyxel
 
@@ -676,30 +676,3 @@ class Snapshot(BaseSnapshot):
 
     if 'level' in data:
       self.level = GameLevel(int(data['level']), self.level.stage)
-
-
-class Scene(BaseScene[Snapshot]):
-  def __init__(
-    self,
-    config: GameConfig,
-    string_res: StringRes,
-    stopwatch: Stopwatch,
-    typewriter: Typewriter,
-    snapshot: Snapshot,
-  ) -> None:
-    super().__init__(
-      config=config,
-      string_res=string_res,
-      stopwatch=stopwatch,
-      typewriter=typewriter,
-      snapshot=snapshot,
-    )
-
-  def string(self, key: str) -> str:
-    return self.string_res.string(key, self.snapshot.lang)
-
-  @property
-  def updating_variations(self) -> list[Any]:
-    variations: list[Any] = [ball for ball in self.snapshot.balls]
-    variations.append(self.snapshot.jumper)
-    return variations

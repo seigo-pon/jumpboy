@@ -58,14 +58,15 @@ class GameDesign:
     CLAY = 2
     WOOD = 3
 
-  @classmethod
+  def __init__(self) -> None:
+    pass
+
   def first_level(cls, config: GameConfig) -> GameLevel:
     if config.debug:
       return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
     else:
       return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
-  @classmethod
   def field(cls, level: GameLevel, config: GameConfig) -> Field:
     if level.mode in [
       GameLevelMode.NORMAL,
@@ -163,7 +164,6 @@ class GameDesign:
 
     return field
 
-  @classmethod
   def jumper(cls, level: GameLevel, stopwatch: Stopwatch) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
@@ -269,7 +269,6 @@ class GameDesign:
 
     return jumper
 
-  @classmethod
   def ball(cls, level: GameLevel, stopwatch: Stopwatch) -> Ball:
     if level.mode in [
       GameLevelMode.NORMAL,
@@ -503,7 +502,6 @@ class GameDesign:
 
     return ball
 
-  @classmethod
   def next_ball_msec(cls, level: GameLevel, balls: list[Ball]) -> int | None:
     msec: int | None = 0
     if len(balls) > 0:
@@ -591,7 +589,6 @@ class GameDesign:
 
     return msec
 
-  @classmethod
   def can_spin_ball(cls, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
     spin = False
     if ball.spun_timer is None or ball.spun_timer.over:
@@ -655,7 +652,6 @@ class GameDesign:
 
     return spin
 
-  @classmethod
   def play_limit_msec(cls, level: GameLevel) -> int:
     if level.mode in [
       GameLevelMode.NORMAL,
@@ -707,7 +703,6 @@ class GameDesign:
 
     return limit_msec
 
-  @classmethod
   def recovery_life_count(cls, level: GameLevel) -> int:
     if level.mode == GameLevelMode.NORMAL:
       life = 2
