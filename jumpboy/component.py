@@ -233,10 +233,10 @@ class Jumper(FlashSprite):
     jump = self.action == self.Action.JUMP
     if jump and up is not None:
       if up:
-        if self.center.y > self.prev_y:
+        if self.center.y >= self.prev_y:
           jump = False
       else:
-        if self.center.y < self.prev_y:
+        if self.center.y <= self.prev_y:
           jump = False
     return jump
 
