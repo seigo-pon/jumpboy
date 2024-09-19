@@ -618,12 +618,13 @@ class ReadyScene(BaseStageScene):
     self.snapshot.music_box.stop_bgm()
 
     print('ready', vars(self.snapshot.level))
+
+    self.snapshot.design.clear()
     self.play_timer = Timer.set_msec(
       stopwatch=self.stopwatch,
       msec=self.snapshot.design.play_limit_msec(self.snapshot.level),
       start=False,
     )
-
     self.snapshot.jumper.stop()
 
     self.max_add_life = 0

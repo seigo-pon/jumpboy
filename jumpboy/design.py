@@ -59,15 +59,18 @@ class GameDesign:
     WOOD = 3
 
   def __init__(self) -> None:
-    pass
+    self.prev_params: list[Ball.Param] = []
 
-  def first_level(cls, config: GameConfig) -> GameLevel:
+  def clear(self) -> None:
+    self.prev_params = []
+
+  def first_level(self, config: GameConfig) -> GameLevel:
     if config.debug:
       return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
     else:
       return GameLevel(GameLevelMode.NORMAL, GameLevelStage.STAGE_1)
 
-  def field(cls, level: GameLevel, config: GameConfig) -> Field:
+  def field(self, level: GameLevel, config: GameConfig) -> Field:
     if level.mode in [
       GameLevelMode.NORMAL,
       GameLevelMode.HARD,
@@ -84,8 +87,8 @@ class GameDesign:
           ],
           obstacles=[],
           max_size=config.window_size,
-          surface=cls.FieldSurface.ROAD,
-          ground_height=cls.GROUND_TOP,
+          surface=self.FieldSurface.ROAD,
+          ground_height=self.GROUND_TOP,
         )
 
       elif level.stage in [
@@ -101,20 +104,20 @@ class GameDesign:
           obstacles=[
             Obstacle(
               Collision(
-                Coordinate(0, cls.GROUND_TOP-Image.basic_size().height),
+                Coordinate(0, self.GROUND_TOP-Image.basic_size().height),
                 Size(0, Image.basic_size().height),
               ),
             ),
             Obstacle(
               Collision(
-                Coordinate(config.window_size.width, cls.GROUND_TOP-Image.basic_size().height),
+                Coordinate(config.window_size.width, self.GROUND_TOP-Image.basic_size().height),
                 Size(0, Image.basic_size().height),
               ),
             ),
           ],
           max_size=config.window_size,
-          surface=cls.FieldSurface.GRASS,
-          ground_height=cls.GROUND_TOP,
+          surface=self.FieldSurface.GRASS,
+          ground_height=self.GROUND_TOP,
         )
 
       elif level.stage in [
@@ -129,8 +132,8 @@ class GameDesign:
           ],
           obstacles=[],
           max_size=config.window_size,
-          surface=cls.FieldSurface.CLAY,
-          ground_height=cls.GROUND_TOP,
+          surface=self.FieldSurface.CLAY,
+          ground_height=self.GROUND_TOP,
         )
 
       elif level.stage in [
@@ -146,25 +149,25 @@ class GameDesign:
           obstacles=[
             Obstacle(
               Collision(
-                Coordinate(0, cls.GROUND_TOP-TileMap.basic_size().height*2),
+                Coordinate(0, self.GROUND_TOP-TileMap.basic_size().height*2),
                 Size(0, TileMap.basic_size().height*2),
               ),
             ),
             Obstacle(
               Collision(
-                Coordinate(config.window_size.width, cls.GROUND_TOP-TileMap.basic_size().height*2),
+                Coordinate(config.window_size.width, self.GROUND_TOP-TileMap.basic_size().height*2),
                 Size(0, TileMap.basic_size().height*2),
               ),
             ),
           ],
           max_size=config.window_size,
-          surface=cls.FieldSurface.WOOD,
-          ground_height=cls.GROUND_TOP,
+          surface=self.FieldSurface.WOOD,
+          ground_height=self.GROUND_TOP,
         )
 
     return field
 
-  def jumper(cls, level: GameLevel, stopwatch: Stopwatch) -> Jumper:
+  def jumper(self, level: GameLevel, stopwatch: Stopwatch) -> Jumper:
     if level.mode == GameLevelMode.NORMAL:
       jumper = Jumper(
         name='boy_jumper',
@@ -269,7 +272,7 @@ class GameDesign:
 
     return jumper
 
-  def ball(cls, level: GameLevel, stopwatch: Stopwatch) -> Ball:
+  def ball(self, level: GameLevel, stopwatch: Stopwatch) -> Ball:
     if level.mode in [
       GameLevelMode.NORMAL,
       GameLevelMode.HARD,
@@ -280,11 +283,21 @@ class GameDesign:
         GameLevelStage.STAGE_3,
       ]:
         if level.stage == GameLevelStage.STAGE_1:
-          distance = 2
+          spin_distance = 2
         elif level.stage == GameLevelStage.STAGE_2:
-          distance = 3
+          spin_distance = 3
         elif level.stage == GameLevelStage.STAGE_3:
-          distance = Dice.spin(1)+2
+          latest_spin_distances = 0.0
+          if len(self.prev_params) > 1:
+            for param in self.prev_params[-2:]:
+              latest_spin_distances += param.spin_distance
+
+          if latest_spin_distances <= 4:
+            spin_distance = 3
+          elif latest_spin_distances >= 6:
+            spin_distance = 2
+          else:
+            spin_distance = Dice.spin(1)+2
 
         ball = Ball(
             name='straight_ball',
@@ -318,7 +331,7 @@ class GameDesign:
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              spin_distance=distance,
+              spin_distance=spin_distance,
               max_accel=0,
               first_y=0,
               spin_period=1,
@@ -335,11 +348,21 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         if level.stage == GameLevelStage.STAGE_4:
-          distance = 2
+          spin_distance = 2
         elif level.stage == GameLevelStage.STAGE_5:
-          distance = 3
+          spin_distance = 3
         elif level.stage == GameLevelStage.STAGE_6:
-          distance = Dice.spin(2)+1
+          latest_spin_distances = 0.0
+          if len(self.prev_params) > 1:
+            for param in self.prev_params[-2:]:
+              latest_spin_distances += param.spin_distance
+
+          if latest_spin_distances <= 4:
+            spin_distance = 3
+          elif latest_spin_distances >= 6:
+            spin_distance = 2
+          else:
+            spin_distance = Dice.spin(1)+2
 
         ball = Ball(
             name='bounce_ball',
@@ -373,7 +396,7 @@ class GameDesign:
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              spin_distance=distance,
+              spin_distance=spin_distance,
               max_accel=0,
               first_y=0,
               spin_period=1,
@@ -390,14 +413,30 @@ class GameDesign:
         GameLevelStage.STAGE_9,
       ]:
         if level.stage == GameLevelStage.STAGE_7:
-          distance = 2
+          spin_distance = 2
           accel = -8
         elif level.stage == GameLevelStage.STAGE_8:
-          distance = 3
+          spin_distance = 3
           accel = -8
         elif level.stage == GameLevelStage.STAGE_9:
-          distance = Dice.spin(1)+2
+          latest_spin_distances = 0.0
+          if len(self.prev_params) > 1:
+            for param in self.prev_params[-2:]:
+              latest_spin_distances += param.spin_distance
+
+          if latest_spin_distances <= 4:
+            spin_distance = 3
+          elif latest_spin_distances >= 6:
+            spin_distance = 2
+          else:
+            spin_distance = Dice.spin(1)+2
+
           accel = -(Dice.spin(2)+8)
+
+        if len(self.prev_params) == 0 or self.prev_params[-1].first_y != Image.basic_size().height*4:
+          first_y = Image.basic_size().height*4
+        else:
+          first_y = Image.basic_size().height*6
 
         ball = Ball(
             name='straight_leap_ball',
@@ -431,9 +470,9 @@ class GameDesign:
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              spin_distance=distance,
+              spin_distance=spin_distance,
               max_accel=accel,
-              first_y=Image.basic_size().height*4,
+              first_y=first_y,
               spin_period=1,
               max_points={
                 Ball.Action.SPIN: 30,
@@ -448,14 +487,30 @@ class GameDesign:
         GameLevelStage.STAGE_12,
       ]:
         if level.stage == GameLevelStage.STAGE_10:
-          distance = 2
+          spin_distance = 2
           accel = -8
         elif level.stage == GameLevelStage.STAGE_11:
-          distance = 3
+          spin_distance = 3
           accel = -8
         elif level.stage == GameLevelStage.STAGE_12:
-          distance = Dice.spin(2)+1
+          latest_spin_distances = 0.0
+          if len(self.prev_params) > 1:
+            for param in self.prev_params[-2:]:
+              latest_spin_distances += param.spin_distance
+
+          if latest_spin_distances <= 4:
+            spin_distance = 3
+          elif latest_spin_distances >= 6:
+            spin_distance = 2
+          else:
+            spin_distance = Dice.spin(1)+2
+
           accel = -(Dice.spin(4)+6)
+
+        if len(self.prev_params) == 0 or self.prev_params[-1].first_y != Image.basic_size().height*4:
+          first_y = Image.basic_size().height*4
+        else:
+          first_y = Image.basic_size().height*6
 
         ball = Ball(
             name='straight_leap_ball',
@@ -489,9 +544,9 @@ class GameDesign:
             },
             stopwatch=stopwatch,
             param=Ball.Param(
-              spin_distance=distance,
+              spin_distance=spin_distance,
               max_accel=accel,
-              first_y=Image.basic_size().height*4,
+              first_y=first_y,
               spin_period=1,
               max_points={
                 Ball.Action.SPIN: 40,
@@ -500,9 +555,11 @@ class GameDesign:
             ),
           )
 
+    self.prev_params.append(ball.param)
+
     return ball
 
-  def next_ball_msec(cls, level: GameLevel, balls: list[Ball]) -> int | None:
+  def next_ball_msec(self, level: GameLevel, balls: list[Ball]) -> int | None:
     msec: int | None = 0
     if len(balls) > 0:
       if level.mode in [
@@ -589,7 +646,7 @@ class GameDesign:
 
     return msec
 
-  def can_spin_ball(cls, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
+  def can_spin_ball(self, level: GameLevel, field: Field, ball: Ball, last_ball: Ball | None) -> int:
     spin = False
     if ball.spun_timer is None or ball.spun_timer.over:
       spin = True
@@ -652,7 +709,7 @@ class GameDesign:
 
     return spin
 
-  def play_limit_msec(cls, level: GameLevel) -> int:
+  def play_limit_msec(self, level: GameLevel) -> int:
     if level.mode in [
       GameLevelMode.NORMAL,
       GameLevelMode.HARD,
@@ -703,7 +760,7 @@ class GameDesign:
 
     return limit_msec
 
-  def recovery_life_count(cls, level: GameLevel) -> int:
+  def recovery_life_count(self, level: GameLevel) -> int:
     if level.mode == GameLevelMode.NORMAL:
       life = 2
 

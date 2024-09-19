@@ -280,7 +280,7 @@ class Jumper(FlashSprite):
     if self.standing_by:
       print('jumper jump', self.id, self.param.max_accel)
       self.action = self.Action.JUMP
-      self.clear(True)
+      self.clear(False)
       self.accel = self.param.max_accel
       self.now_accel = self.accel
       self.prev_y = self.center.y
