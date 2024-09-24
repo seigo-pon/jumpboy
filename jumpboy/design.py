@@ -8,6 +8,7 @@ from core import (
 from component import (
   GameLevel, Field, Jumper, Ball,
 )
+import math
 
 
 class TileId:
@@ -210,7 +211,7 @@ class GameDesign:
         },
         stopwatch=stopwatch,
         param=Jumper.Param(
-          max_life=3,
+          max_life=5,
           max_accel=-10,
           walk_distance=0.5,
           walk_period=4,
@@ -348,21 +349,21 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         if level.stage == GameLevelStage.STAGE_4:
-          spin_distance = 2
+          spin_distance = 1
         elif level.stage == GameLevelStage.STAGE_5:
-          spin_distance = 3
+          spin_distance = 2
         elif level.stage == GameLevelStage.STAGE_6:
           latest_spin_distances = 0.0
           if len(self.prev_params) > 1:
             for param in self.prev_params[-2:]:
               latest_spin_distances += param.spin_distance
 
-          if latest_spin_distances <= 4:
-            spin_distance = 3
-          elif latest_spin_distances >= 6:
+          if latest_spin_distances <= 2:
             spin_distance = 2
+          elif latest_spin_distances >= 4:
+            spin_distance = 1
           else:
-            spin_distance = Dice.spin(1)+2
+            spin_distance = Dice.spin(1)+1
 
         ball = Ball(
             name='bounce_ball',
@@ -413,10 +414,10 @@ class GameDesign:
         GameLevelStage.STAGE_9,
       ]:
         if level.stage == GameLevelStage.STAGE_7:
-          spin_distance = 2
+          spin_distance = 3
           accel = -8
         elif level.stage == GameLevelStage.STAGE_8:
-          spin_distance = 3
+          spin_distance = 4
           accel = -8
         elif level.stage == GameLevelStage.STAGE_9:
           latest_spin_distances = 0.0
@@ -424,18 +425,17 @@ class GameDesign:
             for param in self.prev_params[-2:]:
               latest_spin_distances += param.spin_distance
 
-          if latest_spin_distances <= 4:
+          if latest_spin_distances <= 6:
+            spin_distance = 4
+          elif latest_spin_distances >= 8:
             spin_distance = 3
-          elif latest_spin_distances >= 6:
-            spin_distance = 2
           else:
-            spin_distance = Dice.spin(1)+2
+            spin_distance = Dice.spin(1)+3
 
           accel = -(Dice.spin(2)+8)
 
-        if len(self.prev_params) == 0 or self.prev_params[-1].first_y != Image.basic_size().height*4:
-          first_y = Image.basic_size().height*4
-        else:
+        first_y = Image.basic_size().height*3
+        if len(self.prev_params) > 0 and self.prev_params[-1].first_y == first_y:
           first_y = Image.basic_size().height*6
 
         ball = Ball(
@@ -487,10 +487,10 @@ class GameDesign:
         GameLevelStage.STAGE_12,
       ]:
         if level.stage == GameLevelStage.STAGE_10:
-          spin_distance = 2
+          spin_distance = 4
           accel = -8
         elif level.stage == GameLevelStage.STAGE_11:
-          spin_distance = 3
+          spin_distance = 5
           accel = -8
         elif level.stage == GameLevelStage.STAGE_12:
           latest_spin_distances = 0.0
@@ -498,18 +498,17 @@ class GameDesign:
             for param in self.prev_params[-2:]:
               latest_spin_distances += param.spin_distance
 
-          if latest_spin_distances <= 4:
-            spin_distance = 3
-          elif latest_spin_distances >= 6:
-            spin_distance = 2
+          if latest_spin_distances <= 8:
+            spin_distance = 5
+          elif latest_spin_distances >= 10:
+            spin_distance = 4
           else:
-            spin_distance = Dice.spin(1)+2
+            spin_distance = Dice.spin(1)+4
 
           accel = -(Dice.spin(4)+6)
 
-        if len(self.prev_params) == 0 or self.prev_params[-1].first_y != Image.basic_size().height*4:
-          first_y = Image.basic_size().height*4
-        else:
+        first_y = Image.basic_size().height*3
+        if len(self.prev_params) > 0 and self.prev_params[-1].first_y == first_y:
           first_y = Image.basic_size().height*6
 
         ball = Ball(
@@ -759,6 +758,23 @@ class GameDesign:
         limit_msec = 40000
 
     return limit_msec
+
+  def stage_clear_point_bonus(self, level: GameLevel, jumper: Jumper) -> int:
+    point = 0
+
+    if level.mode == GameLevelMode.NORMAL:
+      if jumper.life == jumper.param.max_life:
+        point = jumper.life
+      elif jumper.life == jumper.param.max_life - 1:
+        point = math.floor(jumper.life*0.5)
+
+    elif level.mode == GameLevelMode.HARD:
+      if jumper.life == jumper.param.max_life:
+        point = jumper.life*2
+      elif jumper.life == jumper.param.max_life - 1:
+        point = math.floor(jumper.life*1.5)
+
+    return point
 
   def recovery_life_count(self, level: GameLevel) -> int:
     if level.mode == GameLevelMode.NORMAL:

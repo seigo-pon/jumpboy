@@ -961,6 +961,11 @@ class StageClearScene(BaseStageScene):
       if not self.snapshot.jumper.jumping(None):
         self.snapshot.jumper.stop()
 
+        self.point += self.snapshot.design.stage_clear_point_bonus(
+          self.snapshot.level,
+          self.snapshot.jumper,
+        )
+
         self.record_score()
         self.snapshot.save(self.config.path)
 

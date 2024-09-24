@@ -585,8 +585,8 @@ class Ball(FlashSprite):
 
           origin_y = new_y
 
-          min_y = snapshot.field.top+self.size.height/2
-          max_y = snapshot.field.bottom-self.size.height/2
+          min_y = snapshot.field.top+self.size.height
+          max_y = snapshot.field.bottom-self.size.height
 
           new_y = new_y + (new_y - self.prev_y) + self.accel
           if new_y < min_y:
