@@ -46,11 +46,14 @@ pyxel edit jumpboy/assets/jumpboy.pyxres
 # Remove temporary folder.
 rm -rf jumpboy/snapshot
 
-# Build.
+# Build app package.
 pyxel package jumpboy jumpboy/app.py
 
 # Play game.
 pyxel play jumpboy.pyxapp
+
+# Build html file.
+pyxel app2html jumpboy.pyxapp
 ```
 
 ## Game rules
