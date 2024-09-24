@@ -59,6 +59,7 @@ pyxel play jumpboy.pyxapp
 |--|--|--|
 |OK|ENTERキー|タッチ|
 |CANCEL|SPACEキー|なし|
+|QUIT|Qキー|なし|
 
 ### Manual
 1. タイトル画面で `OK` するとゲームを開始します。  
