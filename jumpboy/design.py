@@ -90,6 +90,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.ROAD,
           ground_height=self.GROUND_TOP,
+          start_x=Image.basic_size().width*5,
         )
 
       elif level.stage in [
@@ -119,6 +120,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.GRASS,
           ground_height=self.GROUND_TOP,
+          start_x=config.window_size.width/2+Image.basic_size().width/2,
         )
 
       elif level.stage in [
@@ -135,6 +137,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.CLAY,
           ground_height=self.GROUND_TOP,
+          start_x=Image.basic_size().width*5,
         )
 
       elif level.stage in [
@@ -164,6 +167,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.WOOD,
           ground_height=self.GROUND_TOP,
+          start_x=config.window_size.width/2+Image.basic_size().width/2,
         )
 
     return field
@@ -349,21 +353,21 @@ class GameDesign:
         GameLevelStage.STAGE_6,
       ]:
         if level.stage == GameLevelStage.STAGE_4:
-          spin_distance = 1
-        elif level.stage == GameLevelStage.STAGE_5:
           spin_distance = 2
+        elif level.stage == GameLevelStage.STAGE_5:
+          spin_distance = 3
         elif level.stage == GameLevelStage.STAGE_6:
           latest_spin_distances = 0.0
           if len(self.prev_params) > 1:
             for param in self.prev_params[-2:]:
               latest_spin_distances += param.spin_distance
 
-          if latest_spin_distances <= 2:
+          if latest_spin_distances <= 4:
+            spin_distance = 3
+          elif latest_spin_distances >= 6:
             spin_distance = 2
-          elif latest_spin_distances >= 4:
-            spin_distance = 1
           else:
-            spin_distance = Dice.spin(1)+1
+            spin_distance = Dice.spin(2)+1
 
         ball = Ball(
             name='bounce_ball',
@@ -759,7 +763,7 @@ class GameDesign:
 
     return limit_msec
 
-  def stage_clear_point_bonus(self, level: GameLevel, jumper: Jumper) -> int:
+  def bonus_point(self, level: GameLevel, jumper: Jumper) -> int:
     point = 0
 
     if level.mode == GameLevelMode.NORMAL:

@@ -34,8 +34,6 @@ SCORE: dict[int, str] = {
   GameLevelMode.HARD: 'score_title_2',
 }
 
-JUMPER_START_X = Image.basic_size().width*5
-
 SCORE_RANKING_NUM = 3
 
 BGM_FOLDER = 'bgm'
@@ -52,6 +50,7 @@ class SceneSound:
   START = SoundId.SCENE+7
   RECOVER_LIFE = SoundId.SCENE+8
   TITLE = SoundId.SCENE+9
+  POINT = SoundId.SCENE+10
 
 TITLE_BGM: dict[int, str] = {
   GameLevelMode.NORMAL: 'title1',
@@ -172,7 +171,7 @@ class BaseScene(Scene[Snapshot]):
     )
 
   def jumper_start_x(self) -> float:
-    return self.snapshot.field.right-JUMPER_START_X
+    return self.snapshot.field.right-self.snapshot.field.start_x
 
   def text(self, string: str) -> Text:
     return Text(
@@ -764,11 +763,13 @@ class PlayScene(BaseStageScene):
           if ball.left >= self.snapshot.field.right:
             print('ball over left', ball.id, ball.left, self.snapshot.field.right)
             self.point += ball.point
+            self.snapshot.music_box.play_se(SceneSound.POINT)
             continue
         else:
           if ball.right <= self.snapshot.field.left:
             print('ball over right', ball.id, ball.right, self.snapshot.field.left)
             self.point += ball.point
+            self.snapshot.music_box.play_se(SceneSound.POINT)
             continue
 
         next_balls.append(ball)
@@ -787,6 +788,7 @@ class PlayScene(BaseStageScene):
               if attack:
                 ball.burst()
                 self.point += ball.point
+                self.snapshot.music_box.play_se(SceneSound.POINT)
               else:
                 ball.through()
                 self.snapshot.jumper.damage()
@@ -795,6 +797,7 @@ class PlayScene(BaseStageScene):
             if ball.bounced:
               print('ball bounced', ball.id)
               self.point += ball.point
+              self.snapshot.music_box.play_se(SceneSound.POINT)
 
       self.snapshot.balls = next_balls
 
@@ -950,6 +953,10 @@ class StageClearScene(BaseStageScene):
       ball.stop()
     self.snapshot.jumper.stop()
 
+    self.point_bonus = self.snapshot.design.bonus_point(
+      self.snapshot.level,
+      self.snapshot.jumper,
+    )
     self.next_level: GameLevel | None = self.snapshot.level
     self.same_surface = False
 
@@ -960,29 +967,40 @@ class StageClearScene(BaseStageScene):
     def _wait_jumper(start: bool, timer: Timer) -> bool:
       if not self.snapshot.jumper.jumping(None):
         self.snapshot.jumper.stop()
-
-        self.point += self.snapshot.design.stage_clear_point_bonus(
-          self.snapshot.level,
-          self.snapshot.jumper,
-        )
-
-        self.record_score()
-        self.snapshot.save(self.config.path)
-
-        self.next_level = self.to_next_level(self.snapshot.level)
-        if self.next_level is not None:
-          if self.next_level.mode != self.snapshot.level.mode:
-            self.next_level = None
-          else:
-            if self.snapshot.field.surface == self.snapshot.design.field(self.next_level, self.config).surface:
-              self.same_surface = True
         return True
-
       return False
 
     def _show_clear(start: bool, timer: Timer) -> bool:
       self.show_clear = True
       self.snapshot.music_box.play_se(SceneSound.STAGE_CLEAR)
+      return True
+
+    def _add_point_bonus(start: bool, timer: Timer) -> bool:
+      if start:
+        if self.point_bonus > 0:
+          timer.limit_msec = 3000
+          timer.reset()
+          return False
+      else:
+        if self.point_bonus > 0:
+          self.point += self.point_bonus
+          self.snapshot.music_box.play_se(SceneSound.POINT)
+          self.point_bonus = 0
+          timer.limit_msec = 500
+          timer.reset()
+          return False
+
+      self.record_score()
+      self.snapshot.save(self.config.path)
+
+      self.next_level = self.to_next_level(self.snapshot.level)
+      if self.next_level is not None:
+        if self.next_level.mode != self.snapshot.level.mode:
+          self.next_level = None
+        else:
+          if self.snapshot.field.surface == self.snapshot.design.field(self.next_level, self.config).surface:
+            self.same_surface = True
+
       return True
 
     def _show_next(start: bool, timer: Timer) -> bool:
@@ -1004,6 +1022,7 @@ class StageClearScene(BaseStageScene):
     self.time_seq = TimeSeq([
       Seq(self.stopwatch, 0, _wait_jumper, None),
       Seq(self.stopwatch, 1000, _show_clear, None),
+      Seq(self.stopwatch, 0, _add_point_bonus, None),
       Seq(self.stopwatch, 2000, _show_next, None),
     ])
 

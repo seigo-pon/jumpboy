@@ -72,6 +72,7 @@ class Field(BaseField):
     max_size: Size,
     surface: int,
     ground_height: float,
+    start_x: float,
   ) -> None:
     super().__init__(
       name=name,
@@ -82,6 +83,7 @@ class Field(BaseField):
 
     self.surface = surface
     self.ground_height = ground_height
+    self.start_x = start_x
 
   @property
   def left(self) -> float:
