@@ -80,5 +80,8 @@ pyxel app2html jumpboy.pyxapp
 1. タイムアップまでボールを避け続ければステージクリアです。がんばって全てのステージクリアを目指しましょう。  
 ![stage clear](./images/stage_clear.png)
 
+## Game link
+[Play game](https://kitao.github.io/pyxel/wasm/launcher/?play=seigo-pon.jumpboy.jumpboy)
+
 ## License
 - GNU General Public License (GPL)
