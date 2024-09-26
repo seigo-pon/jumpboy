@@ -75,7 +75,11 @@ class Timer:
     msec = 0
     if self.first_frame is not None:
       msec = self.stopwatch.msec-self.stopwatch.msec_from_frame(self.first_frame)
-    return msec+self.offset_msec
+    msec += self.offset_msec
+    if self.limit_msec is not None:
+      if msec > self.limit_msec:
+        msec = self.limit_msec
+    return msec
 
   @property
   def sec(self) -> int:

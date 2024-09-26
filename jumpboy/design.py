@@ -90,7 +90,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.ROAD,
           ground_height=self.GROUND_TOP,
-          start_x=Image.basic_size().width*5,
+          start_x=config.window_size.width-Image.basic_size().width*5,
         )
 
       elif level.stage in [
@@ -120,7 +120,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.GRASS,
           ground_height=self.GROUND_TOP,
-          start_x=config.window_size.width/2+Image.basic_size().width/2,
+          start_x=config.window_size.width/2-Image.basic_size().width/2,
         )
 
       elif level.stage in [
@@ -137,7 +137,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.CLAY,
           ground_height=self.GROUND_TOP,
-          start_x=Image.basic_size().width*5,
+          start_x=config.window_size.width-Image.basic_size().width*5,
         )
 
       elif level.stage in [
@@ -167,7 +167,7 @@ class GameDesign:
           max_size=config.window_size,
           surface=self.FieldSurface.WOOD,
           ground_height=self.GROUND_TOP,
-          start_x=config.window_size.width/2+Image.basic_size().width/2,
+          start_x=config.window_size.width/2-Image.basic_size().width/2,
         )
 
     return field
@@ -588,7 +588,7 @@ class GameDesign:
           GameLevelStage.STAGE_4,
         ]:
           if len(balls) < 2:
-            msec = 3000
+            msec = 1000
           else:
             msec = None
 
@@ -596,7 +596,7 @@ class GameDesign:
           GameLevelStage.STAGE_5,
         ]:
           if len(balls) < 2:
-            msec = 2000
+            msec = 1000
           else:
             msec = None
 
@@ -616,7 +616,7 @@ class GameDesign:
         elif level.stage in [
           GameLevelStage.STAGE_8,
         ]:
-          msec = 2000
+          msec = 1000
 
         elif level.stage in [
           GameLevelStage.STAGE_9,
@@ -627,7 +627,7 @@ class GameDesign:
           GameLevelStage.STAGE_10,
         ]:
           if len(balls) < 3:
-            msec = 2000
+            msec = 1000
           else:
             msec = None
 
@@ -635,7 +635,7 @@ class GameDesign:
           GameLevelStage.STAGE_11,
         ]:
           if len(balls) < 3:
-            msec = 2000
+            msec = 1000
           else:
             msec = None
 
@@ -678,34 +678,34 @@ class GameDesign:
           GameLevelStage.STAGE_4,
           GameLevelStage.STAGE_5,
         ]:
-          distance = field.max_size.width/2
+          distance = field.max_size.width/3
 
         elif level.stage in [
           GameLevelStage.STAGE_6,
         ]:
-          distance = field.max_size.width/3
+          distance = field.max_size.width/4
 
         elif level.stage in [
           GameLevelStage.STAGE_7,
           GameLevelStage.STAGE_8,
         ]:
-          distance = field.max_size.width/2
+          distance = field.max_size.width/3
 
         elif level.stage in [
           GameLevelStage.STAGE_9,
         ]:
-          distance = field.max_size.width/3
+          distance = field.max_size.width/4
 
         elif level.stage in [
           GameLevelStage.STAGE_10,
           GameLevelStage.STAGE_11,
         ]:
-          distance = field.max_size.width/3
+          distance = field.max_size.width/4
 
         elif level.stage in [
           GameLevelStage.STAGE_12,
         ]:
-          distance = 0
+          distance = field.max_size.width/5
 
       if last_ball.left < distance:
         spin = False
@@ -763,22 +763,22 @@ class GameDesign:
 
     return limit_msec
 
-  def bonus_point(self, level: GameLevel, jumper: Jumper) -> int:
-    point = 0
+  def bonus_point(self, level: GameLevel, jumper: Jumper, point: int) -> int:
+    bonus_point = 0
 
     if level.mode == GameLevelMode.NORMAL:
       if jumper.life == jumper.param.max_life:
-        point = jumper.life
+        bonus_point = math.floor(point*0.5)
       elif jumper.life == jumper.param.max_life - 1:
-        point = math.floor(jumper.life*0.5)
+        bonus_point = math.floor(point*0.2)
 
     elif level.mode == GameLevelMode.HARD:
       if jumper.life == jumper.param.max_life:
-        point = jumper.life*2
+        bonus_point = point
       elif jumper.life == jumper.param.max_life - 1:
-        point = math.floor(jumper.life*1.5)
+        bonus_point = math.floor(point*0.5)
 
-    return point
+    return bonus_point
 
   def recovery_life_count(self, level: GameLevel) -> int:
     if level.mode == GameLevelMode.NORMAL:

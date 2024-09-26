@@ -170,9 +170,6 @@ class BaseScene(Scene[Snapshot]):
       self.snapshot.field.bottom-jumper.size.height,
     )
 
-  def jumper_start_x(self) -> float:
-    return self.snapshot.field.right-self.snapshot.field.start_x
-
   def text(self, string: str) -> Text:
     return Text(
       typewriter=self.typewriter,
@@ -310,7 +307,7 @@ class OpeningScene(BaseScene):
 
     def _walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
-        self.snapshot.jumper.walk(self.jumper_start_x())
+        self.snapshot.jumper.walk(self.snapshot.field.start_x)
       else:
         if not self.snapshot.jumper.walking:
           return True
@@ -397,7 +394,7 @@ class TitleScene(BaseScene):
     self.snapshot.music_box.play_raw_bgm(TITLE_BGM[self.snapshot.level.mode])
 
     def _walk_jumper(start: bool, timer: Timer) -> bool:
-      self.snapshot.jumper.walk(self.jumper_start_x())
+      self.snapshot.jumper.walk(self.snapshot.field.start_x)
       return True
 
     def _escape_jumper(start: bool, timer: Timer) -> bool:
@@ -641,7 +638,7 @@ class ReadyScene(BaseStageScene):
 
     def _walk_jumper(start: bool, timer: Timer) -> bool:
       if start:
-        self.snapshot.jumper.walk(self.jumper_start_x())
+        self.snapshot.jumper.walk(self.snapshot.field.start_x)
       else:
         if not self.snapshot.jumper.walking:
           return True
@@ -763,13 +760,11 @@ class PlayScene(BaseStageScene):
           if ball.left >= self.snapshot.field.right:
             print('ball over left', ball.id, ball.left, self.snapshot.field.right)
             self.point += ball.point
-            self.snapshot.music_box.play_se(SceneSound.POINT)
             continue
         else:
           if ball.right <= self.snapshot.field.left:
             print('ball over right', ball.id, ball.right, self.snapshot.field.left)
             self.point += ball.point
-            self.snapshot.music_box.play_se(SceneSound.POINT)
             continue
 
         next_balls.append(ball)
@@ -788,7 +783,6 @@ class PlayScene(BaseStageScene):
               if attack:
                 ball.burst()
                 self.point += ball.point
-                self.snapshot.music_box.play_se(SceneSound.POINT)
               else:
                 ball.through()
                 self.snapshot.jumper.damage()
@@ -797,7 +791,6 @@ class PlayScene(BaseStageScene):
             if ball.bounced:
               print('ball bounced', ball.id)
               self.point += ball.point
-              self.snapshot.music_box.play_se(SceneSound.POINT)
 
       self.snapshot.balls = next_balls
 
@@ -956,6 +949,7 @@ class StageClearScene(BaseStageScene):
     self.point_bonus = self.snapshot.design.bonus_point(
       self.snapshot.level,
       self.snapshot.jumper,
+      self.point,
     )
     self.next_level: GameLevel | None = self.snapshot.level
     self.same_surface = False
@@ -990,7 +984,6 @@ class StageClearScene(BaseStageScene):
           timer.reset()
           return False
 
-      self.record_score()
       self.snapshot.save(self.config.path)
 
       self.next_level = self.to_next_level(self.snapshot.level)
@@ -1035,7 +1028,10 @@ class StageClearScene(BaseStageScene):
 
       self.initial_sprites(False)
       if self.same_surface:
-        self.snapshot.jumper.origin = Coordinate(self.jumper_start_x(), self.snapshot.jumper.origin.y)
+        self.snapshot.jumper.origin = Coordinate(
+          self.snapshot.field.start_x,
+          self.snapshot.jumper.origin.y,
+        )
 
       self.snapshot.save(self.config.path)
       return ReadyScene(self, self.point, None)
